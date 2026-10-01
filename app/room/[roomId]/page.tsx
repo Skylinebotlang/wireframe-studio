@@ -24,7 +24,9 @@ export default function RoomPage() {
   const [identity, setIdentity] = useState<UserIdentity | null | false>(null);
 
   useEffect(() => {
-    setIdentity(loadIdentity());
+    // loadIdentity() returns null when this browser has no saved identity.
+    // We convert that to `false` so `null` keeps meaning "still checking".
+    setIdentity(loadIdentity() ?? false);
   }, []);
 
   // Still deciding whether to show the join screen…
@@ -50,7 +52,7 @@ export default function RoomPage() {
 
   // We know who this is: connect and draw.
   return (
-    <Room roomId={roomId} identity={identity}>
+    <Room roomId={roomId}>
       <TldrawApp identity={identity} />
       {/* A small, fixed room label so you always know where you are. */}
       <div className="pointer-events-none fixed bottom-3 left-3 z-50 rounded-md border border-line bg-paper/90 px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest text-muted backdrop-blur">

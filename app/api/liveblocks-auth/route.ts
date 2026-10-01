@@ -54,21 +54,46 @@ export async function POST(request: Request) {
     );
   }
 
-  // 3. Ask Liveblocks for a signed token for this user.
+  // 3. Ask Liveblocks for a signed token that grants access to THIS room.
   try {
-    // In @liveblocks/node v3, the constructor takes an options object and
-    // identifyUser takes the user id as a plain string.
     const liveblocks = new Liveblocks({ secret: secretKey });
-    const { status, body: token } = await liveblocks.identifyUser(
-      identity.id,
-      {
-        userInfo: {
-          name: identity.name,
-          role: identity.role ?? "PM",
-          color: identity.color,
-        },
+
+    // prepareSession creates a session for this user, carrying their
+    // public info (name/role/color). session.allow() grants them access
+    // to the room they asked for — required, otherwise Liveblocks
+    // rejects the connection with "You have no access to this room".
+    // (For the prototype, everyone gets full access to every room;
+    // tighter permissions can come later with a login system.)
+    const session = liveblocks.prepareSession(identity.id, {
+      userInfo: {
+        name: identity.name,
+        role: identity.role ?? "PM",
+        color: identity.color,
+      },
+    });
+    session.allow(room, session.FULL_ACCESS);
+
+    // Also make sure the ROOM itself allows everyone to write.
+    // Newer Liveblocks projects have "Access Control" enabled, which makes
+    // the room's own access rules win over the token permissions above.
+    // This creates the room (with open write access) on first use and
+    // patches older rooms that were created without it.
+    try {
+      const roomData = await liveblocks.getOrCreateRoom(room, {
+        defaultAccesses: ["room:write"],
+      });
+      if (!roomData.defaultAccesses?.length) {
+        await liveblocks.updateRoom(room, {
+          defaultAccesses: ["room:write"],
+        });
       }
-    );
+    } catch (roomErr) {
+      // Non-fatal: if the project doesn't use Access Control, the token
+      // permission above is already enough.
+      console.error("Room access setup failed (non-fatal):", roomErr);
+    }
+
+    const { status, body: token } = await session.authorize();
 
     if (status !== 200 || !token) {
       console.error("Liveblocks auth failed with status", status);

@@ -18,36 +18,20 @@ import {
   LiveblocksProvider,
   RoomProvider,
 } from "@liveblocks/react/suspense";
-import type { UserIdentity } from "@/lib/user";
 
 type RoomProps = {
   roomId: string;
-  identity: UserIdentity; // who is joining (from the identity screen)
   children: ReactNode;
 };
 
-export function Room({ roomId, identity, children }: RoomProps) {
+export function Room({ roomId, children }: RoomProps) {
   return (
     <LiveblocksProvider
-      // When joining, Liveblocks calls our server endpoint, which signs a
-      // token using the SECRET key. That's how everyone learns your name,
-      // role and color (set on the identity screen).
-      // (With a custom auth endpoint, no public key is needed in the browser.)
-      authEndpoint={async (): Promise<{ token: string }> => {
-        const response = await fetch("/api/liveblocks-auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ room: roomId, identity }),
-        });
-        if (!response.ok) {
-          // Surface the server's plain-language error to the user.
-          const data = await response
-            .json()
-            .catch(() => ({ error: "Authentication failed." }));
-          throw new Error(data.error ?? "Authentication failed.");
-        }
-        return await response.json();
-      }}
+      // The public key identifies your project to Liveblocks' servers.
+      // It is safe to load in browsers (that's its job) — it cannot grant
+      // admin access. Everyone joining gets their name/role/color from the
+      // identity screen, stored in their own browser.
+      publicApiKey={process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY ?? ""}
     >
       <RoomProvider
         id={roomId}

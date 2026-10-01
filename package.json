@@ -1,0 +1,33 @@
+{
+  "name": "canvas-team",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@liveblocks/client": "^3.24.2",
+    "@liveblocks/node": "^3.24.2",
+    "@liveblocks/react": "^3.24.2",
+    "@liveblocks/yjs": "^3.24.2",
+    "next": "16.3.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tldraw": "^5.5.0",
+    "y-utility": "^0.1.4",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.8",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

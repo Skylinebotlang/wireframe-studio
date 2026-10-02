@@ -40,7 +40,7 @@ export function IdentityGate({
 
   return (
     <div className="dot-grid flex h-screen w-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl border border-line bg-paper p-6 shadow-sm">
+      <div className="glass pop-in w-full max-w-sm rounded-xl p-6">
         <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
           Joining room
         </p>

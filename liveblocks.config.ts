@@ -30,6 +30,11 @@ declare global {
       };
     };
 
+    // One-off messages broadcast to everyone in the room (not saved).
+    // "agent-status" tells every window to show/hide the agent's scanning
+    // laser, and who started it.
+    RoomEvent: { type: "agent-status"; busy: boolean; by: string };
+
     // Room IDs are free-form strings like "demo" or "design-sprint-12".
     RoomMetadata: Record<string, never>;
   }

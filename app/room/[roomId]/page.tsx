@@ -55,7 +55,7 @@ export default function RoomPage() {
     <Room roomId={roomId}>
       <TldrawApp identity={identity} />
       {/* A small, fixed room label so you always know where you are. */}
-      <div className="pointer-events-none fixed bottom-3 left-3 z-50 rounded-md border border-line bg-paper/90 px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest text-muted backdrop-blur">
+      <div className="glass pointer-events-none fixed bottom-3 left-3 z-50 rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest text-muted backdrop-blur">
         Room: {roomId} ·{" "}
         <Link href="/" className="pointer-events-auto underline hover:text-ink">
           home

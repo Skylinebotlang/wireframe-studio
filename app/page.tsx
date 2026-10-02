@@ -26,7 +26,7 @@ export default function HomePage() {
 
   return (
     <main className="dot-grid flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border border-line bg-paper p-8 shadow-sm">
+      <div className="glass pop-in w-full max-w-md rounded-xl p-8">
         <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
           Multiplayer AI workspace
         </p>

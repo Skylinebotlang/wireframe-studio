@@ -1,24 +1,30 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TLDRAW APP — the whiteboard, now with our custom Prompt Note shape.
+// TLDRAW APP — the whiteboard, with our custom Prompt Note shape.
 //
 // The flow:
 //   1. useYjsStore builds the synced tldraw store (the bridge to Liveblocks).
 //   2. We pass our PromptNoteShapeUtil into that store so tldraw knows about
-//      the new shape — this is what makes the "Prompt note" tool appear in
-//      the toolbar and the "+" insert menu.
-//   3. On top of the canvas we render a small panel with the "Send to agent"
-//      button. It reads every prompt-note shape from the store and collects
-//      them into a payload. (Milestone 3 will POST that payload to Claude.)
+//      the new shape.
+//   3. On top of the canvas we render a small glass panel with the
+//      "Send to agent" button. It collects every note on the board.
+//   4. While the agent works, an orange scanning laser sweeps the canvas in
+//      EVERY window in the room (shared via a Liveblocks broadcast).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useMemo, useCallback, useEffect, useState } from "react";
-import { Tldraw } from "tldraw";
+import { Editor, Tldraw } from "tldraw";
 import "tldraw/tldraw.css";
+import { useBroadcastEvent, useEventListener } from "@liveblocks/react/suspense";
 import { useYjsStore } from "./useYjsStore";
 import { PromptNoteShapeUtil } from "@/lib/prompt-note";
+import { useTilt } from "@/lib/tilt";
 import type { UserIdentity } from "@/lib/user";
+
+// How long the preview scan runs. Milestone 3 replaces this with the real
+// agent call: busy = true when the request starts, false when it finishes.
+const PREVIEW_SCAN_MS = 3500;
 
 export function TldrawApp({ identity }: { identity: UserIdentity }) {
   // Memoize so the bridge only restarts when the identity actually changes.
@@ -27,164 +33,112 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     [identity.id, identity.color, identity.name]
   );
 
-  // The synced store, now with our custom shape util included.
+  // The synced store, with our custom shape util included.
   const store = useYjsStore({
     shapeUtils: [PromptNoteShapeUtil],
     user,
   });
 
   // The editor instance, once tldraw has mounted.
-  const [editor, setEditor] = useState<any>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
+
+  // Toolbar buttons and our panel lean toward the pointer (see lib/tilt.ts).
+  useTilt();
 
   // Expose the editor globally so Milestone 3 (wireframe drawing) and any
   // future tool can grab it without another mount callback.
   useEffect(() => {
-    if (editor) {
-      (window as any).__tldrawEditor = editor;
-    }
+    if (editor) (window as unknown as { __tldrawEditor: Editor }).__tldrawEditor = editor;
   }, [editor]);
 
-  // ── "Send to agent" — collect every prompt note on the board ────────────
-  //
-  // What it does today (Milestone 2): gather every shape whose type is
-  // "prompt-note", read each one's author + role + body text, and hand the
-  // list off to a small onSend handler. Right now that handler just logs and
-  // shows a friendly confirmation — Milestone 3 replaces it with a real call
-  // to our /api/agent route.
-  //
-  // Why we read directly from the store (not tldraw's editor.findShapes):
-  // the store is the source of truth that's already synced via Liveblocks,
-  // so we always get the latest set including other people's notes.
+  // ── Agent status, shared with everyone in the room ──────────────────────
+  // We set it locally AND broadcast it, so every window shows the laser.
+  // (Someone who joins mid-run won't see it until the next run; Milestone 4's
+  // agent panel will keep this in shared storage instead.)
+  const [agent, setAgent] = useState({ busy: false, by: "" });
+  const broadcast = useBroadcastEvent();
+  useEventListener(({ event }) => {
+    if (event.type === "agent-status") setAgent({ busy: event.busy, by: event.by });
+  });
+  const setAgentStatus = useCallback(
+    (busy: boolean) => {
+      const status = { busy, by: identity.name };
+      setAgent(status);
+      broadcast({ type: "agent-status", ...status });
+    },
+    [broadcast, identity.name]
+  );
 
+  // ── "Send to agent" — collect every note on the board ───────────────────
+  // We read both our Prompt notes and tldraw's regular sticky notes, since
+  // the regular note tool (press N) is what people can drop today.
   const handleSendToAgent = useCallback(() => {
-    if (!store) return;
+    if (!editor || agent.busy) return;
 
-    // Collect every prompt-note shape currently on the board.
-    const notes: Array<{
-      id: string;
-      authorName: string;
-      authorRole: string;
-      noteText: string;
-    }> = [];
-
-    // Iterate every record in the store; keep the ones that are our note type.
-    // `store` is a TLStoreWithStatus — the real TLStore lives on `.store`.
-    // (The type doesn't expose allRecords() publicly, but it's there at runtime.)
-    const realStore = (store as any).store ?? store;
-    for (const record of realStore.allRecords()) {
-      if (record.type === "prompt-note") {
-        const props = (record as any).props as PromptNoteProps;
-        const bodyText = props.richText?.characters || "";
-        if (bodyText.trim()) {
-          notes.push({
-            id: record.id,
-            authorName: props.authorName || "unknown",
-            authorRole: props.authorRole || "PM",
-            noteText: bodyText.trim(),
-          });
-        }
-      }
-    }
+    const notes = editor
+      .getCurrentPageShapes()
+      .filter((s) => s.type === "prompt-note" || s.type === "note")
+      .map((s) => {
+        const props = s.props as { authorName?: string; authorRole?: string };
+        return {
+          id: s.id,
+          authorName: props.authorName || "unknown",
+          authorRole: props.authorRole || "unknown",
+          noteText: (editor.getShapeUtil(s).getText(s) ?? "").trim(),
+        };
+      })
+      .filter((n) => n.noteText);
 
     if (notes.length === 0) {
-      // Friendly nudge: there are no notes yet.
-      alert("No prompt notes on the board yet. Drop a Prompt note first!");
+      alert("No notes on the board yet. Drop a note (press N) and type a prompt first!");
       return;
     }
 
-    // For now: log the payload and confirm to the user.
     // Milestone 3 replaces this block with a POST to /api/agent.
-    console.log("Send to agent — prompt note payload:", JSON.stringify(notes, null, 2));
-    alert(
-      `Found ${notes.length} prompt note${notes.length === 1 ? "" : "s"} on the board.\n\n` +
-      "That payload is ready to send to the agent — Milestone 3 will wire it up."
-    );
-  }, [store]);
+    console.log("Send to agent — note payload:", JSON.stringify(notes, null, 2));
+    setAgentStatus(true);
+    setTimeout(() => setAgentStatus(false), PREVIEW_SCAN_MS);
+  }, [editor, agent.busy, setAgentStatus]);
 
   return (
     <div className="relative h-screen w-screen">
-      {/* The canvas. We hand it our synced store (with the custom shape util
-          included) instead of letting tldraw create its own local one — that's
-          the whole multiplayer trick. */}
-      <Tldraw
-        store={store}
-        onMount={(editor) => setEditor(editor)}
-        autoFocus
-      />
+      {/* The canvas. We hand it our synced store instead of letting tldraw
+          create its own local one — that's the whole multiplayer trick. */}
+      <Tldraw store={store} onMount={setEditor} autoFocus />
 
-      {/* ── Our floating action panel (outside tldraw's chrome) ────────────
-          
-          This sits in the bottom-left, above the room label, so it's clearly
-          ours and always visible. We style it in our design language
-          (white surface, hairline border, mono label, blue accent accent).
-          
-          It only appears once the store is ready and there's an editor.
-      */}
-      {store && (
-        <div
-          className="pointer-events-auto absolute bottom-16 left-3 z-50 rounded-lg border border-line bg-paper/95 py-2 px-3 shadow-sm backdrop-blur"
-          style={{
-            fontFamily: "var(--font-ibm-plex-mono)",
-          }}
-        >
-          {/* Label — mono, uppercase, muted (our technical-look labels). */}
-          <div
-            className="mb-1.5 text-[10px] uppercase tracking-widest text-muted"
-            style={{ letterSpacing: "0.08em" }}
-          >
-            Agent panel — Milestone 2
+      {/* Orange scanning laser + status pill while the agent works. */}
+      {agent.busy && (
+        <>
+          <div className="agent-scan" />
+          <div className="pop-in pointer-events-none absolute left-1/2 top-14 z-50 -translate-x-1/2 rounded-full border border-agent/40 bg-paper/80 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-agent backdrop-blur">
+            <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-agent align-middle" />
+            Agent is reading the board · started by {agent.by}
           </div>
-
-          {/* The button — blue accent for the action (it's human-initiated).
-              Orange is reserved for the agent itself and only appears in
-              Milestone 3+ when the agent is actually running. */}
-          <button
-            onClick={handleSendToAgent}
-            className="w-full rounded-md bg-accent py-1.5 font-medium text-white text-xs transition-colors hover:bg-black"
-            style={{ fontFamily: "var(--font-ibm-plex-sans)" }}
-            disabled={!editor}
-          >
-            Send to agent
-          </button>
-
-          {/* A tiny hint line so it's clear what this does. */}
-          <div
-            className="mt-1 text-[10px] text-muted"
-            style={{
-              fontFamily: "var(--font-ibm-plex-mono)",
-              letterSpacing: "0.02em",
-            }}
-          >
-            Collects every Prompt note on the board
-          </div>
-        </div>
+        </>
       )}
 
-      {/* Room label (existing) — keep it on top so it's always readable. */}
-      <div
-        className="pointer-events-none fixed bottom-3 left-3 z-50 rounded-md border border-line bg-paper/90 px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest text-muted backdrop-blur"
-      >
-        Room:
-        <span className="ml-1">{identity ? identity.name : "…"}</span>
-        · <a
-          href="/"
-          className="pointer-events-auto underline hover:text-ink"
-          onClick={(e) => {
-            e.preventDefault();
-            window.location.href = "/";
-          }}
+      {/* ── Our floating action panel (outside tldraw's chrome) ────────────
+          Glass surface, springs in on load, tilts toward the pointer. */}
+      <div className="glass pop-in tilt pointer-events-auto absolute bottom-16 left-3 z-50 rounded-lg px-3 py-2">
+        <div className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-muted">
+          Agent
+        </div>
+
+        {/* Blue = a human action. Orange appears only while the agent works. */}
+        <button
+          onClick={handleSendToAgent}
+          disabled={!editor || agent.busy}
+          className={`w-full rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors ${
+            agent.busy ? "bg-agent" : "bg-accent hover:bg-ink"
+          }`}
         >
-          home
-        </a>
+          {agent.busy ? "Agent working…" : "Send to agent"}
+        </button>
+
+        <div className="mt-1 font-mono text-[10px] text-muted">
+          Collects every note on the board
+        </div>
       </div>
     </div>
   );
 }
-
-// The shape of a prompt note's custom fields, for the collector above.
-interface PromptNoteProps {
-  authorName: string;
-  authorRole: string;
-  richText?: { type: string; characters?: string } | null;
-}
-

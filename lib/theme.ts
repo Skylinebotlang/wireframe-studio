@@ -2,34 +2,38 @@
 // THEME — the single place where our design tokens live.
 // If you want to change a color, change it HERE and it updates everywhere.
 //
-// Design direction — CYBERPUNK (night city, neon):
-//   • Night-black surfaces, light text
-//   • CYAN   = humans (cursors, avatars, accents)
-//   • ORANGE = the AI agent ONLY (its cursor, status, frames) — never use
-//     orange for anything human. This makes it obvious at a glance what the
-//     AI is doing versus people.
+// Design direction — the project palette (dark, cyberpunk feel):
+//   #090719 · #131224 · #191A2F  deep navies (background, panels, inputs)
+//   #F8F4F5                      soft white text
+//   #681E2E                      WINE = humans (buttons, note headers)
+//   ORANGE = the AI agent ONLY (its cursor, status, frames) — deliberately
+//     NOT in the palette, so it's obvious at a glance what the AI is doing
+//     versus people. Never use orange for anything human.
 // The same values live as CSS variables at the top of app/globals.css.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const THEME = {
-  ink: "#E6F1FF", // main text (light, on dark)
-  paper: "#0A0B14", // surfaces (night black)
-  muted: "#7D88A8", // secondary text
-  line: "#262B47", // hairline borders
-  blue: "#00E5FF", // the "people" accent (neon cyan)
+  ink: "#F8F4F5", // main text (soft white)
+  paper: "#090719", // background (deepest navy)
+  surface: "#131224", // panels and cards
+  raised: "#191A2F", // inputs, raised areas
+  muted: "#9E99A8", // secondary text
+  line: "#2B2A42", // hairline borders
+  blue: "#681E2E", // the "people" accent (wine) — name kept for old code
   agent: "#FF6B2C", // the agent accent (do NOT use for humans)
-  dots: "#00E5FF29", // canvas dotted background (dim cyan)
+  dots: "#F8F4F517", // canvas dotted background (faint soft white)
 } as const;
 
 // The palette humans can pick their cursor color from.
-// Neon hues that glow on black; NO orange or amber (reserved for the agent).
+// Wine is too dark to see as a cursor on navy, so these are bright tints
+// that sit well with the palette; NO orange or amber (reserved for the agent).
 export const PEOPLE_COLORS = [
-  "#00E5FF", // neon cyan (the primary accent)
-  "#FF2BD6", // hot pink
-  "#B6FF3B", // acid lime
-  "#9D7BFF", // ultraviolet
-  "#3D8BFF", // electric blue
-  "#F8F32B", // laser yellow (clearly lighter than agent orange)
+  "#E0607E", // rose (a bright tint of the wine accent)
+  "#F8F4F5", // soft white
+  "#B9A7FF", // lavender
+  "#6EE7C5", // mint
+  "#6CB8FF", // sky
+  "#F5E663", // lemon (clearly lighter than agent orange)
 ] as const;
 
 // Team roles shown on the identity screen (Milestone 2 prints them on notes).

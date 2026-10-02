@@ -53,7 +53,7 @@ export function IdentityGate({
           Your name
         </label>
         <input
-          className="mt-1.5 w-full rounded-md border border-line bg-paper px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent"
+          className="mt-1.5 w-full rounded-md border border-line bg-raised px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent"
           placeholder="e.g. Asha"
           value={name}
           maxLength={24}
@@ -76,8 +76,8 @@ export function IdentityGate({
               onClick={() => setRole(r)}
               className={`rounded-md border px-2 py-2 font-mono text-xs uppercase tracking-wide transition-colors ${
                 role === r
-                  ? "border-accent bg-accent text-paper"
-                  : "border-line bg-paper text-ink hover:border-muted"
+                  ? "border-accent bg-accent text-ink"
+                  : "border-line bg-raised text-ink hover:border-muted"
               }`}
             >
               {r}
@@ -109,7 +109,7 @@ export function IdentityGate({
 
         <button
           onClick={join}
-          className="mt-6 w-full rounded-md bg-accent py-2.5 font-medium text-paper shadow-[0_0_18px_-4px_var(--accent)] transition hover:brightness-110"
+          className="mt-6 w-full rounded-md bg-accent py-2.5 font-medium text-ink shadow-[0_0_18px_-4px_var(--accent-bright)] transition hover:brightness-110"
         >
           Enter the room →
         </button>

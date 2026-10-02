@@ -132,11 +132,11 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
           Agent
         </div>
 
-        {/* Cyan = a human action. Orange appears only while the agent works. */}
+        {/* Wine = a human action. Orange appears only while the agent works. */}
         <button
           onClick={handleSendToAgent}
           disabled={!editor || agent.busy}
-          className={`w-full rounded-md px-3 py-1.5 text-xs font-medium text-paper transition-colors ${
+          className={`w-full rounded-md px-3 py-1.5 text-xs font-medium text-ink transition-colors ${
             agent.busy ? "bg-agent" : "bg-accent hover:brightness-110"
           }`}
         >

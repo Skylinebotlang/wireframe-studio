@@ -205,16 +205,16 @@ export class PromptNoteShapeUtil extends ShapeUtil<TLPromptNoteShape> {
           style={{
             width: cardW,
             height: totalH,
-            background: "var(--paper)",
+            background: "var(--surface)",
             border: "1px solid var(--line)",
             borderTop: "none",
             boxShadow:
-              "0 0 18px -6px var(--accent)",
+              "0 0 18px -6px var(--accent-bright)",
             overflow: "hidden",
             fontFamily: "var(--font-ibm-plex-sans)",
           }}
         >
-          {/* Header strip — cyan = "people" per our design direction. */}
+          {/* Header strip — wine = "people" per our design direction. */}
           {authorName && authorRole && (
             <div
               style={{
@@ -224,7 +224,7 @@ export class PromptNoteShapeUtil extends ShapeUtil<TLPromptNoteShape> {
                 alignItems: "center",
                 padding: `${6 * scale}px ${10 * scale}px`,
                 gap: 6,
-                color: "var(--paper)",
+                color: "var(--ink)",
                 fontFamily: "var(--font-ibm-plex-mono)",
                 fontSize: `${10 * scale}px`,
                 letterSpacing: "0.06em",

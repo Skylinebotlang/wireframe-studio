@@ -62,6 +62,12 @@ export default function HomePage() {
           TIP — to test multiplayer: open this site in two browser windows,
           join the same room name, and watch the cursors.
         </p>
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          On the canvas: drop a <strong>Prompt note</strong> (toolbar → the yellow
+          note tool, or press <code className="font-mono text-[11px]">N</code>),
+          type your prompt, and everyone sees it live. Hit <strong>Send to agent</strong>
+          (bottom-left) to collect every note for the AI (Milestone 3).
+        </p>
       </div>
     </main>
   );

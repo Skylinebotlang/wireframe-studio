@@ -12,14 +12,27 @@
 
 @import "tailwindcss";
 
+/* Colors — keep in sync with lib/theme.ts.
+   CYBERPUNK: night-black surfaces, light text, neon CYAN for people,
+   and neon ORANGE still reserved for the agent ONLY, so it's always clear
+   what the AI is doing versus humans. */
+:root {
+  --ink: #e6f1ff; /* main text (light, on dark) */
+  --paper: #0a0b14; /* surfaces (night black) */
+  --muted: #7d88a8; /* secondary text */
+  --line: #262b47; /* hairline borders */
+  --accent: #00e5ff; /* neon cyan = people */
+  --agent: #ff6b2c; /* neon orange = the agent ONLY */
+  --neon-pink: #ff2bd6; /* decoration only (grid glow), never a status color */
+}
+
 @theme inline {
-  /* Colors — keep in sync with lib/theme.ts */
-  --color-ink: #16181d; /* near-black text */
-  --color-paper: #ffffff; /* white surfaces */
-  --color-muted: #8a9099; /* secondary text */
-  --color-line: #e4e7ec; /* hairline borders */
-  --color-accent: #2f6bff; /* blue = people */
-  --color-agent: #ff6b2c; /* orange = the agent ONLY */
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-agent: var(--agent);
 
   /* Fonts — wired to the next/font variables from app/layout.tsx */
   --font-heading: var(--font-space-grotesk), sans-serif;
@@ -33,32 +46,30 @@ body {
 }
 
 body {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Dotted canvas background — used on the home hero and the tldraw canvas. */
-.dot-grid {
-  background-color: #ffffff;
-  background-image: radial-gradient(circle, #e4e7ec 1.2px, transparent 1.2px);
-  background-size: 24px 24px;
+/* Neon glow for big headings. */
+.neon-text {
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.55), 0 0 32px rgba(0, 229, 255, 0.25);
 }
 
-/* tldraw draws its canvas background in a div called .tl-background.
-   We restyle it as white paper with our dot grid. (If tldraw ever renames
-   the class, this silently stops applying — no crash.) */
+/* Dotted canvas background — dim cyan dots on night black. Used on the home
+   page and the tldraw canvas. */
+.dot-grid,
 .tl-container .tl-background {
-  background-color: #ffffff !important;
-  background-image: radial-gradient(circle, #e4e7ec 1.2px, transparent 1.2px);
+  background-color: var(--paper) !important;
+  background-image: radial-gradient(circle, rgba(0, 229, 255, 0.16) 1.2px, transparent 1.2px);
   background-size: 24px 24px;
 }
 
-/* Thin, unobtrusive scrollbars for the technical look. */
+/* Thin, unobtrusive scrollbars. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d5d9e0 transparent;
+  scrollbar-color: #2c3352 transparent;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -66,7 +77,7 @@ body {
 
    Everything below is pure CSS. No animation library is needed: the browser
    already animates transforms, opacity and blur smoothly on the GPU.
-   Colors follow the rules above: blue/grey for people, ORANGE ONLY for agent.
+   Colors follow the rules above: cyan for people, ORANGE ONLY for the agent.
    ──────────────────────────────────────────────────────────────────────────── */
 
 /* "Springy" easing: overshoots a little, then settles, so it feels physical. */
@@ -76,8 +87,8 @@ body {
 }
 
 /* ── 1. Glass surfaces ──────────────────────────────────────────────────────
-   Frosted white: semi-transparent paper + background blur. Stays inside the
-   clean white theme, just with depth. Use the `glass` class on our own panels;
+   Frosted dark glass: semi-transparent night panel + background blur, edged
+   with a faint cyan glow. Use the `glass` class on our own panels;
    tldraw's menus and toolbars get the same look via its --color-panel variable. */
 .glass,
 .tlui-toolbar__tools,
@@ -90,13 +101,16 @@ body {
   backdrop-filter: blur(14px) saturate(160%);
 }
 .glass {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(228, 231, 236, 0.9);
-  box-shadow: 0 8px 30px rgba(22, 24, 29, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: rgba(14, 16, 32, 0.72);
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 10px 40px rgba(0, 0, 0, 0.5),
+    0 0 24px -8px rgba(0, 229, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
-.tl-container.tl-theme__light {
-  --color-panel: rgba(255, 255, 255, 0.72);
+/* tldraw runs in its dark mode (see TldrawApp); tint its panels to match. */
+.tl-container.tl-theme__dark {
+  --color-panel: rgba(14, 16, 32, 0.72);
+  --color-background: #0a0b14;
+  --color-selected: #00e5ff;
 }
 
 /* ── 2. Entrance / exit animations ──────────────────────────────────────────
@@ -159,8 +173,9 @@ body {
   right: -50%;
   top: 55%;
   height: 120%;
-  background-image: linear-gradient(to right, rgba(22, 24, 29, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(22, 24, 29, 0.07) 1px, transparent 1px);
+  background-image: linear-gradient(to right, rgba(255, 43, 214, 0.28) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 43, 214, 0.28) 1px, transparent 1px);
+  filter: drop-shadow(0 0 3px rgba(255, 43, 214, 0.6));
   background-size: 56px 56px;
   transform: perspective(380px) rotateX(64deg);
   transform-origin: top center;
@@ -182,7 +197,7 @@ body {
   will-change: transform;
 }
 .tl-collaborator__cursor .tl-nametag {
-  box-shadow: 0 4px 14px -4px rgba(22, 24, 29, 0.35);
+  box-shadow: 0 0 14px -2px currentColor;
   animation: glass-in 260ms var(--spring) both;
 }
 /* Shapes someone ELSE has selected get a pulsing halo in that person's
@@ -221,7 +236,7 @@ body {
   top: -140px;
   height: 140px;
   background: linear-gradient(to bottom, transparent, rgba(255, 107, 44, 0.08) 65%, rgba(255, 107, 44, 0.35));
-  border-bottom: 2px solid var(--color-agent);
+  border-bottom: 2px solid var(--agent);
   box-shadow: 0 6px 22px 0 rgba(255, 107, 44, 0.55);
   animation: agent-sweep 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }

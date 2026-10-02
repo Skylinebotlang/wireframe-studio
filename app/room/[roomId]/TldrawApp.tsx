@@ -104,7 +104,15 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     <div className="relative h-screen w-screen">
       {/* The canvas. We hand it our synced store instead of letting tldraw
           create its own local one — that's the whole multiplayer trick. */}
-      <Tldraw store={store} onMount={setEditor} autoFocus />
+      <Tldraw
+        store={store}
+        onMount={(ed) => {
+          // Cyberpunk theme: run tldraw in its dark mode.
+          ed.user.updateUserPreferences({ colorScheme: "dark" });
+          setEditor(ed);
+        }}
+        autoFocus
+      />
 
       {/* Orange scanning laser + status pill while the agent works. */}
       {agent.busy && (
@@ -124,12 +132,12 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
           Agent
         </div>
 
-        {/* Blue = a human action. Orange appears only while the agent works. */}
+        {/* Cyan = a human action. Orange appears only while the agent works. */}
         <button
           onClick={handleSendToAgent}
           disabled={!editor || agent.busy}
-          className={`w-full rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors ${
-            agent.busy ? "bg-agent" : "bg-accent hover:bg-ink"
+          className={`w-full rounded-md px-3 py-1.5 text-xs font-medium text-paper transition-colors ${
+            agent.busy ? "bg-agent" : "bg-accent hover:brightness-110"
           }`}
         >
           {agent.busy ? "Agent working…" : "Send to agent"}

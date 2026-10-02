@@ -125,7 +125,7 @@ export class PromptNoteShapeUtil extends ShapeUtil<TLPromptNoteShape> {
           height: totalH,
           isFilled: true,
         }),
-        // Header strip: tinted blue (the "people" accent).
+        // Header strip: tinted cyan (the "people" accent).
         new Rectangle2d({
           x: 0,
           y: 0,
@@ -205,26 +205,26 @@ export class PromptNoteShapeUtil extends ShapeUtil<TLPromptNoteShape> {
           style={{
             width: cardW,
             height: totalH,
-            background: "#ffffff",
-            border: "1px solid #e4e7ec",
+            background: "var(--paper)",
+            border: "1px solid var(--line)",
             borderTop: "none",
             boxShadow:
-              "0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.03)",
+              "0 0 18px -6px var(--accent)",
             overflow: "hidden",
             fontFamily: "var(--font-ibm-plex-sans)",
           }}
         >
-          {/* Header strip — blue = "people" per our design direction. */}
+          {/* Header strip — cyan = "people" per our design direction. */}
           {authorName && authorRole && (
             <div
               style={{
                 height: headerH,
-                background: "#2f6bff",
+                background: "var(--accent)",
                 display: "flex",
                 alignItems: "center",
                 padding: `${6 * scale}px ${10 * scale}px`,
                 gap: 6,
-                color: "#ffffff",
+                color: "var(--paper)",
                 fontFamily: "var(--font-ibm-plex-mono)",
                 fontSize: `${10 * scale}px`,
                 letterSpacing: "0.06em",
@@ -234,7 +234,7 @@ export class PromptNoteShapeUtil extends ShapeUtil<TLPromptNoteShape> {
               <span style={{ fontWeight: 500 }}>{authorName}</span>
               <span
                 style={{
-                  background: "rgba(255,255,255,0.18)",
+                  background: "rgba(0,0,0,0.18)",
                   borderRadius: 3,
                   padding: `${1 * scale}px ${5 * scale}px`,
                   fontSize: `${9 * scale}px`,
@@ -251,7 +251,7 @@ export class PromptNoteShapeUtil extends ShapeUtil<TLPromptNoteShape> {
             style={{
               padding: `${8 * scale}px ${10 * scale}px`,
               minHeight: bodyH - headerH,
-              color: "#16181d",
+              color: "var(--ink)",
               fontSize: `${13 * scale}px`,
               lineHeight: 1.5,
               outline: "none",
@@ -261,7 +261,7 @@ export class PromptNoteShapeUtil extends ShapeUtil<TLPromptNoteShape> {
             {isEmpty && (
               <span
                 style={{
-                  color: "#8a9099",
+                  color: "var(--muted)",
                   fontFamily: "var(--font-ibm-plex-mono)",
                   fontSize: `${10 * scale}px`,
                   letterSpacing: "0.04em",

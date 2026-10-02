@@ -30,7 +30,7 @@ export default function HomePage() {
         <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
           Multiplayer AI workspace
         </p>
-        <h1 className="mt-2 font-heading text-3xl font-semibold leading-tight text-ink">
+        <h1 className="mt-2 neon-text font-heading text-3xl font-semibold leading-tight text-ink">
           Wireframe Studio
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted">
@@ -40,7 +40,7 @@ export default function HomePage() {
 
         <div className="mt-6 flex gap-2">
           <input
-            className="w-full rounded-md border border-line bg-white px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent"
+            className="w-full rounded-md border border-line bg-paper px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent"
             placeholder="room name (try: demo)"
             value={room}
             onChange={(e) => {
@@ -51,7 +51,7 @@ export default function HomePage() {
           />
           <button
             onClick={openRoom}
-            className="shrink-0 rounded-md bg-ink px-4 py-2 font-medium text-white transition-colors hover:bg-black"
+            className="shrink-0 rounded-md bg-accent px-4 py-2 font-medium text-paper shadow-[0_0_18px_-4px_var(--accent)] transition hover:brightness-110"
           >
             Open room →
           </button>

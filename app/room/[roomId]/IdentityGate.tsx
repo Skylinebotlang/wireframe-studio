@@ -44,7 +44,7 @@ export function IdentityGate({
         <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
           Joining room
         </p>
-        <h1 className="mt-1 font-heading text-2xl font-semibold text-ink">
+        <h1 className="mt-1 neon-text font-heading text-2xl font-semibold text-ink">
           {roomId}
         </h1>
 
@@ -53,7 +53,7 @@ export function IdentityGate({
           Your name
         </label>
         <input
-          className="mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent"
+          className="mt-1.5 w-full rounded-md border border-line bg-paper px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent"
           placeholder="e.g. Asha"
           value={name}
           maxLength={24}
@@ -76,8 +76,8 @@ export function IdentityGate({
               onClick={() => setRole(r)}
               className={`rounded-md border px-2 py-2 font-mono text-xs uppercase tracking-wide transition-colors ${
                 role === r
-                  ? "border-accent bg-accent text-white"
-                  : "border-line bg-white text-ink hover:border-muted"
+                  ? "border-accent bg-accent text-paper"
+                  : "border-line bg-paper text-ink hover:border-muted"
               }`}
             >
               {r}
@@ -97,7 +97,7 @@ export function IdentityGate({
               onClick={() => setColorIndex(i)}
               className={`h-7 w-7 rounded-full transition-transform ${
                 colorIndex === i
-                  ? "ring-2 ring-ink ring-offset-2"
+                  ? "ring-2 ring-ink ring-offset-2 ring-offset-paper"
                   : "hover:scale-110"
               }`}
               style={{ backgroundColor: c }}
@@ -109,7 +109,7 @@ export function IdentityGate({
 
         <button
           onClick={join}
-          className="mt-6 w-full rounded-md bg-ink py-2.5 font-medium text-white transition-colors hover:bg-black"
+          className="mt-6 w-full rounded-md bg-accent py-2.5 font-medium text-paper shadow-[0_0_18px_-4px_var(--accent)] transition hover:brightness-110"
         >
           Enter the room →
         </button>

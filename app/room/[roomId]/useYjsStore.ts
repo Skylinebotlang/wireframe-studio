@@ -88,9 +88,18 @@ export function useYjsStore({
       // If the room already has shapes, load them into this browser.
       // If not, seed the room with this browser's fresh empty store.
       if (yStore.yarray.length) {
+        const records = yStore.yarray.toJSON().map(({ val }) => val);
+        const roomIds = new Set(records.map((r) => r.id));
         transact(() => {
-          store.clear();
-          const records = yStore.yarray.toJSON().map(({ val }) => val);
+          // Replace only the DOCUMENT records (shapes, pages). We must not
+          // wipe this browser's session records (current page, camera…):
+          // if the canvas is already on screen (e.g. after a hot reload),
+          // tldraw crashes with "reading 'currentPageId'" when they vanish.
+          const stale = store
+            .allRecords()
+            .filter((r) => store.scopedTypes.document.has(r.typeName) && !roomIds.has(r.id))
+            .map((r) => r.id);
+          store.remove(stale);
           store.put(records);
         });
       } else {

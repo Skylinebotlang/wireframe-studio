@@ -42,8 +42,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: browser extensions (Grammarly, password
+    // managers, dark-mode tools…) add attributes to <html>/<body> before React
+    // loads, which React reports as a "hydration mismatch". Safe to ignore
+    // here: it only covers these two tags, not the rest of the page.
+    <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${headingFont.variable} ${bodyFont.variable} ${labelFont.variable}`}
       >
         {children}

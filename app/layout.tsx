@@ -2,7 +2,8 @@
 // APP SHELL — loads the three fonts and wraps every page.
 //
 // Fonts (from the design direction):
-//   Bulzing        → headings (local file in app/fonts/, freeware,
+//   Inter Tight    → big landing-page headlines
+//   Bulzing        → headings / wordmark (local file in app/fonts/, freeware,
 //                    NON-COMMERCIAL licence: buy a commercial one before launch)
 //   IBM Plex Sans  → body text
 //   IBM Plex Mono  → small labels (uppercase, technical look)
@@ -10,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Inter_Tight } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -20,6 +21,12 @@ const headingFont = localFont({
     { path: "./fonts/Bulzing-Italic.ttf", style: "italic" },
   ],
   variable: "--font-bulzing",
+});
+
+const displayFont = Inter_Tight({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-inter-tight",
 });
 
 const bodyFont = IBM_Plex_Sans({
@@ -53,7 +60,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${headingFont.variable} ${bodyFont.variable} ${labelFont.variable}`}
+        className={`${headingFont.variable} ${displayFont.variable} ${bodyFont.variable} ${labelFont.variable}`}
       >
         {children}
       </body>

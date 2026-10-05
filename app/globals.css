@@ -41,6 +41,7 @@
 
   /* Fonts — wired to the next/font variables from app/layout.tsx */
   --font-heading: var(--font-bulzing), sans-serif;
+  --font-display: var(--font-inter-tight), sans-serif;
   --font-sans: var(--font-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-ibm-plex-mono), monospace;
 }

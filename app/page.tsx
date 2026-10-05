@@ -1,131 +1,154 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// LANDING PAGE — the front door at "/".
+// LANDING PAGE — the front door at "/". "Bold cyberpunk editorial" look,
+// built from mockups/landing-cyberpunk.html. Styles live in app/landing.css.
 //
-//   • Left:  what Wireframe Studio is, and a "Get started" button that goes
-//            to the sign-in page (app/login/page.tsx).
-//   • Right: a small picture of the idea (people's notes → agent → wireframe).
-//   • Below: three "how it works" steps.
+//   1. Title screen   HUD-style top bar, huge headline
+//                     "Three teams. One canvas. One answer.", wine button.
+//   2. Agent moment   the agent's orange cursor (with a brush streak) merges
+//                     two notes and a phone wireframe snaps in. The ONLY
+//                     orange on the page, because orange = the agent.
+//   3. Three steps    01 Drop notes / 02 Agent merges / 03 Screens appear.
+//   4. Footer         links + a giant outlined wordmark.
 //
-// Colors follow the house rule: wine = people, ORANGE = the agent only.
+// "Start a room" goes to /login, which asks for a name, then opens a room.
+// The splash with the 3D logo still covers the page first (app/Splash.tsx).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
 import Image from "next/image";
 import { Splash } from "./Splash";
+import "./landing.css";
+
+// The curve the agent's cursor and its streak both follow (see landing.css).
+const ROUTE = "M 60 60 C 260 260, 420 -40, 560 140 S 820 260, 940 90";
 
 export default function LandingPage() {
   return (
-    <main className="dot-grid min-h-screen select-none">
-      {/* Covers the page until the visitor clicks or drags (app/Splash.tsx). */}
+    <main className="lp dot-grid select-none">
       <Splash />
-      {/* ── Top bar ─────────────────────────────────────────────────────── */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <span className="font-heading text-lg font-semibold tracking-tight text-ink">
-          <Image src="/logo-2d.png" alt="" draggable={false} width={28} height={28} className="mr-2 inline-block align-middle" />
-          Wireframe<span className="text-accent-bright">·</span>Studio
-        </span>
-        <Link
-          href="/login"
-          className="font-mono text-[11px] uppercase tracking-widest text-muted transition-colors hover:text-ink"
-        >
-          Sign in →
-        </Link>
-      </header>
 
-      {/* ── Hero: pitch on the left, picture of the idea on the right ───── */}
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-16 pt-8 lg:grid-cols-[1fr_auto] lg:pt-16">
-        <div className="pop-in">
-          <h1 className="neon-text font-heading text-4xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
-            Your whole team.
-            <br />
-            One canvas.
-            <br />
-            <span className="text-muted">An AI teammate.</span>
-          </h1>
-          <p className="mt-6 max-w-lg text-base leading-relaxed text-muted">
-            Drop notes together. The agent turns them into wireframes, live.
-          </p>
+      {/* ── 1. Title screen ──────────────────────────────────────────── */}
+      <section className="lp-title">
+        <span className="lp-corner lp-c1" />
+        <span className="lp-corner lp-c2" />
+        <span className="lp-corner lp-c3" />
+        <span className="lp-corner lp-c4" />
 
-          <Link
-            href="/login"
-            className="mt-8 inline-block rounded-md bg-accent px-6 py-3 font-medium text-ink shadow-[0_0_18px_-4px_var(--accent-bright)] transition hover:brightness-125"
-          >
-            Get started →
-          </Link>
+        <div className="lp-hud lp-mono">
+          <span className="lp-brand">
+            <Image src="/logo-2d.png" alt="" draggable={false} width={26} height={26} />
+            Wireframe Studio
+          </span>
+          <span className="lp-live lp-hide-sm">ROOM_01 · LIVE</span>
+          <span className="lp-hide-sm">3 humans · 1 agent</span>
+          <Link href="/login" className="text-ink">Sign in →</Link>
         </div>
 
-        <IdeaPicture />
+        <h1 className="lp-head">
+          Three teams.
+          <br />
+          <span className="lp-dim">One canvas.</span>
+          <br />
+          One{" "}
+          <span className="lp-glitch" data-t="answer.">
+            answer.
+          </span>
+        </h1>
+
+        <div className="lp-row">
+          <p>
+            PMs, designers and developers drop notes on one live canvas. The
+            agent reads every one, settles the fights, tells you why, and draws
+            the wireframes. For everyone, at once.
+          </p>
+          <Link href="/login" className="lp-btn lp-mono">
+            Start a room <span>→</span>
+          </Link>
+        </div>
       </section>
 
-      {/* ── How it works: three short steps ──────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 pb-20">
-        <ol className="grid gap-4 sm:grid-cols-3">
-          {STEPS.map((step, i) => (
-            <li key={step.title} className="glass tilt flex items-baseline gap-3 rounded-xl p-5">
-              <span className={`font-mono text-xs ${step.agent ? "text-agent" : "text-accent-bright"}`}>
-                0{i + 1}
-              </span>
-              <h3 className="font-heading text-lg text-ink">{step.title}</h3>
-            </li>
-          ))}
-        </ol>
+      {/* ── 2. The one orange moment ─────────────────────────────────── */}
+      <section className="lp-demo" aria-label="The agent merging two notes">
+        <div className="lp-mono text-muted">{"// Live — agent resolving 1 conflict"}</div>
+        <div className="lp-stage">
+          <div className="lp-notes">
+            <Note who="Priya · PM" text="Put the summary at the top." />
+            <Note who="Leo · Designer" text="Keep it minimal. Nothing extra." b />
+          </div>
+
+          <div className="lp-agentbox lp-mono">
+            Agent ▸ 1 conflict found
+            <br />
+            <span className="lp-typed">Merged: summary on top, as one short line.</span>
+          </div>
+
+          {/* The wireframe the agent draws (grey boxes) */}
+          <div className="lp-phone" aria-hidden>
+            <div style={{ height: 10 }} />
+            <div style={{ height: 14, width: "70%", background: "var(--muted)" }} />
+            <div style={{ height: 90, background: "none", border: "1px dashed var(--muted)" }} />
+            <div style={{ height: 8, width: "80%" }} />
+            <div style={{ height: 8, width: "55%" }} />
+            <div style={{ height: 22, marginTop: 14 }} />
+          </div>
+
+          {/* Agent cursor + brush streak (3 layers: soft, medium, sharp) */}
+          <div className="lp-trail" aria-hidden>
+            <svg width="1000" height="300">
+              <path className="lp-s1" pathLength={100} d={ROUTE} />
+              <path className="lp-s2" pathLength={100} d={ROUTE} />
+              <path className="lp-s3" pathLength={100} d={ROUTE} />
+            </svg>
+            {/* PLACEHOLDER cursor shape: angular pointer. Final look TBD. */}
+            <div className="lp-cursor lp-mono">
+              <svg width="22" height="22" viewBox="0 0 22 22">
+                <path d="M2 2 L20 9 L12 11 L9 20 Z" fill="none" stroke="var(--agent)" strokeWidth="1.5" />
+                <path d="M5 5 L14 9 L10 10 L9 14 Z" fill="var(--agent)" />
+              </svg>
+              <span>Agent</span>
+            </div>
+          </div>
+        </div>
       </section>
+
+      {/* ── 3. Three huge steps ──────────────────────────────────────── */}
+      <section className="lp-steps">
+        {STEPS.map((s, i) => (
+          <div key={s.title} className="lp-step">
+            <span className="lp-step-n lp-mono">0{i + 1}</span>
+            <h3 className="lp-head">{s.title}</h3>
+            <p>{s.text}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* ── 4. Footer ────────────────────────────────────────────────── */}
+      <footer className="lp-footer">
+        <div className="lp-links lp-mono">
+          <Link href="/login">Start a room</Link>
+          <Link href="/login">Sign in</Link>
+          <span>© {new Date().getFullYear()}</span>
+        </div>
+        <div className="lp-big lp-head" aria-hidden>
+          Wireframe Studio
+        </div>
+      </footer>
     </main>
   );
 }
 
-// The three steps. `agent: true` marks the step the AI does (orange number).
 const STEPS = [
-  { title: "Drop notes", agent: false },
-  { title: "Agent merges", agent: true },
-  { title: "Wireframes appear", agent: false },
-] as const;
+  { title: "Drop notes", text: "Everyone writes on the same canvas. Your name, your cursor, your colour." },
+  { title: "Agent merges", text: "It reads all the notes together, finds where you disagree, and shows its reasoning." },
+  { title: "Screens appear", text: "Grey-box phone wireframes land on the canvas, live, for the whole team." },
+];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// A small, static picture of the product idea, built from plain boxes:
-// two people's notes → the agent (orange) → a grey-box wireframe.
-// Hidden on small phones, where the text alone is enough.
-// ─────────────────────────────────────────────────────────────────────────────
-function IdeaPicture() {
+// A person's prompt note (wine header = a human).
+function Note({ who, text, b }: { who: string; text: string; b?: boolean }) {
   return (
-    <div aria-hidden className="glass pop-in hidden items-center gap-4 rounded-xl p-6 sm:flex">
-      {/* People's notes (wine headers) */}
-      <div className="flex flex-col gap-2">
-        <MiniNote who="Priya · PM" text="Summary at the top" />
-        <MiniNote who="Leo · Designer" text="Keep it minimal" />
-      </div>
-
-      <Arrow />
-
-      {/* The agent — orange is reserved for it */}
-      <div className="rounded-full border border-agent/50 bg-paper/70 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-agent shadow-[0_0_20px_-6px_var(--agent)]">
-        <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-agent align-middle" />
-        Agent
-      </div>
-
-      <Arrow />
-
-      {/* The wireframe it draws (grey boxes in a phone frame) */}
-      <div className="w-24 rounded-lg border border-line bg-surface p-2">
-        <div className="h-2 rounded-sm bg-muted/40" />
-        <div className="mt-1.5 h-6 rounded-sm border border-dashed border-muted/50" />
-        <div className="mt-1.5 h-1.5 w-3/4 rounded-sm bg-muted/25" />
-        <div className="mt-1 h-1.5 w-1/2 rounded-sm bg-muted/25" />
-        <div className="mt-2 h-3 rounded-sm bg-muted/40" />
-      </div>
+    <div className={`lp-note ${b ? "lp-note-b" : ""}`}>
+      <div className="lp-note-who lp-mono">{who}</div>
+      <div className="lp-note-txt">{text}</div>
     </div>
   );
-}
-
-function MiniNote({ who, text }: { who: string; text: string }) {
-  return (
-    <div className="w-36 overflow-hidden rounded-md border border-line bg-surface">
-      <div className="bg-accent px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-ink">{who}</div>
-      <div className="px-2 py-1.5 text-[11px] text-ink">{text}</div>
-    </div>
-  );
-}
-
-function Arrow() {
-  return <span className="font-mono text-muted">→</span>;
 }

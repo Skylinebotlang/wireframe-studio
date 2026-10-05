@@ -82,6 +82,19 @@ export function useYjsStore({
     setStoreWithStatus({ status: "loading" });
     const unsubs: (() => void)[] = [];
 
+    // Skip records that don't match today's shape definitions (e.g. prompt
+    // notes saved by an older version of the app), instead of crashing.
+    const keepValid = (records: TLRecord[]) =>
+      records.filter((r) => {
+        try {
+          store.schema.validateRecord(store, r, "initialize", null);
+          return true;
+        } catch {
+          console.warn("Skipping an old or broken canvas item:", r.id);
+          return false;
+        }
+      });
+
     function handleSync() {
       // === DOCUMENT (shapes, pages, cameras — persistent) =================
 
@@ -100,7 +113,7 @@ export function useYjsStore({
             .filter((r) => store.scopedTypes.document.has(r.typeName) && !roomIds.has(r.id))
             .map((r) => r.id);
           store.remove(stale);
-          store.put(records);
+          store.put(keepValid(records));
         });
       } else {
         yDoc.transact(() => {
@@ -165,7 +178,7 @@ export function useYjsStore({
         });
         store.mergeRemoteChanges(() => {
           if (toRemove.length) store.remove(toRemove);
-          if (toPut.length) store.put(toPut);
+          if (toPut.length) store.put(keepValid(toPut));
         });
       };
       yStore.on("change", handleChange);

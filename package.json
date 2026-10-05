@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@liveblocks/client": "^3.24.2",
     "@liveblocks/node": "^3.24.2",
     "@liveblocks/react": "^3.24.2",
@@ -16,6 +17,7 @@
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "three": "^0.128.0",
     "tldraw": "3.15.6",
     "y-utility": "^0.1.4",
     "yjs": "^13.6.33"
@@ -25,6 +27,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.128.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",

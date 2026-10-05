@@ -6,7 +6,7 @@
    classes. Examples:
      text-ink       → near-black text
      border-line    → hairline grey border
-     font-heading   → Space Grotesk
+     font-heading   → Bulzing (app/fonts)
      text-agent     → the agent's orange (never use for humans!)
    ──────────────────────────────────────────────────────────────────────────── */
 
@@ -36,10 +36,11 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
   --color-agent: var(--agent);
 
   /* Fonts — wired to the next/font variables from app/layout.tsx */
-  --font-heading: var(--font-space-grotesk), sans-serif;
+  --font-heading: var(--font-bulzing), sans-serif;
   --font-sans: var(--font-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-ibm-plex-mono), monospace;
 }
@@ -273,4 +274,58 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── 7. Splash screen (app/Splash.tsx) ──────────────────────────────────────
+   Pretend cursors drift on slow loops; the hint breathes; on enter the whole
+   splash lifts up and fades like a curtain (700ms, matches EXIT_MS). */
+.splash-drift-a {
+  animation: drift-a 11s ease-in-out infinite;
+}
+.splash-drift-b {
+  animation: drift-b 13s ease-in-out infinite;
+}
+.splash-drift-c {
+  animation: drift-c 9s ease-in-out infinite;
+}
+@keyframes drift-a {
+  0%, 100% { transform: translate(18vw, 24vh); }
+  33% { transform: translate(34vw, 64vh); }
+  66% { transform: translate(12vw, 70vh); }
+}
+@keyframes drift-b {
+  0%, 100% { transform: translate(72vw, 20vh); }
+  40% { transform: translate(60vw, 74vh); }
+  75% { transform: translate(82vw, 52vh); }
+}
+@keyframes drift-c {
+  0%, 100% { transform: translate(46vw, 78vh); }
+  50% { transform: translate(64vw, 30vh); }
+}
+.splash-hint {
+  animation: hint-breathe 2.4s ease-in-out infinite;
+}
+@keyframes hint-breathe {
+  50% { opacity: 0.35; }
+}
+.splash-exit {
+  animation: splash-lift 700ms cubic-bezier(0.7, 0, 0.3, 1) forwards;
+  pointer-events: none;
+}
+@keyframes splash-lift {
+  to {
+    transform: translateY(-100%);
+    opacity: 0.6;
+  }
+}
+
+/* Bulzing ships one weight; stop the browser faking a bold version of it. */
+.font-heading {
+  font-synthesis: none;
+}
+
+/* Splash + landing page: even if text somehow gets selected, don't paint it. */
+.select-none::selection,
+.select-none *::selection {
+  background: transparent;
 }

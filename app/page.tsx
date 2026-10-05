@@ -1,74 +1,131 @@
-"use client";
-
 // ─────────────────────────────────────────────────────────────────────────────
-// HOME PAGE — a friendly front door.
+// LANDING PAGE — the front door at "/".
 //
-// Type a room name (or hit the button for "demo") and go straight to the
-// shared canvas. This page does NOT connect to Liveblocks; rooms do.
+//   • Left:  what Wireframe Studio is, and a "Get started" button that goes
+//            to the sign-in page (app/login/page.tsx).
+//   • Right: a small picture of the idea (people's notes → agent → wireframe).
+//   • Below: three "how it works" steps.
+//
+// Colors follow the house rule: wine = people, ORANGE = the agent only.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Splash } from "./Splash";
 
-export default function HomePage() {
-  const router = useRouter();
-  const [room, setRoom] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  function openRoom() {
-    const slug = (room || "demo").trim().toLowerCase();
-    if (!/^[a-z0-9_-]{1,64}$/.test(slug)) {
-      setError("Use letters, numbers, dashes or underscores only.");
-      return;
-    }
-    router.push(`/room/${slug}`);
-  }
-
+export default function LandingPage() {
   return (
-    <main className="dot-grid flex min-h-screen items-center justify-center p-6">
-      <div className="glass pop-in w-full max-w-md rounded-xl p-8">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
-          Multiplayer AI workspace
-        </p>
-        <h1 className="mt-2 neon-text font-heading text-3xl font-semibold leading-tight text-ink">
-          Wireframe Studio
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          A shared canvas for PMs, designers and developers. Drop prompt notes,
-          and an AI teammate merges them into wireframes — live, together.
-        </p>
+    <main className="dot-grid min-h-screen select-none">
+      {/* Covers the page until the visitor clicks or drags (app/Splash.tsx). */}
+      <Splash />
+      {/* ── Top bar ─────────────────────────────────────────────────────── */}
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <span className="font-heading text-lg font-semibold tracking-tight text-ink">
+          <Image src="/logo-2d.png" alt="" draggable={false} width={28} height={28} className="mr-2 inline-block align-middle" />
+          Wireframe<span className="text-accent-bright">·</span>Studio
+        </span>
+        <Link
+          href="/login"
+          className="font-mono text-[11px] uppercase tracking-widest text-muted transition-colors hover:text-ink"
+        >
+          Sign in →
+        </Link>
+      </header>
 
-        <div className="mt-6 flex gap-2">
-          <input
-            className="w-full rounded-md border border-line bg-raised px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent"
-            placeholder="room name (try: demo)"
-            value={room}
-            onChange={(e) => {
-              setRoom(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && openRoom()}
-          />
-          <button
-            onClick={openRoom}
-            className="shrink-0 rounded-md bg-accent px-4 py-2 font-medium text-ink shadow-[0_0_18px_-4px_var(--accent-bright)] transition hover:brightness-110"
+      {/* ── Hero: pitch on the left, picture of the idea on the right ───── */}
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-16 pt-8 lg:grid-cols-[1fr_auto] lg:pt-16">
+        <div className="pop-in">
+          <h1 className="neon-text font-heading text-4xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl">
+            Your whole team.
+            <br />
+            One canvas.
+            <br />
+            <span className="text-muted">An AI teammate.</span>
+          </h1>
+          <p className="mt-6 max-w-lg text-base leading-relaxed text-muted">
+            Drop notes together. The agent turns them into wireframes, live.
+          </p>
+
+          <Link
+            href="/login"
+            className="mt-8 inline-block rounded-md bg-accent px-6 py-3 font-medium text-ink shadow-[0_0_18px_-4px_var(--accent-bright)] transition hover:brightness-125"
           >
-            Open room →
-          </button>
+            Get started →
+          </Link>
         </div>
-        {error && <p className="mt-2 text-sm text-agent">{error}</p>}
 
-        <p className="mt-6 border-t border-line pt-4 font-mono text-[11px] leading-relaxed text-muted">
-          TIP — to test multiplayer: open this site in two browser windows,
-          join the same room name, and watch the cursors.
-        </p>
-        <p className="mt-3 text-xs leading-relaxed text-muted">
-          On the canvas: drop a <strong>Prompt note</strong> (toolbar → the yellow
-          note tool, or press <code className="font-mono text-[11px]">N</code>),
-          type your prompt, and everyone sees it live. Hit <strong>Send to agent</strong>
-          (bottom-left) to collect every note for the AI (Milestone 3).
-        </p>
-      </div>
+        <IdeaPicture />
+      </section>
+
+      {/* ── How it works: three short steps ──────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-6 pb-20">
+        <ol className="grid gap-4 sm:grid-cols-3">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="glass tilt flex items-baseline gap-3 rounded-xl p-5">
+              <span className={`font-mono text-xs ${step.agent ? "text-agent" : "text-accent-bright"}`}>
+                0{i + 1}
+              </span>
+              <h3 className="font-heading text-lg text-ink">{step.title}</h3>
+            </li>
+          ))}
+        </ol>
+      </section>
     </main>
   );
+}
+
+// The three steps. `agent: true` marks the step the AI does (orange number).
+const STEPS = [
+  { title: "Drop notes", agent: false },
+  { title: "Agent merges", agent: true },
+  { title: "Wireframes appear", agent: false },
+] as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A small, static picture of the product idea, built from plain boxes:
+// two people's notes → the agent (orange) → a grey-box wireframe.
+// Hidden on small phones, where the text alone is enough.
+// ─────────────────────────────────────────────────────────────────────────────
+function IdeaPicture() {
+  return (
+    <div aria-hidden className="glass pop-in hidden items-center gap-4 rounded-xl p-6 sm:flex">
+      {/* People's notes (wine headers) */}
+      <div className="flex flex-col gap-2">
+        <MiniNote who="Priya · PM" text="Summary at the top" />
+        <MiniNote who="Leo · Designer" text="Keep it minimal" />
+      </div>
+
+      <Arrow />
+
+      {/* The agent — orange is reserved for it */}
+      <div className="rounded-full border border-agent/50 bg-paper/70 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-agent shadow-[0_0_20px_-6px_var(--agent)]">
+        <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-agent align-middle" />
+        Agent
+      </div>
+
+      <Arrow />
+
+      {/* The wireframe it draws (grey boxes in a phone frame) */}
+      <div className="w-24 rounded-lg border border-line bg-surface p-2">
+        <div className="h-2 rounded-sm bg-muted/40" />
+        <div className="mt-1.5 h-6 rounded-sm border border-dashed border-muted/50" />
+        <div className="mt-1.5 h-1.5 w-3/4 rounded-sm bg-muted/25" />
+        <div className="mt-1 h-1.5 w-1/2 rounded-sm bg-muted/25" />
+        <div className="mt-2 h-3 rounded-sm bg-muted/40" />
+      </div>
+    </div>
+  );
+}
+
+function MiniNote({ who, text }: { who: string; text: string }) {
+  return (
+    <div className="w-36 overflow-hidden rounded-md border border-line bg-surface">
+      <div className="bg-accent px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-ink">{who}</div>
+      <div className="px-2 py-1.5 text-[11px] text-ink">{text}</div>
+    </div>
+  );
+}
+
+function Arrow() {
+  return <span className="font-mono text-muted">→</span>;
 }

@@ -2,20 +2,24 @@
 // APP SHELL — loads the three fonts and wraps every page.
 //
 // Fonts (from the design direction):
-//   Space Grotesk  → headings
+//   Bulzing        → headings (local file in app/fonts/, freeware,
+//                    NON-COMMERCIAL licence: buy a commercial one before launch)
 //   IBM Plex Sans  → body text
 //   IBM Plex Mono  → small labels (uppercase, technical look)
 // Each is exposed as a CSS variable that globals.css maps into Tailwind.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Space_Grotesk } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const headingFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-space-grotesk",
+const headingFont = localFont({
+  src: [
+    { path: "./fonts/Bulzing.ttf", style: "normal" },
+    { path: "./fonts/Bulzing-Italic.ttf", style: "italic" },
+  ],
+  variable: "--font-bulzing",
 });
 
 const bodyFont = IBM_Plex_Sans({

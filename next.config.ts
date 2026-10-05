@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Let other laptops on the same Wi-Fi/hotspot open the dev server by IP
+  // (e.g. http://172.17.59.93:3000). Next.js blocks this by default.
+  // Each * matches one number in the IP address.
+  allowedDevOrigins: ["192.168.*.*", "172.*.*.*", "10.*.*.*"],
 };
 
 export default nextConfig;

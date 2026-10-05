@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wireframe Studio
 
-## Getting Started
+A real-time shared canvas where a team (PMs, designers, developers) drops
+"prompt notes", and an AI agent reads all the notes together, resolves the
+conflicts between them, explains how it merged them, and draws phone-sized
+wireframes live on the canvas for everyone at once.
 
-First, run the development server:
+Live site: https://wireframe-studio-theta.vercel.app
+
+## Run it on your computer
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install      # first time only
+npm run dev      # opens at http://localhost:3000
+npm run build    # production build check (what Vercel runs)
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Keys
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.local.example` to `.env.local` and fill in your keys. The file
+explains where to get each one.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `LIVEBLOCKS_SECRET_KEY` (required)
+- `GEMINI_API_KEY` (the default free AI agent)
+- `ANTHROPIC_API_KEY` + `AGENT_PROVIDER=anthropic` (optional, to use Claude)
 
-## Learn More
+`.env.local` is never committed to Git.
 
-To learn more about Next.js, take a look at the following resources:
+## Folders
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Folder | What is in it |
+|---|---|
+| `app/` | The pages: landing page, login, the shared canvas room, and the API routes |
+| `app/room/[roomId]/` | The shared canvas room: canvas, agent panel, live sync |
+| `app/api/` | Server routes: the AI agent and Liveblocks sign-in |
+| `app/fonts/` | Local fonts (Bulzing is non-commercial: replace or license before launch) |
+| `lib/` | The logic: agent calls, JSON checks, drawing wireframes, theme colors |
+| `public/` | Logos and images |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Stack
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js, TypeScript, Tailwind CSS, tldraw (canvas), Liveblocks + Yjs
+(real-time sync), Google Gemini by default (Claude and OpenAI supported),
+three.js (3D logo). Deployed on Vercel.

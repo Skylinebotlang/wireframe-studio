@@ -43,3 +43,8 @@ next-env.d.ts
 
 .vercel
 .env*
+!.env.local.example
+
+# logs and local tool folders
+*.log
+.impeccable

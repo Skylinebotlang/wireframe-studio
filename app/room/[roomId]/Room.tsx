@@ -18,6 +18,7 @@ import {
   LiveblocksProvider,
   RoomProvider,
 } from "@liveblocks/react/suspense";
+import { createInitialAgentStorage } from "@/lib/agent-room";
 
 type RoomProps = {
   roomId: string;
@@ -39,6 +40,9 @@ export function Room({ roomId, children }: RoomProps) {
           // tldraw's cursor/selection records live here via the bridge.
           presence: null,
         }}
+        // Shared agent panel data (current run + activity feed). Only used
+        // the first time a room is created; after that it's loaded.
+        initialStorage={createInitialAgentStorage}
       >
         <ClientSideSuspense fallback={<RoomLoading />}>{children}</ClientSideSuspense>
       </RoomProvider>

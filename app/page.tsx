@@ -17,6 +17,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Splash } from "./Splash";
+import { TubesBackground } from "./TubesBackground";
 import "./landing.css";
 
 // The curve the agent's cursor and its streak both follow (see landing.css).
@@ -26,6 +27,7 @@ export default function LandingPage() {
   return (
     <main className="lp dot-grid select-none">
       <Splash />
+      <TubesBackground />
 
       {/* ── 1. Title screen ──────────────────────────────────────────── */}
       <section className="lp-title">

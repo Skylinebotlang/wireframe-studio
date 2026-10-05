@@ -16,6 +16,13 @@
   min-height: 100vh;
 }
 
+/* Keep the page's sections above the tubes cursor (app/TubesBackground.tsx) */
+.lp > section,
+.lp > footer {
+  position: relative;
+  z-index: 1;
+}
+
 /* Small uppercase labels */
 .lp-mono {
   font-family: var(--font-ibm-plex-mono), monospace;

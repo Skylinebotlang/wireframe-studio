@@ -12,11 +12,12 @@
 
 .lp {
   position: relative;
-  overflow-x: hidden;
+  /* clip (not hidden) so the sticky build-demo stage still sticks */
+  overflow-x: clip;
   min-height: 100vh;
 }
 
-/* Keep the page's sections above the tubes cursor (app/TubesBackground.tsx) */
+/* Keep the page's sections above the dotted background */
 .lp > section,
 .lp > footer {
   position: relative;
@@ -163,135 +164,170 @@
 .lp-c3 { bottom: 12px; left: 12px; border-width: 0 0 1px 1px; }
 .lp-c4 { bottom: 12px; right: 12px; border-width: 0 1px 1px 0; }
 
-/* ── 2. The one orange moment ───────────────────────────────────────────── */
-.lp-demo {
-  padding: 96px 32px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  overflow: hidden;
-}
-.lp-stage {
+/* ── Site builder (app/SiteBuilder.tsx) ────────────────────────────────
+   Parts marked data-build go through: hidden → drawing (orange agent frame,
+   scan line) → wire (grey wireframe) → real. The wireframe is the REAL
+   content dressed as grey bars, so it always matches the final layout. */
+[data-build] {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 40px;
-  align-items: center;
-  max-width: 1100px;
-  margin: 40px auto 0;
+  transition: opacity 400ms ease-out;
 }
-.lp-notes {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+[data-build][data-state="hidden"] {
+  opacity: 0;
 }
-.lp-note {
-  width: 240px;
-  border: 1px solid var(--line);
-  background: var(--paper);
+/* Wireframe look: text becomes grey bars, images grey boxes, effects off */
+[data-build][data-state="drawing"],
+[data-build][data-state="drawing"] *,
+[data-build][data-state="wire"],
+[data-build][data-state="wire"] * {
+  color: transparent !important;
+  -webkit-text-stroke: 0 !important;
+  text-shadow: none !important;
+  border-color: color-mix(in srgb, var(--muted) 35%, transparent) !important;
 }
-.lp-note-who {
-  background: var(--accent);
-  padding: 6px 10px;
+[data-build][data-state="drawing"] :is(h1, h3, p, a, span),
+[data-build][data-state="wire"] :is(h1, h3, p, a, span) {
+  background-color: color-mix(in srgb, var(--muted) 30%, transparent) !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
-.lp-note-txt {
-  padding: 12px 10px;
-  font-size: 14px;
+h1[data-build][data-state="drawing"],
+h1[data-build][data-state="wire"] {
+  background-color: color-mix(in srgb, var(--muted) 26%, transparent);
 }
-.lp-note-b {
-  margin-left: 40px;
+[data-build][data-state="drawing"] img,
+[data-build][data-state="wire"] img {
+  filter: brightness(0) invert(0.35);
 }
-.lp-agentbox {
-  position: relative;
-  z-index: 1;
-  border: 1px solid var(--agent);
-  color: var(--agent);
-  background: var(--surface);
-  padding: 16px 18px;
-  max-width: 360px;
-  line-height: 1.8;
+[data-build][data-state="drawing"] *::before,
+[data-build][data-state="drawing"] *::after,
+[data-build][data-state="wire"] *::before,
+[data-build][data-state="wire"] *::after {
+  opacity: 0 !important;
 }
-.lp-typed {
-  display: inline-block;
-  overflow: hidden;
-  white-space: nowrap;
+/* Turning real: colors fade back in */
+[data-build][data-state="real"],
+[data-build][data-state="real"] * {
+  transition: color 600ms ease-out, background-color 600ms ease-out, border-color 600ms ease-out;
+}
+/* The agent is drawing this part: orange dashed frame + scan line */
+[data-build][data-state="drawing"] {
+  outline: 1px dashed var(--agent);
+  outline-offset: 6px;
+  animation: sb-draw 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+[data-build][data-state="drawing"]::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  left: -6px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, color-mix(in srgb, var(--agent) 30%, transparent));
   border-right: 2px solid var(--agent);
-  width: 42ch;
-  animation: lp-type 3.5s steps(42) 1s both, lp-caret 0.8s steps(2) infinite;
+  box-shadow: 6px 0 18px -4px var(--agent);
+  animation: sb-scan 450ms cubic-bezier(0.65, 0, 0.35, 1) both;
 }
-@keyframes lp-type { from { width: 0; } }
-@keyframes lp-caret { 50% { border-color: transparent; } }
-.lp-phone {
-  justify-self: end;
-  width: 150px;
-  border: 1px solid var(--muted);
-  padding: 10px;
-  background: var(--paper);
-  animation: lp-snap 5s infinite;
+[data-build][data-state="wire"] {
+  outline: 1px dashed color-mix(in srgb, var(--muted) 35%, transparent);
+  outline-offset: 6px;
 }
-.lp-phone div {
-  background: var(--line);
-  margin-bottom: 8px;
+@keyframes sb-draw {
+  from { clip-path: inset(-10px 100% -10px -10px); }
+  to { clip-path: inset(-10px -10px -10px -10px); }
 }
-@keyframes lp-snap {
-  0%, 45% { opacity: 0.15; transform: scale(0.96); }
-  50%, 100% { opacity: 1; transform: none; }
+@keyframes sb-scan {
+  from { width: 0; }
+  80% { opacity: 1; }
+  to { width: calc(100% + 12px); opacity: 0; }
 }
 
-/* Agent cursor + brush streak. Both ride the SAME path (--route) with the
-   same timing, so the streak always trails right behind the cursor. */
-.lp-trail {
-  --route: path("M 60 60 C 260 260, 420 -40, 560 140 S 820 260, 940 90");
-  position: absolute;
+/* The prompt card in the middle of the locked page */
+.sb-prompt {
+  position: fixed;
   left: 50%;
-  top: -30px;
-  width: 1000px;
-  height: 300px;
-  transform: translateX(-50%);
+  top: 50%;
+  z-index: 45;
+  width: min(420px, calc(100vw - 32px));
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 18px;
+  box-shadow: 0 30px 80px -20px #000;
+  animation: fade-in 500ms ease-out both;
+  transition: opacity 500ms ease-out, transform 600ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.sb-prompt[data-out="true"] {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.94);
   pointer-events: none;
 }
-.lp-trail svg {
-  position: absolute;
-  inset: 0;
-  overflow: visible;
+.sb-box {
+  margin-top: 8px;
+  min-height: 56px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  padding: 10px;
+  font-size: 14px;
+  line-height: 1.5;
 }
-.lp-trail path {
-  fill: none;
-  stroke: var(--agent);
-  stroke-linecap: round;
-  animation: lp-streak 5s cubic-bezier(0.6, 0, 0.4, 1) infinite;
-}
-.lp-s1 { --o: 22; stroke-width: 14; opacity: 0.18; filter: blur(4px); stroke-dasharray: 22 100; }
-.lp-s2 { --o: 14; stroke-width: 6; opacity: 0.45; stroke-dasharray: 14 100; }
-.lp-s3 { --o: 8; stroke-width: 2; stroke-dasharray: 8 100; }
-@keyframes lp-streak {
-  from { stroke-dashoffset: var(--o); }
-  to { stroke-dashoffset: calc(var(--o) - 100); }
-}
-.lp-cursor {
-  position: absolute;
-  left: 0;
-  top: 0;
-  offset-path: var(--route);
-  offset-rotate: 0deg;
-  offset-anchor: 4px 4px;
-  animation: lp-ride 5s cubic-bezier(0.6, 0, 0.4, 1) infinite;
-}
-@keyframes lp-ride {
-  from { offset-distance: 0%; }
-  to { offset-distance: 100%; }
-}
-.lp-cursor svg {
+.sb-type {
   display: block;
-  filter: drop-shadow(0 0 6px var(--agent));
+  clip-path: inset(0 100% 0 0);
 }
-.lp-cursor span {
-  display: inline-block;
-  margin: 4px 0 0 14px;
+.sb-type[data-on="true"] {
+  clip-path: inset(0 0 0 0);
+  transition: clip-path var(--ms) steps(40);
+}
+.sb-go {
+  margin-top: 10px;
+  padding: 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--muted);
+  transition: background 250ms ease-out, color 250ms ease-out, transform 120ms ease-out;
+}
+.sb-go[data-on="true"] {
+  background: var(--accent);
+  color: var(--ink);
+  transform: scale(0.97);
+}
+
+/* Status chip, bottom left; fades away a few seconds after "Done" */
+.sb-chip {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--agent);
+  background: var(--paper);
+  color: var(--agent);
+  padding: 8px 12px;
+  animation: fade-in 400ms ease-out both;
+}
+.sb-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background: var(--agent);
-  color: var(--paper);
-  padding: 2px 6px;
-  font-size: 10px;
-  clip-path: polygon(0 0, 100% 0, 100% 60%, calc(100% - 6px) 100%, 0 100%);
+  animation: lp-blink 1s steps(2) infinite;
+}
+.sb-chip[data-done="true"] {
+  border-color: var(--line);
+  color: var(--muted);
+  animation: sb-chip-out 400ms ease-in 3s forwards;
+}
+.sb-chip[data-done="true"] .sb-dot {
+  background: var(--accent-bright);
+  animation: none;
+}
+@keyframes sb-chip-out {
+  to { opacity: 0; transform: translateY(8px); }
 }
 
 /* ── 3. Three huge steps ────────────────────────────────────────────────── */
@@ -350,14 +386,9 @@
 
 /* Phones: stack the demo, hide the moving cursor, single-column steps */
 @media (max-width: 760px) {
-  .lp-title, .lp-demo, .lp-steps, .lp-footer { padding-left: 16px; padding-right: 16px; }
+  .lp-title, .lp-steps, .lp-footer { padding-left: 16px; padding-right: 16px; }
   .lp-hud .lp-hide-sm { display: none; }
-  .lp-stage { grid-template-columns: 1fr; }
-  .lp-phone { justify-self: start; }
-  .lp-trail { display: none; }
   .lp-step { grid-template-columns: 1fr; gap: 8px; }
-  .lp-note-b { margin-left: 20px; }
-  .lp-typed { white-space: normal; width: auto; border: 0; animation: none; }
 }
 
 /* People who turn motion off get a still page */

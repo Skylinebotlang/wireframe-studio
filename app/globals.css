@@ -280,31 +280,46 @@ body {
 /* ── 7. Splash screen (app/Splash.tsx) ──────────────────────────────────────
    Pretend cursors drift on slow loops; the hint breathes; on enter the whole
    splash lifts up and fades like a curtain (700ms, matches EXIT_MS). */
-.splash-drift-a {
-  animation: drift-a 11s ease-in-out infinite;
+/* Staged first load. Each piece sets its own delay in --d. Smooth ease-out
+   (no bounce): rise a little, sharpen from a blur, fade in. */
+.splash-in,
+.splash-letter {
+  animation: splash-rise 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) both;
 }
-.splash-drift-b {
-  animation: drift-b 13s ease-in-out infinite;
+.splash-letter {
+  display: inline-block;
+  animation-duration: 650ms;
+}
+.splash-logo-in {
+  animation: splash-logo 1000ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes splash-rise {
+  from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+}
+@keyframes splash-logo {
+  from { opacity: 0; transform: scale(0.82); filter: blur(10px); }
+}
+
+/* Pretend cursors: appear after the wordmark, then drift on slow loops that
+   stay near the left/right edges, away from the centered text. */
+.splash-drift-a {
+  animation: fade-in 800ms 1.4s both, drift-a 12s 1.4s ease-in-out infinite;
 }
 .splash-drift-c {
-  animation: drift-c 9s ease-in-out infinite;
+  animation: fade-in 800ms 1.6s both, drift-c 10s 1.6s ease-in-out infinite;
 }
 @keyframes drift-a {
-  0%, 100% { transform: translate(18vw, 24vh); }
-  33% { transform: translate(34vw, 64vh); }
-  66% { transform: translate(12vw, 70vh); }
-}
-@keyframes drift-b {
-  0%, 100% { transform: translate(72vw, 20vh); }
-  40% { transform: translate(60vw, 74vh); }
-  75% { transform: translate(82vw, 52vh); }
+  0%, 100% { transform: translate(6vw, 18vh); }
+  50% { transform: translate(14vw, 62vh); }
 }
 @keyframes drift-c {
-  0%, 100% { transform: translate(46vw, 78vh); }
-  50% { transform: translate(64vw, 30vh); }
+  0%, 100% { transform: translate(84vw, 70vh); }
+  50% { transform: translate(78vw, 22vh); }
 }
+
+/* The hint fades in last, then breathes gently. */
 .splash-hint {
-  animation: hint-breathe 2.4s ease-in-out infinite;
+  animation: fade-in 800ms 1.5s both, hint-breathe 2.4s 2.3s ease-in-out infinite;
 }
 @keyframes hint-breathe {
   50% { opacity: 0.35; }

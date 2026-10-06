@@ -25,7 +25,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
-import { scrollToEl } from "./SmoothScroll";
+import { goToChapter } from "./Chapters";
 import { StartChat } from "./StartChat";
 
 // The three teams. Cursor colors come from the people (wine) family.
@@ -194,14 +194,14 @@ export function HeroIntro() {
           </p>
           <div className="hi-actions">
             <StartChat className="hi-cta" />
-            <button type="button" className="hi-skip lp-mono" onClick={() => scrollToEl(document.querySelector(".ch-final"))}>
+            <button type="button" className="hi-skip lp-mono" onClick={() => goToChapter(5)}>
               Skip the intro
             </button>
           </div>
         </div>
       </div>
       <div className="hi-hint lp-mono" aria-hidden>
-        Scroll · see how it works ↓
+        Scroll · see how it works →
       </div>
     </section>
   );

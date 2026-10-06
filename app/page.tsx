@@ -4,6 +4,7 @@
 //
 //   0. Loader         our 2D logo turning on navy while the page loads; it
 //                     flies into the nav logo spot (app/Loader.tsx).
+//   The page scrolls SIDEWAYS with parallax (app/Chapters.tsx):
 //   1. Hero           the first 8 seconds: three teams building alone, then
 //                     their frames merge into one and the AI (orange)
 //                     assembles the shared screen; headline, message,
@@ -22,7 +23,6 @@ import Link from "next/link";
 import { Loader } from "./Loader";
 import { HeroIntro } from "./HeroIntro";
 import { FluidCursor } from "./FluidCursor";
-import { SiteBuilder } from "./SiteBuilder";
 import { Chapters } from "./Chapters";
 import { SmoothScroll } from "./SmoothScroll";
 import "./landing.css";
@@ -36,27 +36,24 @@ export default function LandingPage() {
       <SmoothScroll />
       {/* Wine "ink" trail behind the mouse; above the page, below panels. */}
       <FluidCursor />
-      {/* The agent "builds" this page live from a prompt (app/SiteBuilder.tsx).
-          Parts marked data-build get drawn as wireframes, then turn real. */}
-      <SiteBuilder />
 
-      {/* ── 1. Hero: the 6-second problem → fix story (app/HeroIntro.tsx) ── */}
-      <HeroIntro />
-
-      {/* ── 2. Six pinned scroll chapters + pills (app/Chapters.tsx) ── */}
-      <Chapters />
-
-      {/* ── 4. Footer ────────────────────────────────────────────────── */}
-      <footer className="lp-footer" data-build="scroll" data-label="the footer">
-        <div className="lp-links lp-mono">
-          <Link href="/signup">Start the chat</Link>
-          <Link href="/login">Sign in</Link>
-          <span>© {new Date().getFullYear()}</span>
-        </div>
-        <div className="lp-big lp-head" aria-hidden>
-          Wireframe Studio
-        </div>
-      </footer>
+      {/* ── The whole page slides sideways (app/Chapters.tsx):
+             hero (app/HeroIntro.tsx) → 6 chapters → footer ───────────── */}
+      <Chapters
+        hero={<HeroIntro />}
+        footer={
+          <footer className="lp-footer">
+            <div className="lp-links lp-mono">
+              <Link href="/signup">Start the chat</Link>
+              <Link href="/login">Sign in</Link>
+              <span>© {new Date().getFullYear()}</span>
+            </div>
+            <div className="lp-big lp-head" aria-hidden>
+              Wireframe Studio
+            </div>
+          </footer>
+        }
+      />
     </main>
   );
 }

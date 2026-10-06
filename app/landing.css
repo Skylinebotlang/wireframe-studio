@@ -797,3 +797,39 @@ h1[data-build][data-state="wire"] {
 @media (max-width: 760px) {
   .sc-options { grid-template-columns: 1fr; }
 }
+
+/* ── Horizontal journey (app/Chapters.tsx) ─────────────────────────────────
+   One pinned strip; every screen is a 100vw panel side by side. */
+.hs {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+}
+.hs-track {
+  display: flex;
+  height: 100%;
+  width: max-content;
+  will-change: transform;
+}
+.hs-panel,
+.hs .ch {
+  position: relative;
+  flex: 0 0 100vw;
+  width: 100vw;
+  height: 100vh;
+  border-bottom: 0;
+  border-right: 1px solid var(--line);
+}
+.hs-hero .lp-title { border-bottom: 0; }
+.hs-foot { display: flex; }
+.hs-foot .lp-footer { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+@media (max-width: 760px) {
+  .hs-panel, .hs .ch { height: 100svh; }
+  .hs { height: 100svh; }
+}
+/* Reduced motion: back to a normal vertical page */
+@media (prefers-reduced-motion: reduce) {
+  .hs { height: auto; overflow: visible; }
+  .hs-track { flex-direction: column; width: auto; }
+  .hs-panel, .hs .ch { width: auto; flex: none; border-right: 0; border-bottom: 1px solid var(--line); }
+}

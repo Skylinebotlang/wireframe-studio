@@ -833,3 +833,162 @@ h1[data-build][data-state="wire"] {
   .hs-track { flex-direction: column; width: auto; }
   .hs-panel, .hs .ch { width: auto; flex: none; border-right: 0; border-bottom: 1px solid var(--line); }
 }
+
+/* ── HUD hero (app/HeroIntro.tsx, from papi's Stitch design) ───────────────
+   Top bar, one framed console card in the middle, bottom status bar.
+   Wine = people / actions, ORANGE = the AI only. */
+.hud {
+  position: relative;
+  height: 100vh;
+  min-height: 640px;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(60% 50% at 50% 55%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%);
+}
+.hud-top {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.hud-brand { display: flex; align-items: center; gap: 12px; color: var(--ink); line-height: 1.35; letter-spacing: 0.16em; }
+.hud-tabs { display: flex; gap: 26px; margin: 0 auto; padding: 0; list-style: none; }
+.hud-tabs li { padding-bottom: 6px; border-bottom: 2px solid transparent; }
+.hud-tabs li.is-on { color: var(--ink); border-color: var(--accent-bright); }
+.hud-sign { color: var(--muted); }
+.hud-sign:hover, .hud-sign:focus-visible { color: var(--ink); }
+.hud-init {
+  padding: 10px 16px;
+  background: var(--accent);
+  color: var(--ink);
+  border: 1px solid var(--accent-bright);
+  clip-path: polygon(0 0, 100% 0, 100% 70%, calc(100% - 10px) 100%, 0 100%);
+  transition: background 150ms ease-out;
+}
+.hud-init:hover, .hud-init:focus-visible { background: var(--accent-bright); }
+
+.hud-card {
+  position: relative;
+  width: min(1040px, calc(100vw - 64px));
+  margin: auto;
+  padding: 18px 36px 20px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.hud-tick { position: absolute; width: 14px; height: 14px; border: 0 solid var(--accent-bright); }
+.hud-t1 { top: -5px; left: -5px; border-width: 1px 0 0 1px; }
+.hud-t2 { top: -5px; right: -5px; border-width: 1px 1px 0 0; }
+.hud-t3 { bottom: -5px; left: -5px; border-width: 0 0 1px 1px; }
+.hud-t4 { bottom: -5px; right: -5px; border-width: 0 1px 1px 0; }
+.hud-head { width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--muted); }
+.hud-chip { border: 1px solid var(--line); padding: 5px 10px; color: var(--ink); }
+.hud-ai { display: inline-flex; align-items: center; gap: 8px; color: var(--agent); }
+.hud-ai i { width: 7px; height: 7px; background: var(--agent); animation: lp-blink 1.2s steps(2) infinite; }
+
+/* The story stage sits inside the card */
+.hud .hi-scene {
+  width: 100%;
+  height: clamp(170px, 24vh, 230px);
+  margin: 14px 0 10px;
+}
+.hud .hi-frames { inset: 0 8%; }
+.hud .hi-merged { inset: 0 28%; }
+/* Keep Sam's cursor beside the frame, not on the title below */
+.hud .hi-g2 { left: auto; right: -60px; top: auto; bottom: 18%; }
+.hud .hi-merged, .hud .hi-frame { overflow: visible; }
+.hud .hi-mscreen { overflow: hidden; }
+
+.hud-h1 { margin: 6px 0 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.hud-title {
+  display: block;
+  font-size: clamp(44px, 6.4vw, 104px);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.hud-line { font-family: var(--font-inter-tight), sans-serif; font-weight: 500; font-size: clamp(18px, 1.9vw, 28px); letter-spacing: -0.01em; color: var(--ink); }
+.hud-line .lp-dim { -webkit-text-stroke: 1px var(--ink); }
+.hud-msg { margin-top: 6px; color: var(--muted); font-size: 16px; font-weight: 300; }
+
+.hud-progress {
+  width: min(780px, 100%);
+  margin-top: 16px;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  text-align: left;
+  font-size: 11px;
+  color: var(--ink);
+}
+.hud-prow { display: flex; justify-content: space-between; }
+.hud-sq { display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--accent-bright); }
+.hud-bar { height: 3px; margin: 10px 0; background: var(--raised); overflow: hidden; }
+.hud-bar-fill { height: 100%; background: var(--accent-bright); transform: scaleX(0); transform-origin: left; }
+.hud-log { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+.hud-log b { font-weight: 400; color: var(--accent-bright); margin-right: 6px; }
+.hud-live { display: flex; gap: 6px; color: var(--ink); }
+.hud-live b, .hud-live em { color: var(--agent); }
+.hud-live em { margin-left: auto; font-style: normal; }
+.hud-progress:has([data-done="true"]) .hud-live b,
+.hud-progress:has([data-done="true"]) .hud-live em { color: var(--accent-bright); }
+.hud-live[data-done="true"] em { visibility: hidden; }
+
+.hud-actions { display: flex; gap: 14px; margin-top: 16px; }
+.hud-skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 26px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  transition: border-color 150ms ease-out;
+}
+.hud-skip:hover, .hud-skip:focus-visible { border-color: var(--accent-bright); }
+
+.hud-pool { width: 100%; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 10px; color: var(--muted); }
+.hud-pool ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.hud-pool li { border: 1px solid var(--line); padding: 5px 12px; color: var(--ink); }
+.hud-pool li.is-free { border-color: var(--accent-bright); color: var(--accent-bright); }
+
+.hud-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 28px;
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  color: var(--muted);
+}
+.hud .hi-hint { position: static; transform: none; }
+
+@media (max-height: 820px) {
+  .hud .hi-scene { height: 150px; margin: 8px 0 6px; }
+  .hud-progress { margin-top: 10px; padding: 8px 14px; }
+  .hud-log li:nth-child(-n + 2) { display: none; }
+  .hud-pool { margin-top: 10px; padding-top: 8px; }
+}
+@media (max-width: 760px) {
+  .hud { height: 100svh; min-height: 0; }
+  .hud .lp-hide-sm { display: none; }
+  .hud .hi-scene { height: 150px; }
+  .hud .hi-g2 { right: -18px; }
+  .hud-top { padding: 10px 14px; gap: 12px; font-size: 9px; }
+  .hud-brand-name { display: none; }
+  .hud-init { margin-left: auto; padding: 8px 10px; }
+  .hud-card { width: calc(100vw - 24px); padding: 12px 12px 14px; }
+  .hud .hi-frames { inset: 0; }
+  .hud .hi-merged { inset: 0 6%; }
+  .hud-actions { flex-direction: column; width: 100%; }
+  .hud-actions > * { justify-content: center; }
+  .hud-progress { display: none; }
+  .hud-bottom > :first-child, .hud-bottom .hud-ai { display: none; }
+  .hud-bottom { justify-content: center; }
+}

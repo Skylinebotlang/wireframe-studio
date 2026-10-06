@@ -1,6 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// HERO INTRO — the first screen of the landing page and its 6-second story,
-// which starts the moment the loader hands off (app/Loader.tsx).
+// HERO INTRO — the first screen: a "runtime HUD" layout (from papi's Stitch
+// design) with the 6-second story playing in its central frame. It starts
+// the moment the loader hands off (app/Loader.tsx).
+//
+// Layout: top HUD bar (our logo, tabs, Initialize workspace), one big
+// framed console card (story stage, WIREFRAME STUDIO, the positioning line,
+// a progress panel + log that follow the story, Start the chat / Skip,
+// the AI options row), and a bottom status bar.
 //
 //   0.0 s  THE PROBLEM  three separate frames draw in, one per team, each
 //                       with its own named cursor (wine family = people).
@@ -26,6 +32,7 @@ import Link from "next/link";
 import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
 import { goToChapter } from "./Chapters";
+import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai-providers";
 import { StartChat } from "./StartChat";
 
 // The three teams. Cursor colors come from the people (wine) family.
@@ -52,12 +59,18 @@ export function HeroIntro() {
       gsap.set(q(".hi-merged"), { opacity: 0, scale: 0.92 });
       gsap.set(q(".hi-mb"), { clipPath: "inset(0 100% 0 0)" });
       gsap.set(q(".hi-line > span"), { yPercent: 105 });
-      gsap.set(q(".hi-msg, .hi-cta, .hi-skip, .hi-hint, .lp-hud > :not(.lp-brand), .lp-brand-name"), { opacity: 0, y: 12 });
+      gsap.set(q(".hi-msg, .hi-cta, .hi-skip, .hi-hint, .hud-top > :not(.hud-brand), .hud-brand-name, .hud-log li, .hud-pool, .hud-progress, .hud-bottom"), { opacity: 0, y: 12 });
+      gsap.set(q(".hud-title"), { clipPath: "inset(0 100% 0 0)" });
 
       const tl = gsap.timeline({ paused: true, defaults: { ease: "expo.out" } });
 
       // ── THE PROBLEM ──────────────────────────────────────────────────
-      tl.to(q(".lp-hud > :not(.lp-brand), .lp-brand-name"), { opacity: 1, y: 0, duration: 0.5, stagger: 0.05 }, 0);
+      tl.to(q(".hud-top > :not(.hud-brand), .hud-brand-name, .hud-bottom"), { opacity: 1, y: 0, duration: 0.5, stagger: 0.04 }, 0);
+      tl.to(q(".hud-progress"), { opacity: 1, y: 0, duration: 0.5 }, 0.2);
+      // The log follows the story: teams in → canvas shared → AI merging.
+      tl.to(q(".hud-log li")[0], { opacity: 1, y: 0, duration: 0.3 }, 0.6);
+      tl.to(q(".hud-log li")[1], { opacity: 1, y: 0, duration: 0.3 }, 2.1);
+      tl.to(q(".hud-log li")[2], { opacity: 1, y: 0, duration: 0.3 }, 2.65);
       tl.to(q(".hi-frame"), { clipPath: "inset(0 0% 0 0)", duration: 0.5, stagger: 0.12, ease: "power3.inOut" }, 0);
       q(".hi-frame").forEach((frame, i) => {
         const boxes = frame.querySelectorAll(".hi-b");
@@ -100,12 +113,26 @@ export function HeroIntro() {
       tl.to(q(".hi-agent"), { x: "+=50", y: "-=6", duration: 0.5, ease: "power2.out" }, ">");
 
       // ── The headline lands, line by line ────────────────────────────
-      tl.to(q(".hi-line > span"), { yPercent: 0, duration: 0.8, stagger: 0.14 }, 3.2);
+      tl.to(q(".hud-title"), { clipPath: "inset(0 0% 0 0)", duration: 0.9, ease: "power3.inOut" }, 3.1);
+      tl.to(q(".hi-line > span"), { yPercent: 0, duration: 0.8, stagger: 0.1 }, 3.5);
 
       // ── Message, buttons, scroll hint ───────────────────────────────
       tl.to(q(".hi-msg"), { opacity: 1, y: 0, duration: 0.7 }, 4.0);
       tl.to(q(".hi-cta, .hi-skip"), { opacity: 1, y: 0, duration: 0.6, stagger: 0.1 }, 4.6);
+      tl.to(q(".hud-pool"), { opacity: 1, y: 0, duration: 0.6 }, 5.0);
       tl.to(q(".hi-hint"), { opacity: 1, y: 0, duration: 0.6 }, 5.4);
+      // The progress bar + % follow the story, finishing when the AI is done.
+      const bar = q(".hud-bar-fill")[0] as HTMLElement;
+      const pct = q(".hud-pct")[0];
+      const status = q(".hud-state")[0];
+      tl.eventCallback("onUpdate", () => {
+        const p = Math.min(1, tl.time() / 3.8);
+        bar.style.transform = `scaleX(${p})`;
+        pct.textContent = `${Math.round(p * 100)}%`;
+        status.textContent = p < 1 ? "Agent merging 3 screens" : "Canvas ready · 1 shared screen";
+        status.previousElementSibling!.textContent = p < 1 ? "[Active]" : "[Done]";
+        status.parentElement!.dataset.done = String(p >= 1);
+      });
 
       if (reduce) {
         tl.progress(1); // the final picture, no motion
@@ -122,90 +149,141 @@ export function HeroIntro() {
   }, []);
 
   return (
-    <section ref={root} className="lp-title hi" aria-labelledby="hero-title">
-      <span className="lp-corner lp-c1" />
-      <span className="lp-corner lp-c2" />
-      <span className="lp-corner lp-c3" />
-      <span className="lp-corner lp-c4" />
-
-      <nav className="lp-hud lp-mono" aria-label="Main">
-        <Link href="/" className="lp-brand" aria-label="Wireframe Studio home">
+    <section ref={root} className="hi hud" aria-labelledby="hero-title">
+      {/* ── Top HUD bar ─────────────────────────────────────────────── */}
+      <nav className="hud-top lp-mono" aria-label="Main">
+        <Link href="/" className="hud-brand" aria-label="Wireframe Studio home">
           {/* The loader's logo lands exactly here (Loader.tsx measures it). */}
           <Image id="nav-logo" src="/logo-2d.png" alt="" width={26} height={26} priority draggable={false} />
-          <span className="lp-brand-name">Wireframe Studio</span>
+          <span className="hud-brand-name">
+            Wireframe_Studio //
+            <br />
+            Runtime_HUD
+          </span>
         </Link>
-        <span className="lp-live lp-hide-sm">ROOM_01 · LIVE</span>
-        <span className="lp-hide-sm">3 humans · 1 agent</span>
-        <Link href="/login" className="text-ink">
-          Sign in →
+        <ul className="hud-tabs lp-hide-sm">
+          <li className="is-on">Canvas_01</li>
+          <li>Collab_feed</li>
+          <li>Terminal</li>
+          <li>System_metrics</li>
+        </ul>
+        <Link href="/login" className="hud-sign lp-hide-sm">
+          Sign in
+        </Link>
+        <Link href="/signup" className="hud-init">
+          Initialize_workspace
         </Link>
       </nav>
 
-      {/* ── The animated scene: three frames → one frame ───────────────── */}
-      <div className="hi-scene" aria-hidden>
-        <div className="hi-frames">
-          {TEAMS.map((t, i) => (
-            <div key={t.tag} className="hi-frame" style={{ "--c": t.color } as React.CSSProperties}>
-              <div className="hi-tag lp-mono">
-                {t.tag} · <span style={{ color: t.color }}>{t.name.split(" · ")[0]}</span>
-              </div>
-              <Screen kind={i} />
-              <Cursor className="hi-cur" name={t.name} color={t.color} />
-            </div>
-          ))}
-        </div>
-        <div className="hi-note lp-mono">3 setups · 0 shared context</div>
+      {/* ── The console card ────────────────────────────────────────── */}
+      <div className="hud-card">
+        <span className="hud-tick hud-t1" />
+        <span className="hud-tick hud-t2" />
+        <span className="hud-tick hud-t3" />
+        <span className="hud-tick hud-t4" />
 
-        {/* ONE frame. Future screen recording goes in here. */}
-        <div className="hi-merged" data-slot="recording">
-          <div className="hi-tag lp-mono">ROOM_01 · everyone</div>
-          <div className="hi-mscreen">
-            {["head", "hero", "l1", "l2", "img", "btn"].map((k) => (
-              <div key={k} className={`hi-mb hi-mb-${k}`}>
-                <span className="hi-mb-o" />
+        <div className="hud-head lp-mono">
+          <span className="hud-chip">Canvas_core // Room_orchestrator</span>
+          <span className="hud-ai lp-hide-sm">
+            <i /> Runtime agent synthesis in progress
+          </span>
+        </div>
+
+        {/* The animated story: three frames → one frame (orange = the AI).
+            The merged frame is the slot for a future screen recording. */}
+        <div className="hi-scene" aria-hidden>
+          <div className="hi-frames">
+            {TEAMS.map((t, i) => (
+              <div key={t.tag} className="hi-frame" style={{ "--c": t.color } as React.CSSProperties}>
+                <div className="hi-tag lp-mono">
+                  {t.tag} · <span style={{ color: t.color }}>{t.name.split(" · ")[0]}</span>
+                </div>
+                <Screen kind={i} />
+                <Cursor className="hi-cur" name={t.name} color={t.color} />
               </div>
             ))}
-            <Cursor className="hi-agent" name="Agent" color="var(--agent)" agent />
           </div>
-          {TEAMS.map((t, i) => (
-            <Cursor key={t.tag} className={`hi-gather hi-g${i}`} name={t.name.split(" · ")[0]} color={t.color} />
-          ))}
+          <div className="hi-note lp-mono">3 setups · 0 shared context</div>
+          <div className="hi-merged" data-slot="recording">
+            <div className="hi-tag lp-mono">ROOM_01 · everyone</div>
+            <div className="hi-mscreen">
+              {["head", "hero", "l1", "l2", "img", "btn"].map((k) => (
+                <div key={k} className={`hi-mb hi-mb-${k}`}>
+                  <span className="hi-mb-o" />
+                </div>
+              ))}
+              <Cursor className="hi-agent" name="Agent" color="var(--agent)" agent />
+            </div>
+            {TEAMS.map((t, i) => (
+              <Cursor key={t.tag} className={`hi-gather hi-g${i}`} name={t.name.split(" · ")[0]} color={t.color} />
+            ))}
+          </div>
+        </div>
+
+        <h1 id="hero-title" className="hud-h1">
+          <span className="lp-head hud-title">Wireframe Studio</span>
+          <span className="hi-line hud-line">
+            <span>
+              Three teams. <span className="lp-dim">One canvas.</span> One answer.
+            </span>
+          </span>
+        </h1>
+        <p className="hi-msg hud-msg">Everybody has the context, not just the AI.</p>
+
+        {/* Progress panel: follows the story above, not a fake number. */}
+        <div className="hud-progress lp-mono" aria-hidden>
+          <div className="hud-prow">
+            <span>
+              <i className="hud-sq" /> Initializing multiplayer canvas // <span className="hud-pct">0%</span>
+            </span>
+          </div>
+          <div className="hud-bar">
+            <div className="hud-bar-fill" />
+          </div>
+          <ul className="hud-log">
+            <li>
+              <b>[OK]</b> 3 teammates joined · Priya, Leo, Sam
+            </li>
+            <li>
+              <b>[OK]</b> Shared canvas ready
+            </li>
+            <li className="hud-live">
+              <b>[Active]</b> <span className="hud-state">Agent merging 3 screens</span>
+              <em>Streaming</em>
+            </li>
+          </ul>
+        </div>
+
+        <div className="hud-actions">
+          <StartChat className="hi-cta hud-cta" />
+          <button type="button" className="hi-skip hud-skip lp-mono" onClick={() => goToChapter(5)}>
+            Skip intro / Enter workspace <span aria-hidden>→</span>
+          </button>
+        </div>
+
+        <div className="hud-pool lp-mono">
+          <span className="hud-pool-k">Bring your own AI — or use ours:</span>
+          <ul>
+            {PROVIDER_IDS.map((id) => (
+              <li key={id}>{PROVIDERS[id].label}</li>
+            ))}
+            <li className="is-free">Free built-in</li>
+          </ul>
         </div>
       </div>
 
-      {/* ── Headline + message + actions ───────────────────────────────── */}
-      <div className="hi-bottom">
-        <h1 id="hero-title" className="lp-head hi-head">
-          <span className="hi-line">
-            <span>Three teams.</span>
-          </span>
-          <span className="hi-line">
-            <span className="lp-dim">One canvas.</span>
-          </span>
-          <span className="hi-line">
-            <span>One answer.</span>
-          </span>
-        </h1>
-        <div className="hi-side">
-          <p className="hi-msg">
-            Everybody has the context,
-            <br />
-            not just the AI.
-          </p>
-          <div className="hi-actions">
-            <StartChat className="hi-cta" />
-            <button type="button" className="hi-skip lp-mono" onClick={() => goToChapter(5)}>
-              Skip the intro
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="hi-hint lp-mono" aria-hidden>
-        Scroll · see how it works →
+      {/* ── Bottom status bar ───────────────────────────────────────── */}
+      <div className="hud-bottom lp-mono" aria-hidden>
+        <span>Sys_core // Multiplayer AI canvas</span>
+        <span className="hi-hint">Scroll · see how it works →</span>
+        <span className="hud-ai">
+          <i /> Agent_status: on the canvas
+        </span>
       </div>
     </section>
   );
 }
+
 
 // One team's own little screen. Each one is built differently on purpose:
 // different layout, different button — that's the problem.

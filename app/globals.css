@@ -26,6 +26,8 @@
   --accent: #681e2e; /* wine = people (palette) - buttons, note headers */
   --accent-bright: #c2475f; /* lighter wine for outlines/glows on dark */
   --agent: #ff6b2c; /* orange = the agent ONLY (not in the palette on purpose) */
+  --rose: #e0607e; /* bright wine tint: a person's cursor (PEOPLE_COLORS[0]) */
+  --wine-light: #d98a99; /* lighter wine tint: another person's cursor */
 }
 
 @theme inline {

@@ -1,27 +1,41 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SIGN-IN PAGE — /login
-//
-// Its own page, separate from the landing page. Shows the sign-in card
-// (app/LoginCard.tsx): name, role, cursor color and room. Signing in saves
-// that in this browser and opens the room.
+// SIGN-IN PAGE — /login. Two steps:
+//   1. Email + password (app/AccountForm.tsx, DEMO MODE: interactive, but
+//      no real account check yet — a friend is adding OAuth).
+//   2. "Who's drawing?" (app/login/LoginIdentity.tsx): role, cursor color,
+//      room — with the name from step 1 filled in.
+// Coming back in the same tab after step 1 goes straight to step 2.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { LoginCard } from "../LoginCard";
-import { loadIdentity, UserIdentity } from "@/lib/user";
+import { ACCOUNT_KEY, AccountForm } from "../AccountForm";
+import { LoginIdentity } from "./LoginIdentity";
 
 export default function LoginPage() {
-  const router = useRouter();
+  // undefined = still checking; null = not signed in; string = name.
+  const [account, setAccount] = useState<string | null | undefined>(undefined);
+  const read = () => {
+    try {
+      setAccount(sessionStorage.getItem(ACCOUNT_KEY));
+    } catch {
+      setAccount(null);
+    }
+  };
+  useEffect(() => {
+    const id = requestAnimationFrame(read); // sessionStorage exists only after load
+    return () => cancelAnimationFrame(id);
+  }, []);
 
-  // Who's signed in on this browser (read after load, since localStorage
-  // doesn't exist on the server). undefined = still checking.
-  const [identity, setIdentity] = useState<UserIdentity | null | undefined>(undefined);
-  useEffect(() => setIdentity(loadIdentity()), []);
+  function signOut() {
+    try {
+      sessionStorage.removeItem(ACCOUNT_KEY);
+    } catch {}
+    setAccount(null);
+  }
 
   return (
     <main className="dot-grid flex min-h-screen flex-col items-center justify-center gap-6 p-6">
@@ -30,15 +44,19 @@ export default function LoginPage() {
         Wireframe<span className="text-accent-bright">·</span>Studio
       </Link>
 
-      {/* Wait until we know if someone is signed in, so the form doesn't
-          flash empty and then fill itself. */}
-      {identity !== undefined && (
-        <LoginCard initial={identity} onDone={(room) => router.push(`/room/${room}`)} />
-      )}
+      {account === null && <AccountForm mode="signin" onDone={read} />}
+      {account && <LoginIdentity accountName={account} />}
 
-      <Link href="/" className="font-mono text-[11px] uppercase tracking-widest text-muted hover:text-ink">
-        ← Back to home
-      </Link>
+      <div className="flex items-center gap-6 font-mono text-[11px] uppercase tracking-widest text-muted">
+        <Link href="/" className="hover:text-ink">
+          ← Back to home
+        </Link>
+        {account && (
+          <button type="button" onClick={signOut} className="uppercase tracking-widest hover:text-ink">
+            Sign out
+          </button>
+        )}
+      </div>
     </main>
   );
 }

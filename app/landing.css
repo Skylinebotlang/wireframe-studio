@@ -992,3 +992,25 @@ h1[data-build][data-state="wire"] {
   .hud-bottom > :first-child, .hud-bottom .hud-ai { display: none; }
   .hud-bottom { justify-content: center; }
 }
+
+/* ── Depth stack (app/Chapters.tsx): screens 04 → footer ───────────────────
+   Stacked on top of each other inside the pinned stage; the master timeline
+   zooms the current one past you and opens the next out of the depth. */
+.hs-view { position: absolute; inset: 0; will-change: transform, opacity; }
+.dz { position: absolute; inset: 0; pointer-events: none; }
+.dz-panel {
+  position: absolute !important;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--paper);
+  will-change: transform, opacity, clip-path;
+}
+.hs .dz .ch { flex: none; border-right: 0; }
+@media (max-width: 760px) {
+  .dz-panel { height: 100svh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hs-view, .dz { position: static; }
+  .dz-panel { position: relative !important; height: auto; }
+}

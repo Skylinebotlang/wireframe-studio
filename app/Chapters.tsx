@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHAPTERS — the whole landing page as ONE horizontal, parallax journey.
 //
-// Scrolling down (wheel, trackpad, keys) slides the page SIDEWAYS, screen
-// by screen:  hero → 01 → 02 → 03 → 04 → 05 → 06 → footer.
+// Scrolling down (wheel, trackpad, swipe, arrow keys) slides the page
+// SIDEWAYS, ONE SCREEN PER GESTURE, as a single transition (paging, not a
+// continuous scroll):  hero → 01 → 02 → 03 → 04 → 05 → 06 → footer.
 // Inside each screen the layers move at different speeds (parallax): the
 // scene drifts faster than the words, so the screens feel deep.
 //
@@ -142,6 +143,74 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       // Pills hide on the hero and the footer.
       ScrollTrigger.create({ ...along(el.querySelector(".hs-hero")!, "left left", "right center"), onToggle: (s) => s.isActive && setActive(-1) });
       ScrollTrigger.create({ ...along(el.querySelector(".hs-foot")!, "left center", "right right"), onToggle: (s) => s.isActive && setActive(-1) });
+
+      // ── Paging: one scroll gesture = one screen ──────────────────────
+      // Instead of scrolling continuously, every wheel flick, swipe or arrow
+      // key glides to the NEXT (or previous) screen as one transition, and
+      // ignores further input until it lands.
+      const panels = [...track.children] as HTMLElement[];
+      const posOf = (p: HTMLElement) => {
+        const st = mainTween!.scrollTrigger!;
+        return st.start + (p.offsetLeft / dist()) * (st.end - st.start);
+      };
+      const current = () => {
+        let best = 0;
+        panels.forEach((p, i) => {
+          if (Math.abs(posOf(p) - scrollY) < Math.abs(posOf(panels[best]) - scrollY)) best = i;
+        });
+        return best;
+      };
+      let busy = false;
+      const step = (dir: 1 | -1) => {
+        if (busy || document.querySelector("dialog[open]")) return;
+        const next = Math.min(panels.length - 1, Math.max(0, current() + dir));
+        if (next === current()) return;
+        busy = true;
+        const lenis = (window as Window & { __lenis?: Lenis }).__lenis;
+        const done = () => setTimeout(() => (busy = false), 250); // swallow trackpad inertia
+        if (lenis) lenis.scrollTo(posOf(panels[next]), { duration: 1.3, easing: (t) => 1 - Math.pow(1 - t, 4), lock: true, force: true, onComplete: done });
+        else {
+          scrollTo({ top: posOf(panels[next]), behavior: "smooth" });
+          setTimeout(done, 900);
+        }
+      };
+      const onWheel = (e: WheelEvent) => {
+        e.preventDefault();
+        e.stopImmediatePropagation(); // keep Lenis from scrolling continuously
+        if (Math.abs(e.deltaY) + Math.abs(e.deltaX) < 8) return;
+        step(e.deltaY + e.deltaX > 0 ? 1 : -1);
+      };
+      const onKey = (e: KeyboardEvent) => {
+        const t = e.target as HTMLElement;
+        if (t.closest("input, textarea, dialog")) return;
+        if (e.key === " " && t.closest("button, a")) return; // Space still presses buttons
+        if (["ArrowDown", "ArrowRight", "PageDown", " "].includes(e.key)) {
+          e.preventDefault();
+          step(1);
+        } else if (["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key)) {
+          e.preventDefault();
+          step(-1);
+        }
+      };
+      let touchY = 0;
+      const onTouchStart = (e: TouchEvent) => (touchY = e.touches[0].clientY);
+      const onTouchMove = (e: TouchEvent) => e.preventDefault();
+      const onTouchEnd = (e: TouchEvent) => {
+        const dy = touchY - e.changedTouches[0].clientY;
+        if (Math.abs(dy) > 40) step(dy > 0 ? 1 : -1);
+      };
+      addEventListener("wheel", onWheel, { passive: false, capture: true });
+      addEventListener("keydown", onKey);
+      addEventListener("touchstart", onTouchStart, { passive: true });
+      addEventListener("touchmove", onTouchMove, { passive: false });
+      addEventListener("touchend", onTouchEnd);
+      return () => {
+        removeEventListener("wheel", onWheel, { capture: true });
+        removeEventListener("keydown", onKey);
+        removeEventListener("touchstart", onTouchStart);
+        removeEventListener("touchmove", onTouchMove);
+        removeEventListener("touchend", onTouchEnd);
+      };
     }, el);
     return () => {
       ctx.revert();

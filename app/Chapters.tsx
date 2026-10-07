@@ -1,10 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHAPTERS — the whole landing page as ONE horizontal, parallax journey.
 //
-// Scrolling down slides the page SIDEWAYS: hero → 01 → … → 06 → footer.
-//   • hero → 04: ONE SCREEN PER GESTURE (wheel, trackpad, swipe, arrow
-//     keys), each played as a single transition (paging).
-//   • 04 → footer: the original continuous smooth scroll.
+// Hero → 04: one scroll gesture (wheel, trackpad, swipe, arrow keys) = one
+// screen, played as a single transition (paging). From 04 to the footer the
+// scroll is continuous again: the falls follow the wheel smoothly.
+//   hero → 01 → 02 → 03   slide SIDEWAYS (with parallax)
+//   03 → 04 → 05 → 06 → footer   3D ZOOM: you fly into the current
+//                                screen's scene and the next comes forward
+//                                out of the depth (real perspective, layers
+//                                at different depths, gentle mouse tilt).
 // Inside each screen the layers move at different speeds (parallax): the
 // scene drifts faster than the words, so the screens feel deep.
 //
@@ -21,7 +25,7 @@
 // slides in. Chapter pills + "Skip the intro" sit at the bottom (keyboard
 // friendly). The hero and footer are passed in from app/page.tsx.
 //
-// GSAP + ScrollTrigger (one pinned track, chapters use containerAnimation);
+// GSAP + ScrollTrigger: one pinned stage, one master timeline (1 unit = 1 screen);
 // smooth scrolling from app/SmoothScroll.tsx.
 // Only transform, opacity and clip-path are animated.
 // Reduced motion: a normal vertical page, every chapter in its final state.
@@ -40,21 +44,35 @@ gsap.registerPlugin(ScrollTrigger);
 
 const PILLS = ["Problem", "How", "Live", "Teammate", "Your AI", "Start"];
 
-// The main sideways scroll, so buttons elsewhere can jump to a chapter.
-let mainTween: gsap.core.Tween | null = null;
+// Scroll positions of every screen (0 = hero … last = footer), filled in by
+// the effect below, so buttons elsewhere can jump to a chapter.
+let stops: () => number[] = () => [];
+
+// Glide to a scroll position (Lenis when present, else the browser).
+function glide(y: number, onDone?: () => void) {
+  const lenis = (window as Window & { __lenis?: Lenis }).__lenis;
+  if (lenis) lenis.scrollTo(y, { duration: 1.3, easing: (t) => 1 - Math.pow(1 - t, 4), lock: true, force: true, onComplete: onDone });
+  else {
+    scrollTo({ top: y, behavior: "smooth" });
+    if (onDone) setTimeout(onDone, 900);
+  }
+}
 
 /** Glide to chapter i (0–5). Works from anywhere on the page. */
 export function goToChapter(i: number) {
-  const ch = document.querySelectorAll<HTMLElement>(".ch")[i];
-  if (!ch) return;
-  const st = mainTween?.scrollTrigger;
-  const lenis = (window as Window & { __lenis?: Lenis }).__lenis;
-  if (!st) return ch.scrollIntoView(); // reduced motion: normal page
-  const track = ch.parentElement!;
-  const dist = track.scrollWidth - innerWidth;
-  const y = st.start + (ch.offsetLeft / dist) * (st.end - st.start);
-  if (lenis) lenis.scrollTo(y, { duration: 1.4 });
-  else scrollTo({ top: y, behavior: "smooth" });
+  const s = stops();
+  if (!s.length) return document.querySelectorAll<HTMLElement>(".ch")[i]?.scrollIntoView(); // reduced motion
+  glide(s[i + 1]);
+}
+
+// transform-origin (in px) that points at the middle of `target` inside `box`,
+// so zooming `box` dives straight into that scene.
+function originOf(target: HTMLElement | null, box: HTMLElement) {
+  if (!target) return "50% 50%";
+  const t = target.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  const sx = b.width / box.offsetWidth || 1; // undo any current scale
+  return `${(t.left + t.width / 2 - b.left) / sx}px ${(t.top + t.height / 2 - b.top) / sx}px`;
 }
 
 export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: React.ReactNode }) {
@@ -67,11 +85,15 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const ctx = gsap.context(() => {
+      const view = el.querySelector<HTMLElement>(".hs-view")!;
       const track = el.querySelector<HTMLElement>(".hs-track")!;
+      const flat = [...track.children] as HTMLElement[]; // hero, 01, 02, 03
+      const deep = gsap.utils.toArray<HTMLElement>(".dz-panel", el); // 04, 05, 06, footer
       const chapters = gsap.utils.toArray<HTMLElement>(".ch", el);
       const stageOf = (ch: HTMLElement) => ch.querySelector<HTMLElement>(".ch-stage")!;
+      const STEPS = flat.length - 1 + deep.length; // screens after the hero (7)
 
-      // Each chapter's own story (built now, played by scroll below).
+      // Each chapter's own story (played by the master timeline below).
       const stories = chapters.map((ch, i) => {
         const q = gsap.utils.selector(ch);
         const tl = gsap.timeline({ defaults: { ease: "none" }, paused: true });
@@ -91,95 +113,115 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         return;
       }
 
-      // ── The sideways scroll: pin the page, slide the track left ────────
-      const dist = () => track.scrollWidth - innerWidth;
-      mainTween = gsap.to(track, {
-        x: () => -dist(),
-        ease: "none",
-        scrollTrigger: {
-          trigger: el,
-          pin: true,
-          scrub: 0.8,
-          end: () => "+=" + dist() * 1.15,
-          invalidateOnRefresh: true,
-        },
-      });
-      const along = (trigger: Element, start: string, end: string) => ({
-        containerAnimation: mainTween!,
-        trigger,
-        start,
-        end,
-        scrub: true,
+      // ── ONE master timeline, 1 unit = 1 screen ───────────────────────
+      // Units 0→3: slide sideways (hero → 01 → 02 → 03).
+      // Units 3→7: FALL INTO the screen (03 → 04 → 05 → 06 → footer).
+      const master = gsap.timeline({ defaults: { ease: "none" } });
+      const vw = () => innerWidth;
+      const sv = innerWidth < 760 ? 6 : 14; // parallax strength (vw)
+
+      // Sideways part + parallax (scene drifts faster than the words).
+      for (let u = 1; u < flat.length; u++) master.to(track, { x: () => -u * vw(), duration: 1 }, u - 1);
+      // Hero: its story stage leaves faster than the rest of the card.
+      const heroScene = el.querySelector(".hi-scene");
+      if (heroScene) master.to(heroScene, { x: "-22vw", duration: 1 }, 0);
+      flat.slice(1).forEach((p, k) => {
+        const scene = p.querySelector(".ch-scene");
+        if (scene) master.fromTo(scene, { x: `${sv}vw` }, { x: `${-sv}vw`, duration: 2 }, k);
       });
 
-      // ── Parallax: scene layers travel faster than the words ───────────
-      chapters.forEach((ch) => {
-        const scene = ch.querySelector(".ch-scene, .sc6");
-        const copy = ch.querySelector(".ch-copy");
-        // Smaller drift on phones, so text never slides off the edge.
-        const sv = innerWidth < 760 ? 6 : 14;
-        const cv = innerWidth < 760 ? 0 : 5;
-        if (scene) gsap.fromTo(scene, { x: `${sv}vw` }, { x: `${-sv}vw`, ease: "none", scrollTrigger: along(ch, "left right", "right left") });
-        if (copy && cv) gsap.fromTo(copy, { x: `${cv}vw` }, { x: `${-cv}vw`, ease: "none", scrollTrigger: along(ch, "left right", "right left") });
+      // The 3D zoom: you fly INTO the current screen's scene (it rushes
+      // toward you and past), while the next screen comes forward out of
+      // the depth, its layers arriving at different distances (scene from
+      // further back than the words) so the space feels deep.
+      gsap.set(deep, { autoAlpha: 0 });
+      deep.forEach((p, k) => {
+        const at = flat.length - 1 + k; // unit where this zoom starts
+        const out = k === 0 ? view : deep[k - 1];
+        const scene = (k === 0 ? flat[flat.length - 1] : deep[k - 1]).querySelector<HTMLElement>(".ch-scene, .sc6");
+        master.set(out, { transformOrigin: () => originOf(scene, out) }, at);
+        master.to(out, { scale: 3.4, z: 260, rotationX: -8, autoAlpha: 0, duration: 0.8, ease: "power2.in" }, at);
+        master.fromTo(
+          p,
+          { autoAlpha: 0, z: -1600, rotationX: 14, rotationY: k % 2 ? 10 : -10, clipPath: "inset(30% 30% 30% 30%)" },
+          { autoAlpha: 1, z: 0, rotationX: 0, rotationY: 0, clipPath: "inset(0% 0% 0% 0%)", duration: 0.8, ease: "power3.out" },
+          at + 0.2,
+        );
+        // Depth layers inside the arriving screen.
+        const pScene = p.querySelector(".ch-scene, .sc6");
+        const pCopy = p.querySelector(".ch-copy");
+        if (pScene) master.fromTo(pScene, { z: -700 }, { z: 0, duration: 0.8, ease: "power3.out" }, at + 0.28);
+        if (pCopy) master.fromTo(pCopy, { z: -250 }, { z: 0, duration: 0.8, ease: "power3.out" }, at + 0.24);
       });
-      // The hero's scene leaves faster than its headline.
-      gsap.to(el.querySelector(".hi-scene"), { x: "-22vw", ease: "none", scrollTrigger: along(el.querySelector(".hs-hero")!, "left left", "right left") });
-      gsap.to(el.querySelector(".hi-bottom"), { x: "-6vw", ease: "none", scrollTrigger: along(el.querySelector(".hs-hero")!, "left left", "right left") });
-      // The giant footer wordmark slides in slower than the page.
-      const big = el.querySelector(".lp-big");
-      if (big) gsap.fromTo(big, { x: "30vw" }, { x: "0vw", ease: "none", scrollTrigger: along(el.querySelector(".hs-foot")!, "left right", "left left") });
 
-      // ── Each chapter plays its story as it slides into view ──────────
-      chapters.forEach((ch, i) => {
-        stageOf(ch).dataset.state = "wire";
-        ScrollTrigger.create({
-          ...along(ch, "left 85%", "left 5%"),
-          scrub: 0.6,
-          animation: stories[i],
-          // Wireframe → real, like the AI drawing this chapter.
-          onUpdate: (s) => (stageOf(ch).dataset.state = s.progress < 0.06 ? "drawing" : s.progress < 0.14 ? "wire" : "real"),
+      // While you're on a 3D screen, it tilts gently toward your mouse.
+      const tilt = (e: PointerEvent) => {
+        const u = Math.round(master.time());
+        const p = deep[u - flat.length];
+        if (!p) return;
+        const stage = p.querySelector<HTMLElement>(".ch-stage") ?? p; // the footer has no stage
+        gsap.to(stage, {
+          rotationY: (e.clientX / innerWidth - 0.5) * 6,
+          rotationX: -(e.clientY / innerHeight - 0.5) * 5,
+          duration: 0.8,
+          ease: "power3.out",
+          overwrite: "auto",
         });
-        ScrollTrigger.create({ ...along(ch, "left center", "right center"), onToggle: (s) => s.isActive && setActive(i) });
+      };
+      addEventListener("pointermove", tilt);
+
+      // Each chapter's story plays while it arrives.
+      const arrival = (i: number) => i; // chapter i arrives during unit i → i+1
+      chapters.forEach((_, i) => master.to(stories[i], { progress: 1, duration: 0.85 }, arrival(i) + 0.15));
+
+      // Pin the whole thing and drive it with scroll.
+      const st = ScrollTrigger.create({
+        trigger: el,
+        pin: true,
+        scrub: 0.8,
+        // Same scroll distance per screen as the original sideways scroll.
+        end: () => "+=" + STEPS * innerWidth * 1.15,
+        animation: master,
+        invalidateOnRefresh: true,
       });
-      // Pills hide on the hero and the footer.
-      ScrollTrigger.create({ ...along(el.querySelector(".hs-hero")!, "left left", "right center"), onToggle: (s) => s.isActive && setActive(-1) });
-      ScrollTrigger.create({ ...along(el.querySelector(".hs-foot")!, "left center", "right right"), onToggle: (s) => s.isActive && setActive(-1) });
+      // Runs on every animation frame of the master (not just on scroll
+      // events), so fast jumps never leave a chapter stuck half-drawn.
+      master.eventCallback("onUpdate", () => {
+          const t = master.time();
+          // Wireframe → real as each chapter arrives (like the AI drawing it).
+          chapters.forEach((ch, i) => {
+            const local = t - arrival(i);
+            stageOf(ch).dataset.state = local < 0.2 ? "drawing" : local < 0.45 ? "wire" : "real";
+          });
+          // Only the screen you're on takes clicks (the deep ones overlap).
+          const u = Math.round(t);
+          deep.forEach((p, k) => (p.style.pointerEvents = u === flat.length + k ? "auto" : "none"));
+          view.style.pointerEvents = u < flat.length ? "auto" : "none";
+          setActive(u >= 1 && u <= chapters.length ? u - 1 : -1);
+      });
+      stops = () => [...Array(STEPS + 1)].map((_, u) => st.start + (u / STEPS) * (st.end - st.start));
 
       // ── Paging: one scroll gesture = one screen ──────────────────────
-      // Instead of scrolling continuously, every wheel flick, swipe or arrow
-      // key glides to the NEXT (or previous) screen as one transition, and
-      // ignores further input until it lands.
-      const panels = [...track.children] as HTMLElement[];
-      const posOf = (p: HTMLElement) => {
-        const st = mainTween!.scrollTrigger!;
-        return st.start + (p.offsetLeft / dist()) * (st.end - st.start);
-      };
+      let busy = false;
       const current = () => {
+        const s = stops();
         let best = 0;
-        panels.forEach((p, i) => {
-          if (Math.abs(posOf(p) - scrollY) < Math.abs(posOf(panels[best]) - scrollY)) best = i;
-        });
+        s.forEach((y, i) => Math.abs(y - scrollY) < Math.abs(s[best] - scrollY) && (best = i));
         return best;
       };
-      let busy = false;
       const step = (dir: 1 | -1) => {
         if (busy || document.querySelector("dialog[open]")) return;
-        const next = Math.min(panels.length - 1, Math.max(0, current() + dir));
-        if (next === current()) return;
+        const from = current();
+        const next = Math.min(STEPS, Math.max(0, from + dir));
+        if (next === from) return;
         busy = true;
-        const lenis = (window as Window & { __lenis?: Lenis }).__lenis;
-        const done = () => setTimeout(() => (busy = false), 250); // swallow trackpad inertia
-        if (lenis) lenis.scrollTo(posOf(panels[next]), { duration: 1.3, easing: (t) => 1 - Math.pow(1 - t, 4), lock: true, force: true, onComplete: done });
-        else {
-          scrollTo({ top: posOf(panels[next]), behavior: "smooth" });
-          setTimeout(done, 900);
-        }
+        glide(stops()[next], () => setTimeout(() => (busy = false), 250)); // swallow trackpad inertia
       };
-      // From chapter 04 on (screen index 4) scrolling is continuous again:
-      // 04 → 05 → 06 → footer slide sideways smoothly with the wheel.
-      const FREE_FROM = 4;
+      // From chapter 04 on (screen index FREE_FROM) scrolling is continuous:
+      // the falls into 05, 06 and the footer follow the wheel smoothly.
+      const FREE_FROM = flat.length; // 04
       const free = (dir: number) => {
-        const y = posOf(panels[FREE_FROM]);
+        const y = stops()[FREE_FROM];
         return dir > 0 ? scrollY >= y - 2 : scrollY > y + 2;
       };
       const onWheel = (e: WheelEvent) => {
@@ -218,6 +260,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       addEventListener("touchmove", onTouchMove, { passive: false });
       addEventListener("touchend", onTouchEnd);
       return () => {
+        removeEventListener("pointermove", tilt);
         removeEventListener("wheel", onWheel, { capture: true });
         removeEventListener("keydown", onKey);
         removeEventListener("touchstart", onTouchStart);
@@ -227,7 +270,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
     }, el);
     return () => {
       ctx.revert();
-      mainTween = null;
+      stops = () => [];
     };
   }, []);
 
@@ -239,6 +282,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         so .hs must not sit next to React-managed siblings. */}
     <div>
     <div ref={root} id="chapters" className="hs">
+      <div className="hs-view">
       <div className="hs-track">
       <div className="hs-panel hs-hero">{hero}</div>
       {/* ── 01 The problem ─────────────────────────────────────────── */}
@@ -315,8 +359,13 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         </div>
       </Chapter>
 
+      </div>
+      </div>
+
+      {/* ── From here on you FALL INTO each screen (depth stack) ──────── */}
+      <div className="dz">
       {/* ── 04 The AI as a teammate ────────────────────────────────── */}
-      <Chapter n={4} title="The AI as a teammate" line="It merges, explains, and steps aside when you say so." sub="Clashes are found and merged out loud. Pause it or take over any time." flip>
+      <Chapter deep n={4} title="The AI as a teammate" line="It merges, explains, and steps aside when you say so." sub="Clashes are found and merged out loud. Pause it or take over any time." flip>
         <div className="sc4">
           <div className="sc4-notes">
             <div className="sc-note">
@@ -342,7 +391,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       </Chapter>
 
       {/* ── 05 Bring your own AI ───────────────────────────────────── */}
-      <Chapter n={5} title="Bring your own AI" line="Use your AI. Or ours, for free." sub="Gemini, Claude or OpenAI with your own key — or the built-in one.">
+      <Chapter deep n={5} title="Bring your own AI" line="Use your AI. Or ours, for free." sub="Gemini, Claude or OpenAI with your own key — or the built-in one.">
         <div className="sc-frame sc5">
           <span className="lp-mono sc-label">Run by</span>
           <div className="sc5-roll">
@@ -357,7 +406,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       </Chapter>
 
       {/* ── 06 Start the chat ──────────────────────────────────────── */}
-      <section className="ch ch-final" aria-labelledby="ch6">
+      <section className="ch ch-final dz-panel" aria-labelledby="ch6">
         <div className="ch-stage" data-build="chapter">
           <div className="sc6" aria-hidden>
             {[0, 1, 2].map((i) => (
@@ -381,7 +430,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         </div>
       </section>
 
-      <div className="hs-panel hs-foot">{footer}</div>
+      <div className="dz-panel hs-foot">{footer}</div>
       </div>
     </div>
     </div>
@@ -407,9 +456,9 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
 
 // One chapter: number + title, one big line, a short sub line, the scene.
 // `flip` puts the scene on the left for some tension between screens.
-function Chapter({ n, title, line, sub, flip, cta, children }: { n: number; title: string; line: string; sub: string; flip?: boolean; cta?: boolean; children: React.ReactNode }) {
+function Chapter({ n, title, line, sub, flip, cta, deep, children }: { deep?: boolean; n: number; title: string; line: string; sub: string; flip?: boolean; cta?: boolean; children: React.ReactNode }) {
   return (
-    <section className={`ch ${flip ? "ch-flip" : ""}`} aria-labelledby={`ch${n}`}>
+    <section className={`ch ${flip ? "ch-flip" : ""} ${deep ? "dz-panel" : ""}`} aria-labelledby={`ch${n}`}>
       <div className="ch-stage" data-build="chapter">
         <div className="ch-copy">
           <span className="ch-num lp-mono">

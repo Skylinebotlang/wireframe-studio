@@ -50,7 +50,10 @@ export function LiveCursors() {
       if (!t) return null;
       const r = t.getBoundingClientRect();
       const p = s.getBoundingClientRect();
-      return { x: r.left - p.left + r.width * fx, y: r.top - p.top + r.height * fy };
+      // Keep the whole cursor + name tag on screen.
+      const x = Math.min(innerWidth - 170, Math.max(16, r.left - p.left + r.width * fx));
+      const y = Math.min(innerHeight - 90, Math.max(16, r.top - p.top + r.height * fy));
+      return { x, y };
     };
     const targets = (s: HTMLElement) => [
       point(s, ".ch-line, .hud-title, .ch6-line, .lp-big", 0.6, -0.12) ?? { x: innerWidth * 0.2, y: innerHeight * 0.3 },

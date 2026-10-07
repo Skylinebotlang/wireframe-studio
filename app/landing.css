@@ -1002,12 +1002,15 @@ h1[data-build][data-state="wire"] {
 .dz { transform-style: preserve-3d; }
 .dz-panel, .dz-panel .ch-stage { transform-style: preserve-3d; }
 .dz { position: absolute; inset: 0; pointer-events: none; }
+/* Morphing pages overlap, so they must be see-through: the navy comes
+   from .hs behind them. */
+.hs { background: var(--paper); }
+.dz-panel, .dz-panel .ch-stage { background: transparent; }
 .dz-panel {
   position: absolute !important;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: var(--paper);
   will-change: transform, opacity, clip-path;
 }
 .hs .dz .ch { flex: none; border-right: 0; }

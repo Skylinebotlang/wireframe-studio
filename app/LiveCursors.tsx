@@ -73,6 +73,10 @@ export function LiveCursors() {
     // Where each cursor's base position is heading (roaming is measured from here).
     const anchor = land.map((p) => ({ ...p }));
     const jump = gsap.timeline({
+      // A touch quicker than written, to keep the opening short.
+      onStart() {
+        this.timeScale(1.4);
+      },
       // When everyone has landed, hide all in-window cursors for good.
       onComplete: () => {
         document.documentElement.classList.add("lc-on");

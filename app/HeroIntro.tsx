@@ -143,6 +143,9 @@ export function HeroIntro() {
         tl.progress(1); // the final picture, no motion
         return;
       }
+      // Played 1.8× faster than written, so the whole story takes about
+      // 3.3 s (button visible at about 2.6 s) and visitors don't wait.
+      tl.timeScale(1.8);
       const w = window as Window & { __wfsLoaded?: boolean };
       const play = () => tl.play();
       if (w.__wfsLoaded) play();

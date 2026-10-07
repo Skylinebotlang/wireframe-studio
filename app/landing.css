@@ -1035,3 +1035,12 @@ h1[data-build][data-state="wire"] {
 /* Once the live cursors are out, hide every cursor drawn INSIDE a window
    (hero frame, chapter scenes) so each person/AI appears only once. */
 .lc-on .hs .hi-cursor { visibility: hidden !important; }
+
+/* Second-half pages as floating 3D cards (app/Chapters.tsx) */
+.dz-panel .ch-stage,
+.dz-panel .lp-footer {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 50px 120px -30px #000, 0 0 0 1px color-mix(in srgb, var(--accent-bright) 18%, transparent);
+  will-change: transform;
+}

@@ -5,9 +5,9 @@
 // screen, played as a single transition (paging). From 04 to the footer the
 // scroll is continuous again: the falls follow the wheel smoothly.
 //   hero → 01 → 02 → 03   slide SIDEWAYS (with parallax)
-//   03 → 04 → 05 → 06 → footer   MORPH ("second half"): each screen
-//                                reshapes into the next, linearly with the
-//                                scroll — half one page, half the next.
+//   03 → 04 → 05 → 06 → footer   3D ZOOM into each next screen. These
+//                                second-half pages are FLOATING 3D cards:
+//                                angled, gently bobbing, tilting to the mouse.
 // Inside each screen the layers move at different speeds (parallax): the
 // scene drifts faster than the words, so the screens feel deep.
 //
@@ -64,24 +64,14 @@ export function goToChapter(i: number) {
   glide(s[i + 1]);
 }
 
-// The move + resize that takes element `a` onto element `b` (each measured
-// inside its own full-screen page). Used for the second-half morph.
-function flip(a: HTMLElement, b: HTMLElement, uniform: boolean) {
-  const rel = (el: HTMLElement) => () => {
-    const r = el.getBoundingClientRect();
-    const page = (el.closest(".ch, .dz-panel") as HTMLElement).getBoundingClientRect();
-    return { x: r.left - page.left, y: r.top - page.top, w: el.offsetWidth || 1, h: el.offsetHeight || 1 };
-  };
-  const A = rel(a), B = rel(b);
-  // Clamp, so very different shapes (e.g. a link row vs a scene) don't explode.
-  const c = (v: number) => Math.min(3, Math.max(0.3, v));
-  const sx = () => c(B().w / A().w), sy = () => c(B().h / A().h);
-  return {
-    x: () => B().x - A().x,
-    y: () => B().y - A().y,
-    scaleX: () => (uniform ? Math.min(sx(), sy()) : sx()),
-    scaleY: () => (uniform ? Math.min(sx(), sy()) : sy()),
-  };
+// transform-origin (in px) that points at the middle of `target` inside `box`,
+// so zooming `box` dives straight into that scene.
+function originOf(target: HTMLElement | null, box: HTMLElement) {
+  if (!target) return "50% 50%";
+  const t = target.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  const sx = b.width / box.offsetWidth || 1; // undo any current scale
+  return `${(t.left + t.width / 2 - b.left) / sx}px ${(t.top + t.height / 2 - b.top) / sx}px`;
 }
 
 
@@ -142,30 +132,56 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         if (scene) master.fromTo(scene, { x: `${sv}vw` }, { x: last ? 0 : `${-sv}vw`, duration: last ? 1 : 2 }, k);
       });
 
-      // ── The morph (second half): each screen RESHAPES into the next ──
-      // Tied linearly to the scroll. The words block of one screen moves and
-      // resizes into where the next screen's words sit, and its scene frame
-      // stretches into the next scene frame, while each fades into the other.
-      // Halfway through, you see both pages overlapping, half-formed.
-      const WORDS = ".ch-copy, .lp-big";
-      const SCENE = ".ch-scene, .sc6, .lp-links";
+      // The 3D zoom: you fly INTO the current screen's scene (it rushes
+      // toward you and past), while the next screen comes forward out of
+      // the depth, its layers arriving at different distances (scene from
+      // further back than the words) so the space feels deep.
       gsap.set(deep, { autoAlpha: 0 });
       deep.forEach((p, k) => {
-        const at = flat.length - 1 + k; // unit where this morph starts
-        const from = k === 0 ? flat[flat.length - 1] : deep[k - 1];
-        const fromBox = k === 0 ? view : deep[k - 1];
-        // The incoming page is there from the start of the morph, underneath.
-        master.set(p, { autoAlpha: 1 }, at);
-        master.set(fromBox, { autoAlpha: 0 }, at + 1);
-        [WORDS, SCENE].forEach((sel, n) => {
-          const a = from.querySelector<HTMLElement>(sel);
-          const b = p.querySelector<HTMLElement>(sel);
-          if (!a || !b) return;
-          const uniform = n === 0; // keep text in proportion; frames may stretch
-          master.fromTo(a, { x: 0, y: 0, scaleX: 1, scaleY: 1, autoAlpha: 1, transformOrigin: "0 0" }, { ...flip(a, b, uniform), autoAlpha: 0, duration: 1 }, at);
-          master.fromTo(b, { ...flip(b, a, uniform), autoAlpha: 0, transformOrigin: "0 0" }, { x: 0, y: 0, scaleX: 1, scaleY: 1, autoAlpha: 1, duration: 1 }, at);
-        });
+        const at = flat.length - 1 + k; // unit where this zoom starts
+        const out = k === 0 ? view : deep[k - 1];
+        const scene = (k === 0 ? flat[flat.length - 1] : deep[k - 1]).querySelector<HTMLElement>(".ch-scene, .sc6");
+        master.set(out, { transformOrigin: () => originOf(scene, out) }, at);
+        master.to(out, { scale: 3.4, z: 260, rotationX: -8, autoAlpha: 0, duration: 0.8, ease: "power2.in" }, at);
+        master.fromTo(
+          p,
+          { autoAlpha: 0, z: -1600, rotationX: 14, rotationY: k % 2 ? 10 : -10, clipPath: "inset(30% 30% 30% 30%)" },
+          { autoAlpha: 1, z: 0, rotationX: 0, rotationY: 0, clipPath: "inset(0% 0% 0% 0%)", duration: 0.8, ease: "power3.out" },
+          at + 0.2,
+        );
+        // Depth layers inside the arriving screen.
+        const pScene = p.querySelector(".ch-scene, .sc6");
+        const pCopy = p.querySelector(".ch-copy");
+        if (pScene) master.fromTo(pScene, { z: -700 }, { z: 0, duration: 0.8, ease: "power3.out" }, at + 0.28);
+        if (pCopy) master.fromTo(pCopy, { z: -250 }, { z: 0, duration: 0.8, ease: "power3.out" }, at + 0.24);
       });
+
+      // ── Floating 3D landing pages (permanent) ────────────────────────
+      // Each second-half page is a card hovering in space: slightly smaller
+      // than the screen, angled, softly bobbing up and down, and tilting
+      // toward your mouse while you're on it.
+      const cardOf = (p: HTMLElement) => p.querySelector<HTMLElement>(".ch-stage, .lp-footer") ?? p;
+      const cards = deep.map(cardOf);
+      cards.forEach((c, k) => {
+        const lean = k % 2 ? 7 : -7;
+        gsap.set(c, { scale: 0.84, rotationY: lean, rotationX: 5, transformPerspective: 1600 });
+        gsap.to(c, { y: -14, duration: 3.2 + k * 0.3, ease: "sine.inOut", yoyo: true, repeat: -1 });
+      });
+      const tilt = (e: PointerEvent) => {
+        const u = Math.round(master.time());
+        const k = u - flat.length;
+        const c = cards[k];
+        if (!c) return;
+        const lean = k % 2 ? 7 : -7;
+        gsap.to(c, {
+          rotationY: lean + (e.clientX / innerWidth - 0.5) * 10,
+          rotationX: 5 - (e.clientY / innerHeight - 0.5) * 8,
+          duration: 0.9,
+          ease: "power3.out",
+          overwrite: "auto",
+        });
+      };
+      addEventListener("pointermove", tilt);
 
       // Each chapter's story plays while it arrives.
       const arrival = (i: number) => i; // chapter i arrives during unit i → i+1
@@ -259,6 +275,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       addEventListener("touchmove", onTouchMove, { passive: false });
       addEventListener("touchend", onTouchEnd);
       return () => {
+        removeEventListener("pointermove", tilt);
         removeEventListener("wheel", onWheel, { capture: true });
         removeEventListener("keydown", onKey);
         removeEventListener("touchstart", onTouchStart);

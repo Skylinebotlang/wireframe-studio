@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CHAPTERS — the whole landing page as ONE horizontal, parallax journey.
 //
-// One scroll gesture (wheel, trackpad, swipe, arrow keys) = one screen,
-// played as a single transition (paging, not a continuous scroll):
+// Hero → 04: one scroll gesture (wheel, trackpad, swipe, arrow keys) = one
+// screen, played as a single transition (paging). From 04 to the footer the
+// scroll is continuous again: the falls follow the wheel smoothly.
 //   hero → 01 → 02 → 03   slide SIDEWAYS (with parallax)
 //   03 → 04 → 05 → 06 → footer   you FALL INTO the screen: the current one
 //                                rushes past, zooming into its scene, and the
@@ -192,7 +193,15 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         busy = true;
         glide(stops()[next], () => setTimeout(() => (busy = false), 250)); // swallow trackpad inertia
       };
+      // From chapter 04 on (screen index FREE_FROM) scrolling is continuous:
+      // the falls into 05, 06 and the footer follow the wheel smoothly.
+      const FREE_FROM = flat.length; // 04
+      const free = (dir: number) => {
+        const y = stops()[FREE_FROM];
+        return dir > 0 ? scrollY >= y - 2 : scrollY > y + 2;
+      };
       const onWheel = (e: WheelEvent) => {
+        if (free(e.deltaY + e.deltaX)) return; // let smooth scroll handle it
         e.preventDefault();
         e.stopImmediatePropagation(); // keep Lenis from scrolling continuously
         if (Math.abs(e.deltaY) + Math.abs(e.deltaX) < 8) return;
@@ -202,7 +211,9 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         const t = e.target as HTMLElement;
         if (t.closest("input, textarea, dialog")) return;
         if (e.key === " " && t.closest("button, a")) return; // Space still presses buttons
-        if (["ArrowDown", "ArrowRight", "PageDown", " "].includes(e.key)) {
+        const fwd = ["ArrowDown", "ArrowRight", "PageDown", " "].includes(e.key);
+        if (free(fwd ? 1 : -1)) return; // normal key scrolling in the free part
+        if (fwd) {
           e.preventDefault();
           step(1);
         } else if (["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key)) {
@@ -212,10 +223,12 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       };
       let touchY = 0;
       const onTouchStart = (e: TouchEvent) => (touchY = e.touches[0].clientY);
-      const onTouchMove = (e: TouchEvent) => e.preventDefault();
+      const onTouchMove = (e: TouchEvent) => {
+        if (!free(touchY - e.touches[0].clientY)) e.preventDefault();
+      };
       const onTouchEnd = (e: TouchEvent) => {
         const dy = touchY - e.changedTouches[0].clientY;
-        if (Math.abs(dy) > 40) step(dy > 0 ? 1 : -1);
+        if (Math.abs(dy) > 40 && !free(dy)) step(dy > 0 ? 1 : -1);
       };
       addEventListener("wheel", onWheel, { passive: false, capture: true });
       addEventListener("keydown", onKey);

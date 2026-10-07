@@ -185,6 +185,8 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       // events), so fast jumps never leave a chapter stuck half-drawn.
       master.eventCallback("onUpdate", () => {
           const t = master.time();
+          // Tell the travelling cursors (app/LiveCursors.tsx) where we are.
+          dispatchEvent(new CustomEvent("wfs:screen", { detail: t }));
           // Wireframe → real as each chapter arrives (like the AI drawing it).
           chapters.forEach((ch, i) => {
             const local = t - arrival(i);

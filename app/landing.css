@@ -1021,3 +1021,15 @@ h1[data-build][data-state="wire"] {
   .hs-view, .dz { position: static; }
   .dz-panel { position: relative !important; height: auto; }
 }
+
+/* ── Live cursors (app/LiveCursors.tsx) ────────────────────────────────────
+   Float over every page; never catch clicks. Orange only on the Agent. */
+.lc-layer { position: fixed; inset: 0; z-index: 46; pointer-events: none; overflow: hidden; }
+.lc { position: absolute; left: 0; top: 0; opacity: 0; visibility: hidden; will-change: transform; }
+.lc-in { display: flex; align-items: flex-start; gap: 6px; will-change: transform; }
+.lc svg { filter: drop-shadow(0 2px 8px var(--c)); }
+.lc-tags { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; }
+.lc-name { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; font-size: 9px; background: var(--c); color: var(--paper); white-space: nowrap; }
+.lc-chip { padding: 1px 5px; font-size: 8px; color: var(--agent); background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid color-mix(in srgb, var(--agent) 40%, transparent); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .lc-layer { display: none; } }
+.lc-on .sc2-agent { display: none; }

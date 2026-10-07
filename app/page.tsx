@@ -25,6 +25,7 @@ import { HeroIntro } from "./HeroIntro";
 import { FluidCursor } from "./FluidCursor";
 import { Chapters } from "./Chapters";
 import { SmoothScroll } from "./SmoothScroll";
+import { LiveCursors } from "./LiveCursors";
 import "./landing.css";
 
 export default function LandingPage() {
@@ -36,6 +37,8 @@ export default function LandingPage() {
       <SmoothScroll />
       {/* Wine "ink" trail behind the mouse; above the page, below panels. */}
       <FluidCursor />
+      {/* Priya, Leo and the Agent travel with you, building each page. */}
+      <LiveCursors />
 
       {/* ── The whole page slides sideways (app/Chapters.tsx):
              hero (app/HeroIntro.tsx) → 6 chapters → footer ───────────── */}

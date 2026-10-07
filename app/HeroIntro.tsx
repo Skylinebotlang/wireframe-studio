@@ -120,6 +120,11 @@ export function HeroIntro() {
       tl.to(q(".hi-msg"), { opacity: 1, y: 0, duration: 0.7 }, 4.0);
       tl.to(q(".hi-cta, .hi-skip"), { opacity: 1, y: 0, duration: 0.6, stagger: 0.1 }, 4.6);
       tl.to(q(".hud-pool"), { opacity: 1, y: 0, duration: 0.6 }, 5.0);
+      // Story done: the cursors step out of the frame (app/LiveCursors.tsx).
+      tl.call(() => {
+        (window as Window & { __wfsHeroDone?: boolean }).__wfsHeroDone = true;
+        dispatchEvent(new Event("wfs:hero-done"));
+      }, undefined, 5.8);
       tl.to(q(".hi-hint"), { opacity: 1, y: 0, duration: 0.6 }, 5.4);
       // The progress bar + % follow the story, finishing when the AI is done.
       const bar = q(".hud-bar-fill")[0] as HTMLElement;

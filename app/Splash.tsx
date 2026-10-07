@@ -57,12 +57,13 @@ export function Splash() {
     };
   }, [state]);
 
-  // Tell the page the splash is gone (app/SiteBuilder.tsx waits for this).
+  // Tell the page the splash is gone (app/HeroIntro.tsx + app/SmoothScroll.tsx wait for this).
   // Runs after the scroll-lock cleanup above, so the page can lock again.
   useEffect(() => {
     if (state !== "gone") return;
-    (window as Window & { __wfsSplashDone?: boolean }).__wfsSplashDone = true;
-    dispatchEvent(new Event("wfs:splash-done"));
+    // The hero story + smooth scroll start on "wfs:loaded".
+    (window as Window & { __wfsLoaded?: boolean }).__wfsLoaded = true;
+    dispatchEvent(new Event("wfs:loaded"));
   }, [state]);
 
   function enter() {

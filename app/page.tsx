@@ -2,8 +2,8 @@
 // LANDING PAGE — the front door at "/". "Bold cyberpunk editorial" look.
 // Styles live in app/landing.css.
 //
-//   0. Loader         our 2D logo turning on navy while the page loads; it
-//                     flies into the nav logo spot (app/Loader.tsx).
+//   0. Splash         drag the 3D logo to enter; letting go lifts it away
+//                     and starts the hero story (app/Splash.tsx).
 //   The page scrolls SIDEWAYS with parallax (app/Chapters.tsx):
 //   1. Hero           the first 8 seconds: three teams building alone, then
 //                     their frames merge into one and the AI (orange)
@@ -15,12 +15,12 @@
 //                     bottom (app/Chapters.tsx, app/SmoothScroll.tsx).
 //   3. Footer         links + a giant outlined wordmark.
 //
-// "Start the chat" goes to /login for now (sign-up choice comes later).
+// "Start the chat" opens the Sign in / Sign up choice (app/StartChat.tsx).
 // Colors: wine = people, ORANGE = the AI only.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
-import { Loader } from "./Loader";
+import { Splash } from "./Splash";
 import { HeroIntro } from "./HeroIntro";
 import { FluidCursor } from "./FluidCursor";
 import { Chapters } from "./Chapters";
@@ -30,8 +30,8 @@ import "./landing.css";
 export default function LandingPage() {
   return (
     <main className="lp dot-grid select-none">
-      {/* Logo loader; hands off into the nav logo (app/Loader.tsx). */}
-      <Loader />
+      {/* Interactive splash: drag the 3D logo to enter (app/Splash.tsx). */}
+      <Splash />
       {/* Smooth, weighted scrolling synced with the animations. */}
       <SmoothScroll />
       {/* Wine "ink" trail behind the mouse; above the page, below panels. */}

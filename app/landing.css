@@ -1032,4 +1032,6 @@ h1[data-build][data-state="wire"] {
 .lc-name { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; font-size: 9px; background: var(--c); color: var(--paper); white-space: nowrap; }
 .lc-chip { padding: 1px 5px; font-size: 8px; color: var(--agent); background: color-mix(in srgb, var(--surface) 90%, transparent); border: 1px solid color-mix(in srgb, var(--agent) 40%, transparent); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .lc-layer { display: none; } }
-.lc-on .sc2-agent { display: none; }
+/* Once the live cursors are out, hide every cursor drawn INSIDE a window
+   (hero frame, chapter scenes) so each person/AI appears only once. */
+.lc-on .hs .hi-cursor { visibility: hidden !important; }

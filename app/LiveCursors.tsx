@@ -11,7 +11,8 @@
 //      they're building it: the people to the headline and the scene, the
 //      Agent to the middle of the scene. The Agent's chip says what it's
 //      drawing ("drawing: chapter 03").
-//   3. They keep roaming across the page: move, pause a moment, move on.
+//   3. They keep roaming across the page — always INSIDE that page's frame
+//      (console card / chapter area / floating card): move, pause, move on.
 //
 // The screen you're on comes from app/Chapters.tsx ("wfs:screen" event).
 // The layer never catches clicks. Hidden for reduced motion.
@@ -46,15 +47,31 @@ export function LiveCursors() {
 
     // A point inside `sel` on screen `s`, measured as if the screen sat at
     // the top-left of the window (where every screen is when you're on it).
+    // The FRAME of a screen: the hero's console card, a floating card, or
+    // (for the sideways chapters) the chapter area inside its padding.
+    // Returned as if the screen sat at the top-left of the window, with room
+    // left for the cursor's name tag, so cursors always stay inside it.
+    const frameOf = (s: HTMLElement) => {
+      const f = s.querySelector<HTMLElement>(".hud-card, .dz-panel .ch-stage, .dz-panel .lp-footer, .ch-stage, .lp-footer") ?? s;
+      const r = f.getBoundingClientRect();
+      const p = s.getBoundingClientRect();
+      const full = r.width > innerWidth * 0.95; // a full-screen chapter area
+      const ix = full ? innerWidth * 0.06 : 18, iy = full ? innerHeight * 0.1 : 18;
+      const left = Math.max(12, r.left - p.left + ix), top = Math.max(12, r.top - p.top + iy);
+      const right = Math.min(innerWidth - 12, r.right - p.left - ix) - 170; // 170 = cursor + tag width
+      const bottom = Math.min(innerHeight - 12, r.bottom - p.top - iy) - 60;
+      return { left, top, right: Math.max(left, right), bottom: Math.max(top, bottom) };
+    };
+    const inFrame = (s: HTMLElement, x: number, y: number) => {
+      const f = frameOf(s);
+      return { x: Math.min(f.right, Math.max(f.left, x)), y: Math.min(f.bottom, Math.max(f.top, y)) };
+    };
     const point = (s: HTMLElement, sel: string, fx: number, fy: number) => {
       const t = s.querySelector<HTMLElement>(sel);
       if (!t) return null;
       const r = t.getBoundingClientRect();
       const p = s.getBoundingClientRect();
-      // Keep the whole cursor + name tag on screen.
-      const x = Math.min(innerWidth - 170, Math.max(16, r.left - p.left + r.width * fx));
-      const y = Math.min(innerHeight - 90, Math.max(16, r.top - p.top + r.height * fy));
-      return { x, y };
+      return inFrame(s, r.left - p.left + r.width * fx, r.top - p.top + r.height * fy);
     };
     const targets = (s: HTMLElement) => [
       point(s, ".ch-line, .hud-title, .ch6-line, .lp-big", 0.6, -0.12) ?? { x: innerWidth * 0.2, y: innerHeight * 0.3 },
@@ -104,12 +121,16 @@ export function LiveCursors() {
     //    moves on. Done on an inner layer, so it adds to the screen-to-screen
     //    travel above. Every stop stays fully on screen.
     let alive = true;
+    const hops: (() => void)[] = [];
     const roamers = [priya, leo, agent].map((c, i) => {
       const inner = c.firstElementChild as HTMLElement;
       const hop = () => {
         if (!alive) return;
         const { x: ax, y: ay } = anchor[i];
-        const tx = gsap.utils.random(40, innerWidth - 220), ty = gsap.utils.random(90, innerHeight - 140);
+        // A random spot INSIDE the frame of the screen you're on.
+        const here = screens()[Math.round((window as Window & { __wfsScreen?: number }).__wfsScreen ?? 0)];
+        const f = here ? frameOf(here) : { left: 40, top: 90, right: innerWidth - 220, bottom: innerHeight - 140 };
+        const tx = gsap.utils.random(f.left, f.right), ty = gsap.utils.random(f.top, f.bottom);
         gsap.to(inner, {
           x: tx - ax,
           y: ty - ay,
@@ -119,6 +140,7 @@ export function LiveCursors() {
           onComplete: hop,
         });
       };
+      hops[i] = hop;
       hop();
       return inner;
     });
@@ -131,7 +153,11 @@ export function LiveCursors() {
       last = u;
       targets(s).forEach((p, i) => {
         anchor[i] = p;
-        gsap.to([priya, leo, agent][i], { x: p.x, y: p.y, duration: 1.1 + i * 0.15, ease: "power3.inOut", overwrite: "auto" });
+        const d = 1.1 + i * 0.15;
+        gsap.to([priya, leo, agent][i], { x: p.x, y: p.y, duration: d, ease: "power3.inOut", overwrite: "auto" });
+        // Drop the old page's roaming offset on the way, then roam this page.
+        gsap.killTweensOf(roamers[i]);
+        gsap.to(roamers[i], { x: 0, y: 0, duration: d, ease: "power3.inOut", onComplete: () => hops[i]() });
       });
       setChip(`drawing: ${NAMES[u] ?? "the page"}`);
     };

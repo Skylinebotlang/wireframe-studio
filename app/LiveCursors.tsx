@@ -3,9 +3,10 @@
 // Priya (wine light), Leo (rose) and the AI Agent (ORANGE, agent only).
 //
 // What happens, in plain words:
-//   1. When the hero story ends, they come OUT of the hero's frame (they
-//      start exactly where the hero's own cursors are) into a layer that
-//      floats over every page.
+//   1. When the hero story ends, they JUMP OUT of the hero's window: each
+//      in-window cursor hops, and a live cursor leaps from that exact spot
+//      in an arc, grows to full size and lands on the page. From then on
+//      they float over every page.
 //   2. Each time you reach a new screen, they glide to its parts as if
 //      they're building it: the people to the headline and the scene, the
 //      Agent to the middle of the scene. The Agent's chip says what it's
@@ -61,15 +62,34 @@ export function LiveCursors() {
       point(s, ".ch-scene, .hi-scene, .sc6, .lp-links", 0.5, 0.55) ?? { x: innerWidth * 0.5, y: innerHeight * 0.5 },
     ];
 
-    // 1. Start where the hero's own cursors are, then hide those.
+    // 1. THE JUMP OUT (first landing screen only): each cursor inside the
+    //    hero window hops up, and from that exact spot a live cursor leaps
+    //    out of the window in an arc, grows into its full size and lands on
+    //    its spot on the page. The in-window one fades as it leaves.
     const from = [".hi-g0", ".hi-g1", ".hi-agent"].map((s) => document.querySelector<HTMLElement>(s));
-    [priya, leo, agent].forEach((c, i) => {
-      const r = from[i]?.getBoundingClientRect();
-      gsap.set(c, { x: r ? r.left : innerWidth / 2, y: r ? r.top : innerHeight / 2, autoAlpha: 1 });
+    const land = targets(screens()[0]);
+    const jump = gsap.timeline({
+      // When everyone has landed, hide all in-window cursors for good.
+      onComplete: () => {
+        document.documentElement.classList.add("lc-on");
+        setChip("drawing: the hero");
+      },
     });
-    gsap.to(from, { autoAlpha: 0, duration: 0.3 });
-    // Only one orange Agent on screen: hide the ones drawn inside scenes.
-    document.documentElement.classList.add("lc-on");
+    [priya, leo, agent].forEach((c, i) => {
+      const r = from[i]?.getBoundingClientRect() ?? { left: innerWidth / 2, top: innerHeight / 2 };
+      const to = land[i];
+      const peak = Math.min(r.top, to.y) - 110; // top of the arc
+      const t = i * 0.14;
+      gsap.set(c, { x: r.left, y: r.top, scale: 0.75, autoAlpha: 0, transformOrigin: "0 0" });
+      if (from[i]) {
+        jump.to(from[i], { y: "-=22", scale: 1.35, duration: 0.22, ease: "power2.out" }, t);
+        jump.to(from[i], { autoAlpha: 0, duration: 0.18 }, t + 0.2);
+      }
+      jump.to(c, { autoAlpha: 1, duration: 0.15 }, t + 0.18);
+      jump.to(c, { x: to.x, duration: 0.95, ease: "power1.inOut" }, t + 0.18);
+      jump.to(c, { y: peak, scale: 1.25, duration: 0.45, ease: "power2.out" }, t + 0.18);
+      jump.to(c, { y: to.y, scale: 1, duration: 0.5, ease: "power2.in" }, t + 0.63);
+    });
 
     // 3. Gentle wandering on an inner layer (so it adds to the travel).
     const wander = [priya, leo, agent].map((c, i) => {
@@ -83,7 +103,7 @@ export function LiveCursors() {
     });
 
     // 2. Glide to the parts of the screen you're on.
-    let last = -1;
+    let last = 0; // already standing on the hero after the jump
     const moveTo = (u: number) => {
       const s = screens()[u];
       if (!s || u === last) return;
@@ -95,9 +115,8 @@ export function LiveCursors() {
     };
     const onScreen = (e: Event) => moveTo(Math.round((e as CustomEvent<number>).detail));
     addEventListener("wfs:screen", onScreen);
-    const first = setTimeout(() => moveTo(0), 400);
     return () => {
-      clearTimeout(first);
+      jump.kill();
       removeEventListener("wfs:screen", onScreen);
       wander.forEach((t) => t.kill());
       gsap.killTweensOf([priya, leo, agent]);

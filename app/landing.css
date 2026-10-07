@@ -687,12 +687,6 @@ h1[data-build][data-state="wire"] {
 .sc4-you { color: var(--accent-bright); font-size: 10px; }
 
 /* 05 */
-.sc5 { position: absolute; inset: 12% 6%; display: flex; flex-direction: column; justify-content: center; padding: 30px; }
-.sc5-roll { height: 1.1em; overflow: hidden; font-family: var(--font-inter-tight), sans-serif; font-size: clamp(40px, 5vw, 76px); font-weight: 600; letter-spacing: -0.04em; line-height: 1.1; }
-.sc5-list { display: flex; flex-direction: column; }
-.sc5-list span { height: 1.1em; }
-.sc5-lock { margin-top: 26px; color: var(--muted); font-size: 10px; }
-.sc5-lock::before { content: "■ "; color: var(--accent-bright); }
 
 /* 06 */
 .ch-final .ch-stage { grid-template-columns: 1fr; place-items: center; text-align: center; }
@@ -1043,4 +1037,14 @@ h1[data-build][data-state="wire"] {
   border: 1px solid var(--line);
   box-shadow: 0 50px 120px -30px #000, 0 0 0 1px color-mix(in srgb, var(--accent-bright) 18%, transparent);
   will-change: transform;
+}
+
+/* Chapter 05: the clickable demo room fills most of the floating card */
+.ch-live .ch-stage { grid-template-columns: minmax(0, 0.42fr) minmax(0, 1.58fr); gap: 3vw; }
+.ch-live .ch-scene { height: min(70vh, 640px); }
+.sc5-demo { position: absolute; inset: 0; border: 1px solid var(--line); background: var(--paper); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-bright) 20%, transparent); }
+.sc5-demo iframe { width: 100%; height: 100%; border: 0; display: block; }
+@media (max-width: 760px) {
+  .ch-live .ch-stage { grid-template-columns: 1fr; }
+  .ch-live .ch-scene { height: 62svh; }
 }

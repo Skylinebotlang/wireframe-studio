@@ -16,7 +16,8 @@
 //                        the AI draws → everyone sees it.
 //   03 Live together     named cursors move; the activity feed fills up.
 //   04 AI as teammate    clash found → merged → explained → you take over.
-//   05 Bring your own AI Gemini, Claude, OpenAI or the free one.
+//   05 Try it           the clickable demo room (public/demo/), usable right
+//                        here: prompt the scripted agent, send notes, take over.
 //   06 Start the chat    the frames merge one last time; the final button.
 //
 // Each chapter opens like the AI drawing it (wireframe in an orange
@@ -41,7 +42,7 @@ import { StartChat } from "./StartChat";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const PILLS = ["Problem", "How", "Live", "Teammate", "Your AI", "Start"];
+const PILLS = ["Problem", "How", "Live", "Teammate", "Try it", "Start"];
 
 // Scroll positions of every screen (0 = hero … last = footer), filled in by
 // the effect below, so buttons elsewhere can jump to a chapter.
@@ -202,6 +203,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       master.eventCallback("onUpdate", () => {
           const t = master.time();
           // Tell the travelling cursors (app/LiveCursors.tsx) where we are.
+          (window as Window & { __wfsScreen?: number }).__wfsScreen = t;
           dispatchEvent(new CustomEvent("wfs:screen", { detail: t }));
           // Wireframe → real as each chapter arrives (like the AI drawing it).
           chapters.forEach((ch, i) => {
@@ -269,6 +271,14 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         const dy = touchY - e.changedTouches[0].clientY;
         if (Math.abs(dy) > 40 && !free(dy)) step(dy > 0 ? 1 : -1);
       };
+      // Wheel scrolling over the demo (in its iframe) is passed up to here.
+      const onMsg = (e: MessageEvent) => {
+        if (e.origin !== location.origin || typeof e.data?.wfsWheel !== "number") return;
+        const lenis = (window as Window & { __lenis?: Lenis }).__lenis;
+        if (lenis) lenis.scrollTo(lenis.scroll + e.data.wfsWheel);
+        else scrollBy(0, e.data.wfsWheel);
+      };
+      addEventListener("message", onMsg);
       addEventListener("wheel", onWheel, { passive: false, capture: true });
       addEventListener("keydown", onKey);
       addEventListener("touchstart", onTouchStart, { passive: true });
@@ -276,6 +286,7 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
       addEventListener("touchend", onTouchEnd);
       return () => {
         removeEventListener("pointermove", tilt);
+        removeEventListener("message", onMsg);
         removeEventListener("wheel", onWheel, { capture: true });
         removeEventListener("keydown", onKey);
         removeEventListener("touchstart", onTouchStart);
@@ -405,18 +416,17 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
         </div>
       </Chapter>
 
-      {/* ── 05 Bring your own AI ───────────────────────────────────── */}
-      <Chapter deep n={5} title="Bring your own AI" line="Use your AI. Or ours, for free." sub="Gemini, Claude or OpenAI with your own key — or the built-in one.">
-        <div className="sc-frame sc5">
-          <span className="lp-mono sc-label">Run by</span>
-          <div className="sc5-roll">
-            <div className="sc5-list">
-              {["Gemini", "Claude", "OpenAI", "Free built-in"].map((m) => (
-                <span key={m}>{m}</span>
-              ))}
-            </div>
-          </div>
-          <p className="sc5-lock lp-mono">Your key stays in your browser. Never shared with the room.</p>
+      {/* ── 05 Try it: the clickable demo room (public/demo/index.html) ── */}
+      <Chapter
+        deep
+        live
+        n={5}
+        title="Try it"
+        line="Try it yourself."
+        sub="Sam and Maya already disagree. Type an idea, or send their notes and watch the agent merge them. Scripted demo: no account, no AI key."
+      >
+        <div className="sc5-demo">
+          <iframe src="/demo/index.html" title="Wireframe Studio demo room: try the agent" loading="lazy" />
         </div>
       </Chapter>
 
@@ -471,9 +481,9 @@ export function Chapters({ hero, footer }: { hero: React.ReactNode; footer: Reac
 
 // One chapter: number + title, one big line, a short sub line, the scene.
 // `flip` puts the scene on the left for some tension between screens.
-function Chapter({ n, title, line, sub, flip, cta, deep, children }: { deep?: boolean; n: number; title: string; line: string; sub: string; flip?: boolean; cta?: boolean; children: React.ReactNode }) {
+function Chapter({ n, title, line, sub, flip, cta, deep, live, children }: { deep?: boolean; live?: boolean; n: number; title: string; line: string; sub: string; flip?: boolean; cta?: boolean; children: React.ReactNode }) {
   return (
-    <section className={`ch ${flip ? "ch-flip" : ""} ${deep ? "dz-panel" : ""}`} aria-labelledby={`ch${n}`}>
+    <section className={`ch ${flip ? "ch-flip" : ""} ${deep ? "dz-panel" : ""} ${live ? "ch-live" : ""}`} aria-labelledby={`ch${n}`}>
       <div className="ch-stage" data-build="chapter">
         <div className="ch-copy">
           <span className="ch-num lp-mono">
@@ -487,7 +497,7 @@ function Chapter({ n, title, line, sub, flip, cta, deep, children }: { deep?: bo
             <StartChat className="ch-cta" />
           )}
         </div>
-        <div className="ch-scene" aria-hidden>
+        <div className="ch-scene" aria-hidden={live ? undefined : true}>
           {children}
         </div>
       </div>
@@ -558,13 +568,9 @@ const SCENES: ((tl: gsap.core.Timeline, q: Q) => void)[] = [
     tl.to(q(".sc4-clash, .sc4-merged"), { opacity: 0.35, duration: 0.06 }, 0.82);
     tl.from(q(".sc4-you"), { opacity: 0, y: 10, duration: 0.06 }, 0.84);
   },
-  // 05: the AI name rolls through the four options.
+  // 05: the demo window opens like a frame being drawn.
   (tl, q) => {
-    tl.from(q(".sc5"), { y: 30, opacity: 0, duration: 0.1 }, 0.12);
-    tl.to(q(".sc5-list"), { yPercent: -25, duration: 0.12 }, 0.3);
-    tl.to(q(".sc5-list"), { yPercent: -50, duration: 0.12 }, 0.5);
-    tl.to(q(".sc5-list"), { yPercent: -75, duration: 0.12 }, 0.7);
-    tl.from(q(".sc5-lock"), { opacity: 0, y: 10, duration: 0.08 }, 0.82);
+    tl.from(q(".sc5-demo"), { clipPath: "inset(0 100% 0 0)", duration: 0.25 }, 0.12);
   },
   // 06: three frames slide together into one, behind the final line.
   (tl, q) => {

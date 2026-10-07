@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireframe Studio Demo</title>
+<!--
+  WIREFRAME STUDIO — clickable demo (one file, no server, no AI key).
+  Embedded in the landing page's chapter 05 (app/Chapters.tsx) in an iframe.
+  When embedded, wheel scrolling over the canvas is passed up to the page,
+  so visitors can keep scrolling the site.
+  Shows the real app's look and flow: shared dotted canvas, teammates'
+  cursors, prompt notes, and the agent panel ("Frame your idea").
+  The agent here is SCRIPTED: answers are pre-written, so it works offline.
+  Colors match canvas-team/app/globals.css. Orange = the AI only.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: "Bulzing"; src: url("/fonts/Bulzing.ttf") format("truetype"); }
+  :root {
+    --ink:#f8f4f5; --paper:#090719; --surface:#131224; --raised:#191a2f;
+    --muted:#9e99a8; --line:#2b2a42; --accent:#681e2e; --accent-bright:#c2475f;
+    --agent:#ff6b2c; --rose:#e0607e; --wine-light:#d98a99;
+    --heading:"Bulzing","IBM Plex Sans",sans-serif; --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--paper); color:var(--ink); font-family:var(--sans); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  button:disabled { cursor:not-allowed; opacity:.45; }
+
+  /* Top bar */
+  header { height:52px; display:flex; align-items:center; justify-content:space-between; padding:0 16px; border-bottom:1px solid var(--line); background:var(--surface); flex-shrink:0; }
+  .brand { display:flex; align-items:center; gap:10px; font-family:var(--heading); letter-spacing:.06em; font-size:15px; }
+  .brand svg { width:22px; height:22px; }
+  .room { font-family:var(--mono); font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.15em; }
+  .people { display:flex; gap:-4px; }
+  .avatar { width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:600; border:2px solid var(--surface); margin-left:-6px; color:var(--paper); }
+
+  main { flex:1; display:flex; min-height:0; }
+
+  /* Canvas */
+  #canvas { position:relative; flex:1; min-width:0; overflow:hidden;
+    background-color:var(--paper); background-image:radial-gradient(var(--line) 1.2px, transparent 1.2px); background-size:22px 22px; }
+  #world { position:absolute; inset:0; }
+  .toolbar { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); display:flex; gap:4px; padding:5px; border-radius:12px;
+    background:rgba(19,18,36,.78); backdrop-filter:blur(10px); border:1px solid var(--line); z-index:20; }
+  .toolbar button { width:34px; height:34px; border-radius:8px; border:0; background:transparent; display:grid; place-items:center; color:var(--muted); }
+  .toolbar button.on, .toolbar button:hover { background:var(--raised); color:var(--ink); }
+  .toolbar svg { width:17px; height:17px; }
+
+  .note { position:absolute; width:200px; background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.35); user-select:none; cursor:grab; }
+  .note .who { background:var(--accent); padding:5px 9px; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.1em; display:flex; justify-content:space-between; }
+  .note p { padding:9px; font-size:13px; line-height:1.4; }
+  .note.clash { outline:2px solid var(--agent); outline-offset:3px; }
+
+  .phone { position:absolute; width:240px; user-select:none; cursor:grab; }
+  .phone .label { font-family:var(--mono); font-size:11px; color:var(--agent); margin-bottom:5px; letter-spacing:.05em; }
+  .phone .body { border:2px solid var(--agent); border-radius:6px; padding:12px; min-height:440px; display:flex; flex-direction:column; gap:8px; background:rgba(9,7,25,.6); }
+  .phone.settled .label { color:var(--muted); }
+  .phone.settled .body { border-color:#6b6878; }
+  .box { border:1.5px solid #6b6878; border-radius:3px; font-size:12px; color:#cfcad6; padding:0 10px; display:flex; align-items:center; opacity:0; transform:translateY(6px); transition:all .35s ease; }
+  .box.in { opacity:1; transform:none; }
+  .box.header { height:44px; background:#3a3848; font-weight:600; }
+  .box.text { height:36px; border-style:dashed; }
+  .box.input { height:38px; }
+  .box.button { height:40px; background:#4a4858; justify-content:center; font-weight:500; }
+  .box.card { height:76px; background:rgba(107,104,120,.18); }
+  .box.list { height:96px; background:rgba(107,104,120,.18); align-items:flex-start; padding-top:8px; }
+  .box.image { height:96px; justify-content:center; background:
+      linear-gradient(to top right, transparent calc(50% - 1px), #6b6878 50%, transparent calc(50% + 1px)),
+      linear-gradient(to bottom right, transparent calc(50% - 1px), #6b6878 50%, transparent calc(50% + 1px)); }
+
+  .cursor { position:absolute; z-index:15; pointer-events:none; transition:transform 1.4s cubic-bezier(.22,1,.36,1); }
+  .cursor svg { width:18px; height:18px; display:block; }
+  .cursor span { display:inline-block; margin:2px 0 0 12px; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:500; color:var(--paper); white-space:nowrap; }
+
+  .scan { position:absolute; inset:0; pointer-events:none; z-index:10; display:none; }
+  .scan.on { display:block; }
+  .scan::before { content:""; position:absolute; left:0; right:0; height:2px; background:var(--agent); box-shadow:0 0 18px 4px rgba(255,107,44,.45); animation:scan 2.2s linear infinite; }
+  @keyframes scan { from { top:0 } to { top:100% } }
+  .pill { position:absolute; left:50%; top:16px; transform:translateX(-50%); z-index:21; display:none; padding:5px 12px; border-radius:99px; border:1px solid rgba(255,107,44,.4);
+    background:rgba(9,7,25,.85); font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--agent); }
+  .pill.on { display:block; }
+  .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--agent); margin-right:7px; animation:pulse 1s infinite; vertical-align:middle; }
+  @keyframes pulse { 50% { opacity:.3 } }
+
+  /* Agent panel */
+  aside { width:320px; flex-shrink:0; border-left:1px solid var(--line); background:var(--surface); display:flex; flex-direction:column; min-height:0; }
+  .phead { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .phead h2 { font-family:var(--heading); font-size:14px; letter-spacing:.06em; font-weight:400; }
+  .status { font-family:var(--mono); font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin-top:2px; }
+  .status.live { color:var(--agent); }
+  .keybtn { font-size:11px; border:1px solid var(--line); background:var(--raised); padding:4px 8px; border-radius:6px; }
+  .pbody { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:20px; }
+  h3 { font-family:var(--mono); font-size:11px; font-weight:400; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  textarea { width:100%; resize:none; background:var(--paper); border:1px solid var(--line); border-radius:6px; color:var(--ink); font:inherit; font-size:12px; padding:7px 8px; outline:none; }
+  textarea:focus { border-color:var(--accent-bright); }
+  .primary { width:100%; margin-top:6px; border:0; border-radius:6px; background:var(--accent); padding:8px; font-size:14px; font-weight:500; }
+  .primary:hover:not(:disabled) { filter:brightness(1.15); }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .chip { font-size:11px; border:1px solid var(--line); background:var(--raised); padding:3px 8px; border-radius:99px; color:var(--muted); }
+  .chip:hover { border-color:var(--accent-bright); color:var(--ink); }
+  .secondary { width:100%; border:1px solid var(--line); background:var(--raised); border-radius:6px; padding:8px; font-size:13px; }
+  .secondary.working { background:var(--agent); border-color:var(--agent); color:var(--paper); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .small { border:1px solid var(--line); background:var(--raised); border-radius:6px; padding:6px; font-size:12px; }
+  .small:hover:not(:disabled) { border-color:var(--accent-bright); }
+  ol { list-style:none; padding:0; display:flex; flex-direction:column; gap:5px; font-size:12px; }
+  ol li { display:flex; align-items:center; gap:8px; color:var(--muted); }
+  ol li i { width:16px; height:16px; border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font-size:9px; font-style:normal; }
+  ol li.working { color:var(--ink); } ol li.working i { border-color:var(--agent); animation:pulse 1s infinite; }
+  ol li.done { color:var(--ink); } ol li.done i { background:var(--accent); border-color:var(--accent-bright); }
+  .clashcard { background:var(--raised); border:1px solid var(--line); border-radius:6px; padding:10px; font-size:12px; line-height:1.5; }
+  .clashcard .picks { display:flex; gap:5px; margin-top:8px; flex-wrap:wrap; }
+  .clashcard .picks button { font-size:11px; border:1px solid rgba(194,71,95,.6); background:transparent; border-radius:4px; padding:2px 8px; }
+  .clashcard .picks button:hover { background:var(--accent); }
+  .agentsays { border-left:2px solid var(--agent); padding-left:10px; font-size:12px; line-height:1.55; margin-top:10px; }
+  .agentsays b { font-family:var(--mono); font-size:11px; font-weight:400; letter-spacing:.14em; text-transform:uppercase; color:var(--agent); }
+  #feed { list-style:none; padding:0; display:flex; flex-direction:column; gap:6px; font-size:12px; line-height:1.4; }
+  #feed time { font-family:var(--mono); font-size:11px; color:var(--muted); margin-right:6px; }
+  #feed .ai { color:var(--agent); }
+  .hint { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:5px; }
+
+  @media (max-width:760px) {
+    main { flex-direction:column; }
+    aside { width:100%; height:48vh; border-left:0; border-top:1px solid var(--line); }
+    .room { display:none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24"><path d="M12 3 22 20H2Z" fill="none" stroke="#c2475f" stroke-width="2"/><path d="M12 9 17 18H7Z" fill="#681e2e"/></svg>
+    Wireframe Studio
+  </div>
+  <div class="room">Room · dog-walker-app</div>
+  <div class="people">
+    <div class="avatar" style="background:#e0607e" title="papi (you)">P</div>
+    <div class="avatar" style="background:#d98a99" title="Maya · Designer">M</div>
+    <div class="avatar" style="background:#a78bfa" title="Sam · Developer">L</div>
+  </div>
+</header>
+
+<main>
+  <div id="canvas">
+    <div id="world"></div>
+    <div class="scan" id="scan"></div>
+    <div class="pill" id="pill"><span class="dot"></span><span id="pilltext">Agent is designing</span></div>
+    <div class="toolbar">
+      <button class="on" title="Select"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 8-6 2-3 6z"/></svg></button>
+      <button title="Hand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V6a1.5 1.5 0 0 1 3 0v5m0-6a1.5 1.5 0 0 1 3 0v6m0-5a1.5 1.5 0 0 1 3 0v7a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-2L7 13"/></svg></button>
+      <button title="Prompt note" id="addNote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5"/></svg></button>
+      <button title="Draw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20c4-1 6-5 9-9l3-3 2 2-3 3c-4 3-8 5-9 9"/></svg></button>
+      <button title="Rectangle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></button>
+    </div>
+  </div>
+
+  <aside>
+    <div class="phead">
+      <div><h2>Agent</h2><div class="status" id="status">Idle</div></div>
+      <button class="keybtn" title="Demo only">Your AI key</button>
+    </div>
+    <div class="pbody">
+      <section>
+        <h3>Frame your idea</h3>
+        <div id="question"></div>
+        <textarea id="idea" rows="3" maxlength="1000" placeholder="e.g. a sign-up flow for a dog-walking app"></textarea>
+        <button class="primary" id="frame" disabled>Frame it</button>
+        <div class="chips">
+          <button class="chip">a sign-up flow for a dog-walking app</button>
+          <button class="chip">add a search bar to Home</button>
+          <button class="chip">make it better</button>
+        </div>
+      </section>
+
+      <section>
+        <button class="secondary" id="send">Send notes to agent</button>
+        <div class="grid2">
+          <button class="small" id="pause" disabled>Pause</button>
+          <button class="small" id="takeover" disabled>Take over</button>
+        </div>
+      </section>
+
+      <section><h3>Plan</h3><ol id="plan"></ol></section>
+      <section id="clashes" hidden></section>
+      <section><h3>Activity</h3><ul id="feed"></ul></section>
+    </div>
+  </aside>
+</main>
+
+<script>
+// ── Scripted agent answers (the real app gets these from Gemini / Claude) ──
+const SCREENS = {
+  signup: [
+    { name: "Welcome", boxes: [["header","Walkies"],["image","Happy dog photo"],["text","Trusted walkers near you"],["button","Get started"],["text","Already have an account? Sign in"]] },
+    { name: "Create account", boxes: [["header","Create account"],["input","Your name"],["input","Email"],["input","Password"],["button","Continue"]] },
+    { name: "Your dog", boxes: [["header","Tell us about your dog"],["image","Add a photo"],["input","Dog's name"],["input","Breed & size"],["button","Finish"]] },
+  ],
+  home: { name: "Home", boxes: [["header","Hi papi"],["input","Search walkers or areas"],["card","Next walk · Today 5pm with Rae"],["list","Walkers near you"],["button","Book a walk"]] },
+  notes: [
+    { name: "Home", boxes: [["header","Walkies"],["card","Summary: next walk + spend this month"],["list","Walkers near you"],["button","Book a walk"]] },
+    { name: "Walker profile", boxes: [["header","Rae K."],["image","Profile photo"],["text","★ 4.9 · 212 walks"],["card","Reviews"],["button","Book Rae"]] },
+  ],
+};
+const PLAN = ["Read every note","Spot clashes","Merge ideas","Design screens","Draw on canvas"];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const world = $("world");
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+let status = "idle", paused = false, cancelled = false, asked = false, nextX = 560, startedBy = "papi";
+
+function log(who, text, ai) {
+  const li = document.createElement("li");
+  const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  li.innerHTML = `<time>${t}</time><span class="${ai ? "ai" : ""}">${ai ? "" : `<b>${who}: </b>`}</span>`;
+  li.lastChild.append(text);
+  $("feed").prepend(li);
+}
+function setPlan(done, working = done) {
+  $("plan").innerHTML = PLAN.map((p, i) => {
+    const s = i < done ? "done" : i < working ? "working" : "";
+    return `<li class="${s}"><i>${s === "done" ? "✓" : ""}</i>${p}</li>`;
+  }).join("");
+}
+function setStatus(s, text) {
+  status = s;
+  const live = s === "working" || s === "paused";
+  $("status").className = "status" + (live ? " live" : "");
+  $("status").innerHTML = (live ? '<span class="dot"></span>' : "") + text;
+  $("scan").classList.toggle("on", s === "working");
+  $("pill").classList.toggle("on", s === "working");
+  $("pause").disabled = !live;
+  $("pause").textContent = s === "paused" ? "Resume" : "Pause";
+  $("takeover").disabled = !live;
+  $("send").disabled = live;
+  $("send").className = "secondary" + (s === "working" ? " working" : "");
+  $("send").textContent = s === "working" ? "Agent working…" : "Send notes to agent";
+  updateFrameBtn();
+}
+function updateFrameBtn() { $("frame").disabled = status === "working" || status === "paused" || !$("idea").value.trim(); }
+
+// Drag anything on the canvas (it's a whiteboard).
+function draggable(el) {
+  el.addEventListener("pointerdown", (e) => {
+    const sx = e.clientX - el.offsetLeft, sy = e.clientY - el.offsetTop;
+    el.setPointerCapture(e.pointerId);
+    const move = (ev) => { el.style.left = ev.clientX - sx + "px"; el.style.top = ev.clientY - sy + "px"; };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", () => el.removeEventListener("pointermove", move), { once: true });
+  });
+}
+function addNote(x, y, who, role, text, color = "#681e2e") {
+  const n = document.createElement("div");
+  n.className = "note"; n.style.left = x + "px"; n.style.top = y + "px";
+  n.innerHTML = `<div class="who" style="background:${color}"><span>${who}</span><span>${role}</span></div><p contenteditable="true"></p>`;
+  n.querySelector("p").textContent = text;
+  world.append(n); draggable(n); return n;
+}
+
+// Draw one phone frame, box by box (orange while the agent is drawing).
+async function drawPhone(screen, x, y, replace) {
+  const p = document.createElement("div");
+  p.className = "phone"; p.dataset.name = screen.name.toLowerCase();
+  p.style.left = x + "px"; p.style.top = y + "px";
+  p.innerHTML = `<div class="label">${screen.name}</div><div class="body"></div>`;
+  if (replace) replace.replaceWith(p); else world.append(p);
+  draggable(p);
+  for (const [type, label] of screen.boxes) {
+    const b = document.createElement("div");
+    b.className = "box " + type; b.textContent = type === "image" ? "" : label;
+    if (type === "image") b.title = label;
+    p.querySelector(".body").append(b);
+    await wait(40); b.classList.add("in"); await wait(170);
+  }
+  setTimeout(() => p.classList.add("settled"), 1600);
+}
+
+// Wait while paused; stop if someone took over.
+async function step(ms) {
+  await wait(ms);
+  while (paused && !cancelled) await wait(150);
+  if (cancelled) throw new Error("taken over");
+}
+
+// ── A full scripted run ────────────────────────────────────────────────────
+async function run(kind, idea) {
+  cancelled = false; paused = false;
+  $("clashes").hidden = true; $("question").innerHTML = "";
+  setStatus("working", `Working · started by ${startedBy}`);
+  if (idea) log("papi", idea); else log("papi", "papi sent the board to the agent", false);
+  $("pilltext").textContent = idea ? "Agent is designing · started by papi" : "Agent is reading the board · started by papi";
+  try {
+    setPlan(1, 4); await step(1400);
+    setPlan(2, 4); await step(900);
+    setPlan(3, 4); await step(900);
+
+    if (kind === "ask") {
+      setPlan(5); setStatus("done", "Done · papi using Gemini");
+      log("", "Run by papi using Gemini (built-in free agent) · asked a question", true);
+      const q = "Should I improve the Home screen, or the whole sign-up flow?";
+      log("", q, true); asked = true;
+      $("question").innerHTML = `<div class="agentsays" style="margin:0 0 8px"><b>Agent asks · </b>${q}</div>`;
+      $("idea").placeholder = "Type your answer…";
+      return;
+    }
+
+    setPlan(4, 5);
+    const frames = world.querySelectorAll(".phone");
+    const top = 60;
+    if (kind === "signup" || kind === "notes") {
+      const list = SCREENS[kind];
+      for (const s of list) { await drawPhone(s, nextX, top); nextX += 280; await step(150); }
+      log("", `Run by papi using Gemini (built-in free agent) · added ${list.length} screens, ${kind === "notes" ? 1 : 0} clash${kind === "notes" ? "" : "es"}`, true);
+    } else {
+      // "update": replace Home in place if it's there, else add it.
+      const old = [...frames].find((f) => f.dataset.name === "home");
+      await drawPhone(SCREENS.home, old ? old.offsetLeft : nextX, old ? old.offsetTop : top, old);
+      if (!old) nextX += 280;
+      log("", `Run by papi using Gemini (built-in free agent) · ${old ? "updated" : "added"} 1 screen, 0 clashes`, true);
+    }
+    setPlan(5); setStatus("done", "Done · papi using Gemini");
+    showResult(kind);
+  } catch {
+    setPlan(0); setStatus("idle", "Idle");
+  }
+}
+
+function showResult(kind) {
+  const c = $("clashes"); c.hidden = false;
+  const merge = {
+    signup: "I read this as a 3-step onboarding: account first, then the dog's details with a photo, so walkers get matched right away.",
+    update: "Added a search bar under the header on Home and kept everything the team had placed there.",
+    notes: "Sam wants a busy dashboard, Maya wants it minimal. I kept one compact summary card on top (Sam) and left the rest calm (Maya).",
+  }[kind];
+  c.innerHTML = `<h3>Clashes (${kind === "notes" ? 1 : 0})</h3>` +
+    (kind === "notes"
+      ? `<div class="clashcard">Sam wants a dashboard full of stats on Home; Maya wants Home minimal.<div class="picks"><button data-who="Sam">Use Sam's version</button><button data-who="Maya">Use Maya's version</button></div></div>`
+      : `<p style="font-size:12px;color:var(--muted)">No clashes between the notes.</p>`) +
+    `<div class="agentsays"><b>How I merged it · </b>${merge}</div>`;
+  c.querySelectorAll("[data-who]").forEach((b) => b.onclick = () =>
+    log("papi", `papi picked ${b.dataset.who}'s version for the clash "Dashboard vs minimal Home" (instead of the merge).`));
+}
+
+// ── Wire up the panel ──────────────────────────────────────────────────────
+$("idea").addEventListener("input", updateFrameBtn);
+$("idea").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!$("frame").disabled) $("frame").click(); } });
+$("frame").onclick = () => {
+  const idea = $("idea").value.trim(); $("idea").value = ""; $("idea").placeholder = "e.g. a sign-up flow for a dog-walking app"; updateFrameBtn();
+  const t = idea.toLowerCase();
+  const kind = asked ? "update" : /better|improve|fix/.test(t) ? "ask" : /add|change|update|search/.test(t) ? "update" : "signup";
+  asked = false;
+  run(kind, idea);
+};
+document.querySelectorAll(".chip").forEach((c) => c.onclick = () => { $("idea").value = c.textContent; updateFrameBtn(); $("idea").focus(); });
+$("send").onclick = async () => {
+  document.querySelectorAll(".note").forEach((n) => n.classList.add("clash"));
+  await run("notes");
+  setTimeout(() => document.querySelectorAll(".note").forEach((n) => n.classList.remove("clash")), 2500);
+};
+$("pause").onclick = () => {
+  paused = !paused;
+  log("papi", paused ? "papi paused the agent" : "papi resumed the agent");
+  setStatus(paused ? "paused" : "working", `${paused ? "Paused" : "Working"} · started by papi`);
+};
+$("takeover").onclick = () => { cancelled = true; paused = false; log("papi", "papi took over. The agent stopped this run."); };
+$("addNote").onclick = () => addNote(80 + Math.random() * 200, 360 + Math.random() * 120, "papi", "PM", "Type your idea here…", "#681e2e");
+
+// ── Starting board: two teammates' notes that disagree ─────────────────────
+addNote(60, 70, "Sam", "Developer", "Home should be a dashboard: next walk, money spent, walker ratings, all visible at once.", "#4c2a6e");
+addNote(300, 120, "Maya", "Designer", "Keep Home minimal. One clear 'Book a walk' button, nothing else fighting for attention.", "#681e2e");
+setPlan(0); setStatus("idle", "Idle");
+log("Maya", "Maya joined the room");
+
+// ── Teammates' live cursors wandering around ──────────────────────────────
+function cursor(name, color) {
+  const c = document.createElement("div"); c.className = "cursor";
+  c.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z" fill="${color}" stroke="#090719" stroke-width="1.5"/></svg><span style="background:${color}">${name}</span>`;
+  $("canvas").append(c);
+  const move = () => {
+    const r = $("canvas").getBoundingClientRect();
+    c.style.transform = `translate(${40 + Math.random() * (r.width - 140)}px, ${40 + Math.random() * (r.height - 120)}px)`;
+  };
+  move(); setInterval(move, 2200 + Math.random() * 1500);
+}
+// (Embedded in the landing page, the page's own live cursors take over.)
+if (window.parent === window) { cursor("Maya", "#d98a99"); cursor("Sam", "#a78bfa"); }
+
+// ── Embedded in the landing page? Pass wheel scrolling up to it, except
+//    inside the agent panel's own scrolling list. ───────────────────────────
+if (window.parent !== window) {
+  window.addEventListener("wheel", (e) => {
+    if (e.target.closest && e.target.closest(".pbody")) return;
+    window.parent.postMessage({ wfsWheel: e.deltaY }, location.origin);
+  }, { passive: true });
+}
+</script>
+</body>
+</html>

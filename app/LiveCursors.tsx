@@ -67,14 +67,16 @@ export function LiveCursors() {
     //    out of the window in an arc, grows into its full size and lands on
     //    its spot on the page. The in-window one fades as it leaves.
     const from = [".hi-g0", ".hi-g1", ".hi-agent"].map((s) => document.querySelector<HTMLElement>(s));
-    const land = targets(screens()[0]);
+    // Land on the screen you're on right now (you may have skipped ahead).
+    const here = Math.round((window as Window & { __wfsScreen?: number }).__wfsScreen ?? 0);
+    const land = targets(screens()[here] ?? screens()[0]);
     // Where each cursor's base position is heading (roaming is measured from here).
     const anchor = land.map((p) => ({ ...p }));
     const jump = gsap.timeline({
       // When everyone has landed, hide all in-window cursors for good.
       onComplete: () => {
         document.documentElement.classList.add("lc-on");
-        setChip("drawing: the hero");
+        setChip(`drawing: ${NAMES[last] ?? "the page"}`);
       },
     });
     [priya, leo, agent].forEach((c, i) => {
@@ -118,7 +120,7 @@ export function LiveCursors() {
     });
 
     // 2. Glide to the parts of the screen you're on.
-    let last = 0; // already standing on the hero after the jump
+    let last = here; // already standing on this screen after the jump
     const moveTo = (u: number) => {
       const s = screens()[u];
       if (!s || u === last) return;

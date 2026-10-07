@@ -11,7 +11,7 @@
 //      they're building it: the people to the headline and the scene, the
 //      Agent to the middle of the scene. The Agent's chip says what it's
 //      drawing ("drawing: chapter 03").
-//   3. In between, they wander gently, like real people thinking.
+//   3. They keep roaming across the page: move, pause a moment, move on.
 //
 // The screen you're on comes from app/Chapters.tsx ("wfs:screen" event).
 // The layer never catches clicks. Hidden for reduced motion.
@@ -68,6 +68,8 @@ export function LiveCursors() {
     //    its spot on the page. The in-window one fades as it leaves.
     const from = [".hi-g0", ".hi-g1", ".hi-agent"].map((s) => document.querySelector<HTMLElement>(s));
     const land = targets(screens()[0]);
+    // Where each cursor's base position is heading (roaming is measured from here).
+    const anchor = land.map((p) => ({ ...p }));
     const jump = gsap.timeline({
       // When everyone has landed, hide all in-window cursors for good.
       onComplete: () => {
@@ -91,15 +93,28 @@ export function LiveCursors() {
       jump.to(c, { y: to.y, scale: 1, duration: 0.5, ease: "power2.in" }, t + 0.63);
     });
 
-    // 3. Gentle wandering on an inner layer (so it adds to the travel).
-    const wander = [priya, leo, agent].map((c, i) => {
-      const inner = c.firstElementChild!;
-      const r = (n: number) => (i % 2 ? -n : n);
-      return gsap
-        .timeline({ repeat: -1, yoyo: true, defaults: { ease: "sine.inOut", duration: 1.8 + i * 0.2 } })
-        .to(inner, { x: r(26), y: -14 })
-        .to(inner, { x: r(-12), y: 22 })
-        .to(inner, { x: r(18), y: 6 });
+    // 3. Roaming: each cursor keeps travelling across the page — it moves
+    //    to a spot, pauses for a moment (like it's working there), then
+    //    moves on. Done on an inner layer, so it adds to the screen-to-screen
+    //    travel above. Every stop stays fully on screen.
+    let alive = true;
+    const roamers = [priya, leo, agent].map((c, i) => {
+      const inner = c.firstElementChild as HTMLElement;
+      const hop = () => {
+        if (!alive) return;
+        const { x: ax, y: ay } = anchor[i];
+        const tx = gsap.utils.random(40, innerWidth - 220), ty = gsap.utils.random(90, innerHeight - 140);
+        gsap.to(inner, {
+          x: tx - ax,
+          y: ty - ay,
+          duration: gsap.utils.random(1.3, 2.4),
+          ease: "power2.inOut",
+          delay: gsap.utils.random(0.6, 1.8) + i * 0.3, // the short break
+          onComplete: hop,
+        });
+      };
+      hop();
+      return inner;
     });
 
     // 2. Glide to the parts of the screen you're on.
@@ -108,9 +123,10 @@ export function LiveCursors() {
       const s = screens()[u];
       if (!s || u === last) return;
       last = u;
-      targets(s).forEach((p, i) =>
-        gsap.to([priya, leo, agent][i], { x: p.x, y: p.y, duration: 1.1 + i * 0.15, ease: "power3.inOut", overwrite: "auto" }),
-      );
+      targets(s).forEach((p, i) => {
+        anchor[i] = p;
+        gsap.to([priya, leo, agent][i], { x: p.x, y: p.y, duration: 1.1 + i * 0.15, ease: "power3.inOut", overwrite: "auto" });
+      });
       setChip(`drawing: ${NAMES[u] ?? "the page"}`);
     };
     const onScreen = (e: Event) => moveTo(Math.round((e as CustomEvent<number>).detail));
@@ -118,7 +134,8 @@ export function LiveCursors() {
     return () => {
       jump.kill();
       removeEventListener("wfs:screen", onScreen);
-      wander.forEach((t) => t.kill());
+      alive = false;
+      gsap.killTweensOf(roamers);
       gsap.killTweensOf([priya, leo, agent]);
       document.documentElement.classList.remove("lc-on");
     };

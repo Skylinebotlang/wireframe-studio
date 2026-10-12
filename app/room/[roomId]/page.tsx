@@ -5,6 +5,7 @@
 //
 // Flow: load saved identity → if none, show the join screen → once we know
 // who you are, connect to Liveblocks (<Room>) and render the canvas.
+// Opening a room also adds it to this person's /boards list.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
@@ -28,6 +29,18 @@ export default function RoomPage() {
     // We convert that to `false` so `null` keeps meaning "still checking".
     setIdentity(loadIdentity() ?? false);
   }, []);
+
+  // Add this room to "my boards" (fire and forget: the canvas works even if
+  // the list can't be reached).
+  const userId = identity ? identity.id : "";
+  useEffect(() => {
+    if (!userId) return;
+    fetch("/api/boards", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, boardId: roomId }),
+    }).catch(() => {});
+  }, [userId, roomId]);
 
   // Still deciding whether to show the join screen…
   if (identity === null) {
@@ -57,8 +70,8 @@ export default function RoomPage() {
       {/* A small, fixed room label so you always know where you are. */}
       <div className="glass pointer-events-none fixed left-3 top-14 z-50 rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest text-muted backdrop-blur">
         Room: {roomId} ·{" "}
-        <Link href="/" className="pointer-events-auto underline hover:text-ink">
-          home
+        <Link href="/boards" className="pointer-events-auto underline hover:text-ink">
+          my boards
         </Link>
       </div>
     </Room>

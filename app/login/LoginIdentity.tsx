@@ -4,7 +4,8 @@
 // "WHO'S DRAWING?" STEP — the second half of /login (app/login/page.tsx).
 //
 // Shows the card from app/LoginCard.tsx: name, role, cursor color and room.
-// It saves that in this browser and opens the room. If the person has an
+// It saves that in this browser and opens the room (or /boards when no
+// room was typed). If the person has an
 // account, their account name is filled in for them (`accountName`).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ export function LoginIdentity({ accountName }: { accountName?: string }) {
       {/* Wait until we know if someone is signed in, so the form doesn't
           flash empty and then fill itself. */}
       {identity !== undefined && (
-        <LoginCard initial={identity} onDone={(room) => router.push(`/room/${room}`)} />
+        <LoginCard initial={identity} onDone={(room) => router.push(room ? `/room/${room}` : "/boards")} />
       )}
 
       <Link href="/" className="font-mono text-[11px] uppercase tracking-widest text-muted hover:text-ink">

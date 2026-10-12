@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // LOGIN CARD — the "sign in" form, used in two places:
 //   • the landing page (/)            → also asks which room to open
+//                                        (left empty → "" → the /boards page)
 //   • a direct room link (/room/xyz)  → the room is already known
 //
 // No passwords: type a name, pick a role and a cursor color, and in.
@@ -19,7 +20,7 @@ type Props = {
   roomId?: string;
   // Pre-fill the form when someone is already signed in.
   initial?: UserIdentity | null;
-  // Called after the identity is saved, with the room to open.
+  // Called after the identity is saved, with the room to open ("" = none).
   onDone: (roomId: string) => void;
 };
 
@@ -41,8 +42,8 @@ export function LoginCard({ roomId, initial, onDone }: Props) {
       setError("Please enter a name (at least 2 characters).");
       return;
     }
-    const target = roomId ?? ((room || "demo").trim().toLowerCase());
-    if (!ROOM_PATTERN.test(target)) {
+    const target = roomId ?? room.trim().toLowerCase();
+    if (target && !ROOM_PATTERN.test(target)) {
       setError("Room names use letters, numbers, dashes or underscores only.");
       return;
     }
@@ -130,7 +131,7 @@ export function LoginCard({ roomId, initial, onDone }: Props) {
           <input
             id="login-room"
             className="mt-1.5 w-full rounded-md border border-line bg-raised px-3 py-2 font-mono text-sm text-ink outline-none placeholder:text-muted focus:border-accent-bright"
-            placeholder="demo"
+            placeholder="optional · empty = your boards"
             value={room}
             onChange={(e) => {
               setRoom(e.target.value);
@@ -152,7 +153,7 @@ export function LoginCard({ roomId, initial, onDone }: Props) {
         onClick={submit}
         className="mt-6 w-full rounded-md bg-accent py-2.5 font-medium text-ink shadow-[0_0_18px_-4px_var(--accent-bright)] transition hover:brightness-125"
       >
-        {roomId ? "Enter the room →" : "Open the canvas →"}
+        {roomId ? "Enter the room →" : room.trim() ? "Open the canvas →" : "See your boards →"}
       </button>
 
       <p className="mt-3 text-center font-mono text-[11px] text-muted">

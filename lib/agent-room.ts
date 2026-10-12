@@ -21,7 +21,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { LiveList, LiveObject } from "@liveblocks/client";
-import { useMutation, useStorage } from "@liveblocks/react/suspense";
+import { useMutation, useRoom, useStorage } from "@liveblocks/react/suspense";
 import type { AgentNote, AgentResult, BoardScreen } from "./agent-schema";
 import type { AgentRunInfo } from "./ai-providers";
 import type { ActivityItem, ActivityKind, AgentRunState, PlanStep } from "./agent-room-types";
@@ -67,6 +67,7 @@ function log(activity: LiveList<ActivityItem>, who: string, kind: ActivityKind, 
 export function useAgentPanel(myName: string) {
   const run = useStorage((root) => root.agentRun);
   const activity = useStorage((root) => root.activity);
+  const roomId = useRoom().id; // the server rate-limits runs per room
 
   // ── Start: claim the agent for this run. Returns the new run id plus the
   // steering lines typed since the previous run, or null if it's busy.
@@ -233,7 +234,7 @@ export function useAgentPanel(myName: string) {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ notes, idea, board, history: claimed.history, steering: claimed.steering, aiKey: aiKeyForRequest() }),
+        body: JSON.stringify({ roomId, notes, idea, board, history: claimed.history, steering: claimed.steering, aiKey: aiKeyForRequest() }),
       });
       const data = await res.json();
       if (!res.ok) {

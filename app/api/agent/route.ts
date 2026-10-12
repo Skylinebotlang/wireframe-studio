@@ -5,7 +5,8 @@
 // "Send to agent" sends every note on the board.
 // This route:
 //   1. checks the idea / notes look sane (not empty, not huge),
-//   2. picks whose AI key to use (see below),
+//   2. picks whose AI key to use (see below), then checks the room isn't
+//      over its limit (1 run per 10 seconds, 50 free runs a day: lib/rate-limit.ts),
 //   3. sends all the notes to that AI in one message (lib/agent-brains.ts),
 //   4. double-checks the JSON answer (lib/agent-schema.ts) before returning it,
 //   5. returns a friendly error message if anything goes wrong.
@@ -22,6 +23,7 @@
 import { NextResponse } from "next/server";
 import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/agent-schema";
 import { askBrain } from "@/lib/agent-brains";
+import { claimAgentRun } from "@/lib/rate-limit";
 import {
   parseUserKey,
   PROVIDERS,
@@ -41,6 +43,7 @@ const MAX_IDEA_CHARS = 1000; // the "Frame your idea" box
 const MAX_BOARD_SCREENS = 20; // screens already on the canvas
 const MAX_BOARD_LABELS = 30; // boxes per screen
 const MAX_HISTORY = 8; // recent ideas + agent questions
+const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/; // same rule as liveblocks-auth
 
 export async function POST(request: Request) {
   // ── 1. Read the request ───────────────────────────────────────────────────
@@ -50,6 +53,7 @@ export async function POST(request: Request) {
   let steering: unknown;
   let board: unknown;
   let history: unknown;
+  let roomId: unknown;
   try {
     const body = await request.json();
     notes = Array.isArray(body?.notes) ? body.notes : [];
@@ -58,11 +62,15 @@ export async function POST(request: Request) {
     steering = body?.steering;
     board = body?.board;
     history = body?.history;
+    roomId = body?.roomId;
   } catch {
     return friendlyError("The request was not valid JSON.", 400);
   }
 
-  // ── 2. Check the idea and notes ───────────────────────────────────────────
+  // ── 2. Check the room, idea and notes ─────────────────────────────────────
+  if (typeof roomId !== "string" || !ROOM_ID_PATTERN.test(roomId)) {
+    return friendlyError("Missing or invalid room. Reload the page and try again.", 400);
+  }
   if (idea.length > MAX_IDEA_CHARS) {
     return friendlyError(`Your idea is too long (max ${MAX_IDEA_CHARS} characters).`, 400);
   }
@@ -109,6 +117,11 @@ export async function POST(request: Request) {
     key = (useClaude ? claudeKey : geminiKey)!;
     usedOwnKey = false;
   }
+
+  // ── Rate limit: checked AFTER the key is picked (own keys skip the daily
+  // cap) and BEFORE the AI is called, so a blocked run costs nothing.
+  const limited = await claimAgentRun(roomId, !usedOwnKey);
+  if (limited) return friendlyError(limited, 429);
 
   // Lay the notes out as plain text the AI can read, one block per note.
   const notesBlocks = notes

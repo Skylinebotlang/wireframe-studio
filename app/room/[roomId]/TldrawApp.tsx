@@ -26,13 +26,14 @@ import {
   useIsToolSelected,
   useTools,
   type TLComponents,
+  type TLShapeId,
   type TLUiOverrides,
 } from "tldraw";
 import "tldraw/tldraw.css";
 import { useYjsStore } from "./useYjsStore";
 import { AgentPanel } from "./AgentPanel";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
-import { drawWireframes, readBoardScreens } from "@/lib/draw-wireframes";
+import { drawWireframes, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
 import { useAgentPanel } from "@/lib/agent-room";
 import type { AgentResult } from "@/lib/agent-schema";
 import { useTilt } from "@/lib/tilt";
@@ -93,7 +94,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
 
   // Put the agent's screens on the canvas.
   const draw = useCallback((result: AgentResult) => {
-    if (editor) drawWireframes(editor, result);
+    if (editor) return drawWireframes(editor, result);
   }, [editor]);
 
   // ── "Send to agent": collect every note on the board ─────────────────────
@@ -133,6 +134,13 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     const problem = await agent.runAgent([], draw, idea, readBoardScreens(editor));
     if (problem) setMessage(problem);
   }, [editor, agent, draw]);
+
+  // ── "Undo last agent run": put the canvas back as it was before it ───────
+  const handleUndo = useCallback(() => {
+    if (!editor) return;
+    const record = agent.takeUndo();
+    if (record) undoWireframes(editor, record.created as TLShapeId[], JSON.parse(record.removed));
+  }, [editor, agent]);
 
   return (
     <div className="flex h-screen w-screen">
@@ -192,6 +200,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         onSend={handleSend}
         onIdea={handleIdea}
         onResume={() => agent.resume(draw)}
+        onUndo={handleUndo}
       />
     </div>
   );

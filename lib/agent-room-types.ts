@@ -46,7 +46,8 @@ export type ActivityKind =
   | "error" // the agent failed
   | "pause"
   | "resume"
-  | "takeover"; // a human took over: the run was cancelled
+  | "takeover" // a human took over: the run was cancelled
+  | "undo"; // someone undid the agent's last run
 
 export type ActivityItem = {
   id: string;
@@ -54,4 +55,16 @@ export type ActivityItem = {
   who: string; // display name, or "Agent"
   kind: ActivityKind;
   text: string; // the line to show, e.g. "Run by papi using Claude"
+};
+
+// What the agent's last run changed on the canvas, so anyone can undo it.
+// `created` = ids of the phone frames it drew. `removed` = the shapes it
+// replaced on an "update" (frames + their boxes), saved as a JSON string
+// of tldraw shapes so they can be put back exactly.
+export type AgentUndo = {
+  runId: string;
+  by: string; // who started that run
+  screens: number; // how many screens it drew, for the button label
+  created: string[];
+  removed: string;
 };

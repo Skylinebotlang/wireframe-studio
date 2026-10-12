@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { LiveList, LiveObject } from "@liveblocks/client";
-import type { ActivityItem, AgentRunState } from "./lib/agent-room-types";
+import type { ActivityItem, AgentRunState, AgentUndo } from "./lib/agent-room-types";
 
 declare global {
   interface Liveblocks {
@@ -38,6 +38,9 @@ declare global {
     Storage: {
       agentRun: LiveObject<AgentRunState>; // the current/last agent run
       activity: LiveList<ActivityItem>; // newest last, capped (see agent-room)
+      // The agent's last run, for "Undo last agent run". Missing in rooms
+      // made before undo existed; null once undone.
+      agentUndo?: AgentUndo | null;
     };
 
     // One-off messages broadcast to everyone in the room (not saved).

@@ -10,9 +10,11 @@
 // When the agent's action is "update", a screen whose name matches a phone
 // frame already on the board replaces that frame in the same spot. "ask"
 // draws nothing. `readBoardScreens` reads the frames back for the agent.
+// `drawWireframes` reports what it created and replaced, and
+// `undoWireframes` uses that to put the canvas back as it was.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createShapeId, toRichText, type Editor, type TLFrameShape, type TLGeoShape, type TLShapeId } from "tldraw";
+import { createShapeId, toRichText, type Editor, type TLFrameShape, type TLGeoShape, type TLShape, type TLShapeId } from "tldraw";
 import type { AgentResult, BoardScreen, ComponentType } from "./agent-schema";
 
 const PHONE_W = 300; // phone frame width
@@ -56,9 +58,13 @@ export function readBoardScreens(editor: Editor): BoardScreen[] {
   }));
 }
 
+// What one drawing changed: new frame ids, and the shapes it replaced.
+export type DrawRecord = { created: TLShapeId[]; removed: TLShape[] };
+
 /** Draw the screens: new ones to the right of the board, updated ones in place. */
-export function drawWireframes(editor: Editor, result: AgentResult) {
-  if (result.action === "ask" || result.screens.length === 0) return;
+export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord {
+  const record: DrawRecord = { created: [], removed: [] };
+  if (result.action === "ask" || result.screens.length === 0) return record;
   const existing = editor.getCurrentPageBounds();
   let x = existing ? existing.maxX + 120 : 0;
   const y = existing ? existing.minY : 0;
@@ -71,7 +77,14 @@ export function drawWireframes(editor: Editor, result: AgentResult) {
       // "update": take the old frame's spot, then remove it (and its boxes).
       const old = onBoard.get(screen.name.trim().toLowerCase());
       const at = old ? { x: old.x, y: old.y } : { x, y };
-      if (old) editor.deleteShapes([old.id]);
+      if (old) {
+        // Keep a copy of the old frame and its boxes, for undo.
+        for (const id of editor.getShapeAndDescendantIds([old.id])) {
+          const shape = editor.getShape(id);
+          if (shape) record.removed.push(structuredClone(shape));
+        }
+        editor.deleteShapes([old.id]);
+      }
       frameIds.push(frameId);
 
       // Stack the components top to bottom.
@@ -121,4 +134,20 @@ export function drawWireframes(editor: Editor, result: AgentResult) {
   editor.select(...frameIds);
   editor.zoomToSelection({ animation: { duration: 400 } });
   editor.selectNone();
+  record.created = frameIds;
+  return record;
+}
+
+/**
+ * Undo an agent run: remove the frames it drew (with everything inside them,
+ * including later hand edits) and put back the frames it replaced.
+ */
+export function undoWireframes(editor: Editor, created: TLShapeId[], removed: TLShape[]) {
+  editor.run(() => {
+    editor.deleteShapes(created.filter((id) => editor.getShape(id)));
+    // Parents (frames) first, then the boxes that sit inside them.
+    const back = removed.filter((s) => !editor.getShape(s.id));
+    const isTop = (s: TLShape) => !back.some((p) => p.id === s.parentId);
+    editor.createShapes([...back.filter(isTop), ...back.filter((s) => !isTop(s))]);
+  });
 }

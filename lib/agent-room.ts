@@ -15,6 +15,8 @@
 //   agent.runAgent([], draw, idea, board) → "Frame your idea" box: runs on the typed idea
 //   agent.pick(conflictSummary, noteAuthor) → conflict card "use X's version"
 //   agent.pause() / agent.resume(draw) / agent.takeOver()
+//   agent.undo  → what the last run changed (or null); agent.takeUndo()
+//                 claims it for "Undo last agent run" (see TldrawApp)
 //
 // LIVE PROGRESS: runAgent asks the server to stream (see app/api/agent/
 // route.ts). The plan ticks follow the agent's real progress, and each
@@ -29,7 +31,8 @@ import { LiveList, LiveObject } from "@liveblocks/client";
 import { useMutation, useRoom, useStorage } from "@liveblocks/react/suspense";
 import type { AgentAction, AgentNote, AgentResult, BoardScreen, Screen } from "./agent-schema";
 import type { AgentRunInfo } from "./ai-providers";
-import type { ActivityItem, ActivityKind, AgentRunState, PlanStep } from "./agent-room-types";
+import type { ActivityItem, ActivityKind, AgentRunState, AgentUndo, PlanStep } from "./agent-room-types";
+import type { DrawRecord } from "./draw-wireframes";
 import { aiKeyForRequest } from "./byok";
 
 // Keep the feed from growing forever.
@@ -60,6 +63,7 @@ export function createInitialAgentStorage() {
   return {
     agentRun: new LiveObject<AgentRunState>(IDLE_RUN),
     activity: new LiveList<ActivityItem>([]),
+    agentUndo: null,
   };
 }
 
@@ -72,6 +76,7 @@ function log(activity: LiveList<ActivityItem>, who: string, kind: ActivityKind, 
 export function useAgentPanel(myName: string) {
   const run = useStorage((root) => root.agentRun);
   const activity = useStorage((root) => root.activity);
+  const undo = useStorage((root) => root.agentUndo ?? null);
   const roomId = useRoom().id; // the server rate-limits runs per room
 
   // ── Start: claim the agent for this run. Returns the new run id plus the
@@ -181,6 +186,41 @@ export function useAgentPanel(myName: string) {
     storage.get("agentRun").update({ steps: plan(5) });
   }, []);
 
+  // ── Undo: remember what a run changed, so anyone can undo it ─────────────
+  // Called after drawing. Adds to the record if this run already has one
+  // (screens drawn live, then more after Resume); otherwise replaces it.
+  const saveUndo = useMutation(
+    ({ storage }, runId: string, drew: DrawRecord) => {
+      if (drew.created.length === 0) return;
+      const by = storage.get("agentRun").get("startedBy");
+      const prev = storage.get("agentUndo");
+      const same = prev && prev.runId === runId ? prev : null;
+      storage.set("agentUndo", {
+        runId,
+        by,
+        screens: (same?.screens ?? 0) + drew.created.length,
+        created: [...(same?.created ?? []), ...drew.created],
+        removed: JSON.stringify([...(same ? JSON.parse(same.removed) : []), ...drew.removed]),
+      });
+    },
+    []
+  );
+
+  // Claim the undo record (so two people can't undo the same run twice).
+  // Returns it for the caller to apply on the canvas, or null.
+  const takeUndo = useMutation(
+    ({ storage }): AgentUndo | null => {
+      const status = storage.get("agentRun").get("status");
+      const record = storage.get("agentUndo");
+      if (!record || status === "working" || status === "paused") return null;
+      storage.set("agentUndo", null);
+      const n = record.screens;
+      log(storage.get("activity"), myName, "undo", `${myName} undid the agent's last run (${n} screen${n === 1 ? "" : "s"} by ${record.by})`);
+      return record;
+    },
+    [myName]
+  );
+
   // ── Pick: a conflict card choice, used on the next run (shown in the feed).
   const pick = useMutation(
     ({ storage }, conflictSummary: string, chosenAuthor: string) => {
@@ -243,7 +283,7 @@ export function useAgentPanel(myName: string) {
    */
   async function runAgent(
     notes: AgentNote[],
-    draw: (result: AgentResult) => void | Promise<void>,
+    draw: (result: AgentResult) => DrawRecord | void | Promise<DrawRecord | void>,
     idea = "",
     board: BoardScreen[] = []
   ): Promise<string | null> {
@@ -280,9 +320,14 @@ export function useAgentPanel(myName: string) {
     let action: AgentAction = "add";
     const drawn = new Set<Screen>();
     const held: Screen[] = [];
+    const drew: DrawRecord = { created: [], removed: [] }; // for undo
     const drawScreens = async (screens: Screen[]) => {
       for (const screen of screens) {
-        await draw({ conflicts: [], resolution: "", question: "", action, screens: [screen] });
+        const r = await draw({ conflicts: [], resolution: "", question: "", action, screens: [screen] });
+        if (r) {
+          drew.created.push(...r.created);
+          drew.removed.push(...r.removed);
+        }
         drawn.add(screen);
       }
     };
@@ -315,6 +360,7 @@ export function useAgentPanel(myName: string) {
               await drawScreens(toDraw);
               markDrawn();
             }
+            saveUndo(runId, drew);
             return null;
           }
 
@@ -327,6 +373,7 @@ export function useAgentPanel(myName: string) {
           const state = progress(runId, steps, event.type === "thinking" ? event.provider : undefined);
           if (state === "stopped") {
             await reader.cancel();
+            saveUndo(runId, drew); // screens already drawn can still be undone
             return null;
           }
           if (event.type === "action") action = event.action;
@@ -342,11 +389,13 @@ export function useAgentPanel(myName: string) {
     }
   }
 
-  async function resume(draw: (result: AgentResult) => void | Promise<void>) {
+  async function resume(draw: (result: AgentResult) => DrawRecord | void | Promise<DrawRecord | void>) {
+    const runId = run?.runId ?? "";
     const held = resumeState();
     if (held) {
-      await draw(held);
+      const r = await draw(held);
       markDrawn();
+      if (r) saveUndo(runId, r);
     }
   }
 
@@ -354,6 +403,8 @@ export function useAgentPanel(myName: string) {
     run: run ?? IDLE_RUN,
     activity: activity ?? [],
     runAgent,
+    undo,
+    takeUndo,
     pick,
     pause,
     resume,

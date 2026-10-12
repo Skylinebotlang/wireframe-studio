@@ -5,7 +5,7 @@
 // sees the same thing, because it all reads from the shared agent state in
 // Liveblocks (lib/agent-room.ts):
 //
-//   • status + "Send to agent" / Pause / Resume / Take over
+//   • status + "Send to agent" / Pause / Resume / Take over / Undo last run
 //   • the plan, with progress ticks
 //   • clash cards: what clashed, how the agent merged it, and buttons to use
 //     one person's version instead (applied on the next run)
@@ -30,6 +30,7 @@ export function AgentPanel({
   onSend,
   onIdea,
   onResume,
+  onUndo,
 }: {
   agent: Agent;
   editor: Editor | null;
@@ -37,6 +38,7 @@ export function AgentPanel({
   onSend: () => void;
   onIdea: (idea: string) => void;
   onResume: () => void;
+  onUndo: () => void;
 }) {
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
@@ -129,6 +131,11 @@ export function AgentPanel({
               Take over
             </SmallButton>
           </div>
+          {agent.undo && !working && !paused && (
+            <SmallButton onClick={onUndo}>
+              Undo last agent run ({agent.undo.screens} screen{agent.undo.screens === 1 ? "" : "s"} by {agent.undo.by})
+            </SmallButton>
+          )}
           {message && <p className="text-xs text-accent-bright">{message}</p>}
           {run.status === "error" && run.error && <p className="text-xs text-accent-bright">⚠ {run.error}</p>}
         </section>

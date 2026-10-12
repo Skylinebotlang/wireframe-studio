@@ -7,12 +7,18 @@
 // here is their info". Liveblocks then shares that info with everyone in the
 // room — that's how other windows know your cursor's name and color.
 //
+// SIGN-IN REQUIRED: the browser must send its Supabase sign-in token. No
+// valid token → 401, and Liveblocks won't let them into the room. The
+// person's Liveblocks id is their account id (from the token, not from
+// anything the browser claims).
+//
 // Your SECRET key (sk_...) is used here — on the server only, never in the
 // browser. That's why it lives in .env.local WITHOUT the NEXT_PUBLIC_ prefix.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Liveblocks } from "@liveblocks/node";
 import { NextResponse } from "next/server";
+import { getSignedInUser } from "@/lib/auth-server";
 
 // Only letters, numbers, dashes and underscores are allowed in room ids.
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
@@ -32,10 +38,15 @@ export async function POST(request: Request) {
   const room = body.room;
   const identity = body.identity;
 
+  const account = await getSignedInUser(request);
+  if (!account) {
+    return NextResponse.json({ error: "Please sign in to open boards." }, { status: 401 });
+  }
+
   if (!room || !ROOM_ID_PATTERN.test(room)) {
     return NextResponse.json({ error: "Invalid room id." }, { status: 400 });
   }
-  if (!identity?.id || !identity.name || !identity.color) {
+  if (!identity?.name || !identity.color) {
     return NextResponse.json(
       { error: "Missing identity (id, name, color)." },
       { status: 400 }
@@ -64,7 +75,7 @@ export async function POST(request: Request) {
     // rejects the connection with "You have no access to this room".
     // (For the prototype, everyone gets full access to every room;
     // tighter permissions can come later with a login system.)
-    const session = liveblocks.prepareSession(identity.id, {
+    const session = liveblocks.prepareSession(account.id, {
       userInfo: {
         name: identity.name,
         role: identity.role ?? "PM",
@@ -103,8 +114,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // The client-side authEndpoint expects { token } in JSON.
-    return NextResponse.json({ token });
+    // `token` is already the JSON the browser expects ({ "token": "…" }).
+    return new Response(token, { headers: { "content-type": "application/json" } });
   } catch (err) {
     console.error("Liveblocks auth error:", err);
     return NextResponse.json(

@@ -8,8 +8,8 @@
 // /api/boards route (Supabase behind it); the drawings themselves live in
 // Liveblocks, inside each room.
 //
-// "This person" = the identity saved in this browser on the "Who's
-// drawing?" screen (lib/user.ts). No identity yet → off to /login.
+// "This person" = the signed-in account (lib/auth.ts); the name/color shown
+// come from the "Who's drawing?" step. Not signed in → off to /login.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { loadIdentity, type UserIdentity } from "@/lib/user";
+import { authHeader, supabase, useAccount } from "@/lib/auth";
 import type { Board } from "@/lib/boards-db";
 
 export default function BoardsPage() {
@@ -26,23 +27,26 @@ export default function BoardsPage() {
   const [error, setError] = useState("");
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const account = useAccount();
 
-  // Who's here? (localStorage only exists after the page loads, so read it
-  // on the next frame.)
+  // Who's here? Signed in AND picked a name/color for this account, or
+  // back to /login (which handles both steps).
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      const saved = loadIdentity();
-      if (!saved) router.replace("/login");
-      else setMe(saved);
-    });
+    if (account === undefined) return; // still checking
+    const saved = loadIdentity();
+    if (!account || saved?.id !== account.id) {
+      router.replace("/login?next=/boards");
+      return;
+    }
+    const id = requestAnimationFrame(() => setMe(saved));
     return () => cancelAnimationFrame(id);
-  }, [router]);
+  }, [account, router]);
 
   // Load the list once we know who this is.
   useEffect(() => {
     if (!me) return;
     let current = true;
-    fetchBoards(me.id).then(({ boards, error }) => {
+    fetchBoards().then(({ boards, error }) => {
       if (!current) return;
       setBoards(boards);
       setError(error);
@@ -59,8 +63,8 @@ export default function BoardsPage() {
     setError("");
     const res = await fetch("/api/boards", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userId: me.id, name: newName }),
+      headers: { "content-type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ name: newName }),
     }).catch(() => null);
     const data = await res?.json().catch(() => null);
     setCreating(false);
@@ -73,8 +77,8 @@ export default function BoardsPage() {
     setError("");
     const res = await fetch("/api/boards", {
       method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userId: me.id, boardId: board.id, name }),
+      headers: { "content-type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ boardId: board.id, name }),
     }).catch(() => null);
     const data = await res?.json().catch(() => null);
     if (!res?.ok) return setError(data?.error ?? "Couldn't rename the board. Please try again.");
@@ -91,14 +95,19 @@ export default function BoardsPage() {
             Wireframe<span className="text-accent-bright">·</span>Studio
           </Link>
           {me && (
-            <Link
-              href="/login"
-              className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-muted hover:text-ink"
-              title="Change your name or color"
-            >
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: me.color }} />
-              {me.name} · {me.role}
-            </Link>
+            <div className="flex items-center gap-4 font-mono text-[11px] uppercase tracking-widest text-muted">
+              <Link href="/login" className="flex items-center gap-2 hover:text-ink" title="Change your name or color">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: me.color }} />
+                {me.name} · {me.role}
+              </Link>
+              <button
+                type="button"
+                onClick={() => supabase.auth.signOut().then(() => router.replace("/login"))}
+                className="uppercase tracking-widest hover:text-ink"
+              >
+                Sign out
+              </button>
+            </div>
           )}
         </header>
 
@@ -148,8 +157,8 @@ export default function BoardsPage() {
 }
 
 // Ask our server for this person's boards. Never throws.
-async function fetchBoards(userId: string): Promise<{ boards: Board[]; error: string }> {
-  const res = await fetch(`/api/boards?userId=${encodeURIComponent(userId)}`).catch(() => null);
+async function fetchBoards(): Promise<{ boards: Board[]; error: string }> {
+  const res = await fetch("/api/boards", { headers: await authHeader() }).catch(() => null);
   const data = await res?.json().catch(() => null);
   if (!res?.ok) return { boards: [], error: data?.error ?? "Couldn't load your boards. Please try again." };
   return { boards: data.boards, error: "" };

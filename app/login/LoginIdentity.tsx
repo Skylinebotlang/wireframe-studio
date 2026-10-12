@@ -17,7 +17,7 @@ import { LoginCard } from "../LoginCard";
 import { loadIdentity, UserIdentity } from "@/lib/user";
 import { PEOPLE_COLORS, ROLES } from "@/lib/theme";
 
-export function LoginIdentity({ accountName }: { accountName?: string }) {
+export function LoginIdentity({ accountName, accountId }: { accountName?: string; accountId?: string }) {
   const router = useRouter();
 
   // Who's signed in on this browser (read after load, since localStorage
@@ -43,7 +43,7 @@ export function LoginIdentity({ accountName }: { accountName?: string }) {
       {/* Wait until we know if someone is signed in, so the form doesn't
           flash empty and then fill itself. */}
       {identity !== undefined && (
-        <LoginCard initial={identity} onDone={(room) => router.push(room ? `/room/${room}` : "/boards")} />
+        <LoginCard initial={identity} userId={accountId} onDone={(room) => router.push(room ? `/room/${room}` : nextPage())} />
       )}
 
       <Link href="/" className="font-mono text-[11px] uppercase tracking-widest text-muted hover:text-ink">
@@ -51,4 +51,11 @@ export function LoginIdentity({ accountName }: { accountName?: string }) {
       </Link>
     </main>
   );
+}
+
+// Where to go after login: the page that sent you here (?next=/room/…), or
+// your boards. Only our own /room and /boards pages are allowed.
+function nextPage() {
+  const next = new URLSearchParams(window.location.search).get("next") ?? "";
+  return /^\/(room\/[A-Za-z0-9_-]{1,64}|boards)$/.test(next) ? next : "/boards";
 }

@@ -20,6 +20,9 @@ type Props = {
   roomId?: string;
   // Pre-fill the form when someone is already signed in.
   initial?: UserIdentity | null;
+  // The signed-in account's id: becomes this person's id everywhere
+  // (cursors, boards), so it's the same on every computer.
+  userId?: string;
   // Called after the identity is saved, with the room to open ("" = none).
   onDone: (roomId: string) => void;
 };
@@ -27,7 +30,7 @@ type Props = {
 // Same rule as Liveblocks-friendly room names: simple URL-safe slugs.
 const ROOM_PATTERN = /^[a-z0-9_-]{1,64}$/;
 
-export function LoginCard({ roomId, initial, onDone }: Props) {
+export function LoginCard({ roomId, initial, userId, onDone }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [role, setRole] = useState<string>(initial?.role ?? ROLES[0]);
   const [colorIndex, setColorIndex] = useState(() => {
@@ -48,7 +51,8 @@ export function LoginCard({ roomId, initial, onDone }: Props) {
       return;
     }
     // Build the identity, save it for next time, and continue.
-    saveIdentity(makeIdentity(name, role, colorIndex));
+    const made = makeIdentity(name, role, colorIndex);
+    saveIdentity(userId ? { ...made, id: userId } : made);
     onDone(target);
   }
 

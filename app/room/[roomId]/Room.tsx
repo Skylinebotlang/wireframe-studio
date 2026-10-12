@@ -18,6 +18,8 @@ import {
   LiveblocksProvider,
   RoomProvider,
 } from "@liveblocks/react/suspense";
+import { authHeader } from "@/lib/auth";
+import { loadIdentity } from "@/lib/user";
 import { createInitialAgentStorage } from "@/lib/agent-room";
 
 type RoomProps = {
@@ -28,11 +30,18 @@ type RoomProps = {
 export function Room({ roomId, children }: RoomProps) {
   return (
     <LiveblocksProvider
-      // The public key identifies your project to Liveblocks' servers.
-      // It is safe to load in browsers (that's its job) — it cannot grant
-      // admin access. Everyone joining gets their name/role/color from the
-      // identity screen, stored in their own browser.
-      publicApiKey={process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY ?? ""}
+      // Joining goes through OUR server (app/api/liveblocks-auth), which
+      // checks the person is signed in before Liveblocks lets them in.
+      // Name/role/color come from the "Who's drawing?" step.
+      authEndpoint={async (room) => {
+        const identity = loadIdentity();
+        const res = await fetch("/api/liveblocks-auth", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(await authHeader()) },
+          body: JSON.stringify({ room, identity }),
+        });
+        return res.json();
+      }}
     >
       <RoomProvider
         id={roomId}

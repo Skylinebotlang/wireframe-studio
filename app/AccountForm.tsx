@@ -1,39 +1,28 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ACCOUNT FORM — the sign-up / sign-in card. DEMO MODE for now.
-//   • "signup" (on /signup): name, email, password
-//   • "signin" (on /login):  email, password
+// ACCOUNT FORM — the sign-up / sign-in card. REAL accounts (Supabase Auth).
+//   • "signup" (on /signup): name, email, password → creates the account
+//   • "signin" (on /login):  email, password       → signs in
 //
-// There is no real account system yet (a friend is building it with OAuth).
-// So the form is fully interactive — it checks what you typed, shows a
-// short "one moment…", then moves on to "Who's drawing?" — but nothing is
-// sent anywhere and no password is stored. Only the name (or the part of
-// the email before @) is kept in this tab, to fill in the next step.
-//
-// TO WIRE REAL AUTH: replace the body of `submit` below with the real
-// sign-up / sign-in call; keep `rememberAccount(name)` + `onDone()`.
+// Supabase checks the password and keeps the session in this browser
+// (lib/auth.ts). We never see or store the password ourselves. After it
+// works, `onDone()` moves on to "Who's drawing?".
 // Wine = people (no orange).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
 import { useState } from "react";
+import { friendlyAuthError, supabase } from "@/lib/auth";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const ACCOUNT_KEY = "wireframe-studio-demo-account"; // sessionStorage
-
-export function rememberAccount(name: string) {
-  try {
-    sessionStorage.setItem(ACCOUNT_KEY, name);
-  } catch {}
-}
 
 export function AccountForm({ mode, onDone }: { mode: "signin" | "signup"; onDone: () => void }) {
   const signup = mode === "signup";
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name") ?? "").trim();
@@ -44,11 +33,14 @@ export function AccountForm({ mode, onDone }: { mode: "signin" | "signup"; onDon
     if (signup ? password.length < 8 : !password) return setError(signup ? "Use a password of at least 8 characters." : "Enter your password.");
     setError("");
     setPending(true);
-    // Demo: pretend to talk to the server for a moment, then continue.
-    setTimeout(() => {
-      rememberAccount(signup ? name : email.split("@")[0]);
-      onDone();
-    }, 700);
+    const { data, error: failed } = signup
+      ? await supabase.auth.signUp({ email, password, options: { data: { name } } })
+      : await supabase.auth.signInWithPassword({ email, password });
+    setPending(false);
+    if (failed) return setError(friendlyAuthError(failed.message));
+    // Sign-up with "Confirm email" switched on gives no session yet.
+    if (!data.session) return setError("Account made. Check your email to confirm it, then sign in.");
+    onDone();
   }
 
   return (

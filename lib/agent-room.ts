@@ -34,6 +34,7 @@ import type { AgentRunInfo } from "./ai-providers";
 import type { ActivityItem, ActivityKind, AgentRunState, AgentUndo, PlanStep } from "./agent-room-types";
 import type { DrawRecord } from "./draw-wireframes";
 import { aiKeyForRequest } from "./byok";
+import { authHeader } from "./auth";
 
 // Keep the feed from growing forever.
 const MAX_ACTIVITY = 100;
@@ -300,7 +301,7 @@ export function useAgentPanel(myName: string) {
     try {
       res = await fetch("/api/agent", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeader()) },
         body: JSON.stringify({
           roomId, notes, idea, board, stream: true,
           history: claimed.history, steering: claimed.steering, aiKey: aiKeyForRequest(),

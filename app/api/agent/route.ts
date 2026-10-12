@@ -38,6 +38,7 @@ import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/age
 import { askBrain } from "@/lib/agent-brains";
 import { scanPartial } from "@/lib/stream-scan";
 import { claimAgentRun } from "@/lib/rate-limit";
+import { getSignedInUser } from "@/lib/auth-server";
 import {
   parseUserKey,
   PROVIDERS,
@@ -60,6 +61,9 @@ const MAX_HISTORY = 8; // recent ideas + agent questions
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/; // same rule as liveblocks-auth
 
 export async function POST(request: Request) {
+  // ── 0. Signed-in people only ──────────────────────────────────────────────
+  if (!(await getSignedInUser(request))) return friendlyError("Please sign in to use the agent.", 401);
+
   // ── 1. Read the request ───────────────────────────────────────────────────
   let notes: AgentNote[];
   let idea: string;

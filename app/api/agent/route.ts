@@ -11,6 +11,19 @@
 //   4. double-checks the JSON answer (lib/agent-schema.ts) before returning it,
 //   5. returns a friendly error message if anything goes wrong.
 //
+// STREAMING ("stream": true in the request): instead of one JSON answer at
+// the end, the reply is a stream of JSON lines (one event per line), sent
+// the moment each thing is known:
+//   {"type":"thinking","provider":"Gemini"}
+//   {"type":"clashes","count":2}          the list of clashes is complete
+//   {"type":"merged"}                      the merge paragraph is complete
+//   {"type":"action","action":"update"}    add / update / ask
+//   {"type":"screen","screen":{…}}         one finished, checked screen
+//   {"type":"done", …the full checked answer, provider, providerLabel, usedOwnKey}
+//   {"type":"error","error":"…"}           something failed mid-way
+// Problems found BEFORE the AI is called (bad request, rate limit, no key)
+// still come back as a normal { error } reply with an error status.
+//
 // WHOSE KEY RUNS THE AGENT
 //   • If the person who clicked sent their own key ("aiKey" in the request,
 //     from the "Your AI key" panel), we use it for this ONE call and then
@@ -23,6 +36,7 @@
 import { NextResponse } from "next/server";
 import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/agent-schema";
 import { askBrain } from "@/lib/agent-brains";
+import { scanPartial } from "@/lib/stream-scan";
 import { claimAgentRun } from "@/lib/rate-limit";
 import {
   parseUserKey,
@@ -54,6 +68,7 @@ export async function POST(request: Request) {
   let board: unknown;
   let history: unknown;
   let roomId: unknown;
+  let wantsStream = false;
   try {
     const body = await request.json();
     notes = Array.isArray(body?.notes) ? body.notes : [];
@@ -63,6 +78,7 @@ export async function POST(request: Request) {
     board = body?.board;
     history = body?.history;
     roomId = body?.roomId;
+    wantsStream = body?.stream === true;
   } catch {
     return friendlyError("The request was not valid JSON.", 400);
   }
@@ -155,6 +171,14 @@ export async function POST(request: Request) {
     ? `${notesText}\n\n<team_steering>\nThe team gave these instructions since the last run. Follow them; they override the notes where they conflict, and mention them in "resolution":\n${steerLines.join("\n")}\n</team_steering>`
     : notesText;
 
+  const runInfo: AgentRunInfo = {
+    provider,
+    providerLabel: PROVIDERS[provider].label,
+    usedOwnKey,
+  };
+
+  if (wantsStream) return streamAgent(provider, key, promptText, runInfo);
+
   // ── 4. Ask the AI ─────────────────────────────────────────────────────────
   const reply = await askBrain(provider, key, promptText);
   if ("error" in reply) return friendlyError(reply.error, reply.status);
@@ -170,12 +194,64 @@ export async function POST(request: Request) {
   }
 
   // ── 6. Success: the checked result plus who/what ran it (never the key) ───
-  const runInfo: AgentRunInfo = {
-    provider,
-    providerLabel: PROVIDERS[provider].label,
-    usedOwnKey,
-  };
   return NextResponse.json({ ...checked.result, ...runInfo });
+}
+
+// The streaming version of steps 4 to 6 (see the header for the events).
+function streamAgent(provider: ProviderId, key: string, promptText: string, runInfo: AgentRunInfo) {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream({
+    async start(controller) {
+      const send = (event: object) => controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+      send({ type: "thinking", provider: runInfo.providerLabel });
+
+      // Watch the answer grow and announce each part once it's finished.
+      let sentClashes = false, sentMerged = false, sentAction = false, sentScreens = 0;
+      const onText = (text: string) => {
+        const scan = scanPartial(text);
+        if (!sentClashes && scan.clashes !== undefined) {
+          sentClashes = true;
+          send({ type: "clashes", count: scan.clashes });
+        }
+        if (!sentMerged && scan.merged) {
+          sentMerged = true;
+          send({ type: "merged" });
+        }
+        if (!sentAction && scan.action) {
+          sentAction = true;
+          send({ type: "action", action: scan.action });
+        }
+        // "ask" never draws, so its screens (if any) are not sent.
+        while (scan.action !== "ask" && sentScreens < scan.screens.length) {
+          const screen = checkedScreen(scan.screens[sentScreens++]);
+          if (screen) send({ type: "screen", screen });
+        }
+      };
+
+      const reply = await askBrain(provider, key, promptText, onText);
+      if ("error" in reply) {
+        send({ type: "error", error: reply.error });
+      } else {
+        const checked = validateAgentResult(reply.data);
+        if (checked.ok) send({ type: "done", ...checked.result, ...runInfo });
+        else {
+          console.error("Agent: invalid answer:", checked.error);
+          send({ type: "error", error: `The agent's answer wasn't in the right format (${checked.error}). Please try again.` });
+        }
+      }
+      controller.close();
+    },
+  });
+  return new Response(body, {
+    headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+// Check ONE screen with the same rules as a full answer, so a broken screen
+// is never sent to the canvas mid-stream. Returns the cleaned screen or null.
+function checkedScreen(screen: unknown) {
+  const checked = validateAgentResult({ conflicts: [], resolution: "-", action: "add", question: "", screens: [screen] });
+  return checked.ok ? checked.result.screens[0] : null;
 }
 
 // The screens already on the canvas, as plain text for the AI.

@@ -178,7 +178,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
             <div className="agent-scan" />
             <div className="pop-in pointer-events-none absolute left-1/2 top-14 z-50 -translate-x-1/2 rounded-full border border-agent/40 bg-paper/80 px-3 py-1 font-mono text-[11px] uppercase tracking-widest text-agent backdrop-blur">
               <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-agent align-middle" />
-              Agent is designing · started by {agent.run.startedBy}
+              {agent.run.steps.find((s) => s.state === "working")?.label ?? "Agent is designing"} · started by {agent.run.startedBy}
             </div>
           </>
         )}

@@ -43,21 +43,25 @@ const GEMINI_MODELS = [
 
 export type BrainReply = { data: unknown } | { error: string; status: number };
 
+// Called with the answer text so far, every time more of it arrives.
+// Only Gemini streams today; Claude and OpenAI answer in one go.
+export type OnText = (textSoFar: string) => void;
+
 /** Send the notes to the chosen provider using `key`. */
-export function askBrain(provider: ProviderId, key: string, notesText: string) {
+export function askBrain(provider: ProviderId, key: string, notesText: string, onText?: OnText) {
   if (provider === "anthropic") return askClaude(key, notesText);
   if (provider === "openai") return askOpenAI(key, notesText);
-  return askGemini(key, notesText);
+  return askGemini(key, notesText, onText);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GOOGLE GEMINI — asks for JSON that follows our schema exactly.
 // ─────────────────────────────────────────────────────────────────────────────
-async function askGemini(key: string, notesText: string): Promise<BrainReply> {
+async function askGemini(key: string, notesText: string, onText?: OnText): Promise<BrainReply> {
   let reply: BrainReply = { error: "No Gemini model available.", status: 502 };
   let busy: BrainReply | undefined;
   for (const model of GEMINI_MODELS) {
-    reply = await askGeminiModel(model, key, notesText);
+    reply = await askGeminiModel(model, key, notesText, onText);
     if (!("error" in reply)) return reply;
     // Only move on when this model is busy, out of quota, or not offered to
     // this key (404). Remember "busy" so the person sees that message.
@@ -67,11 +71,14 @@ async function askGemini(key: string, notesText: string): Promise<BrainReply> {
   return busy ?? reply;
 }
 
-async function askGeminiModel(model: string, key: string, notesText: string): Promise<BrainReply> {
+// With `onText`, Gemini streams its answer (server-sent events) and we pass
+// the text along as it grows; without it, one normal request.
+async function askGeminiModel(model: string, key: string, notesText: string, onText?: OnText): Promise<BrainReply> {
+  const endpoint = onText ? `${model}:streamGenerateContent?alt=sse` : `${model}:generateContent`;
   let res: Response;
   try {
     res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${endpoint}`,
       {
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": key },
@@ -90,6 +97,8 @@ async function askGeminiModel(model: string, key: string, notesText: string): Pr
     return { error: "Couldn't reach Google Gemini. Check your internet connection.", status: 502 };
   }
 
+  if (onText && res.ok && res.body) return readGeminiStream(res.body, key, onText);
+
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     safeLog(`Gemini (${model}) error ${res.status}`, body, key);
@@ -105,6 +114,36 @@ async function askGeminiModel(model: string, key: string, notesText: string): Pr
     safeLog("Gemini returned no text", body, key);
     return { error: "Gemini didn't return any wireframes. Try rewording the notes.", status: 502 };
   }
+  return parseJson(text, "Gemini");
+}
+
+// Read Gemini's event stream: each "data: {…}" line carries the next bit of
+// answer text. Returns the whole answer, parsed, once the stream ends.
+async function readGeminiStream(stream: ReadableStream<Uint8Array>, key: string, onText: OnText): Promise<BrainReply> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? ""; // keep a half-received line for next time
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const event = JSON.parse(line.slice(5));
+        const parts = event?.candidates?.[0]?.content?.parts ?? [];
+        for (const p of parts) if (typeof p?.text === "string") text += p.text;
+        onText(text);
+      }
+    }
+  } catch (err) {
+    safeLog("Gemini stream broke off", err, key);
+    return { error: "The connection to Gemini dropped mid-answer. Please try again.", status: 502 };
+  }
+  if (!text) return { error: "Gemini didn't return any wireframes. Try rewording the notes.", status: 502 };
   return parseJson(text, "Gemini");
 }
 

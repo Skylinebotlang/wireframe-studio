@@ -224,7 +224,7 @@ export function useAgentPanel(myName: string) {
   );
 
   // ── Pick: a conflict card choice, used on the next run (shown in the feed).
-  const pick = useMutation(
+  const logPick = useMutation(
     ({ storage }, conflictSummary: string, chosenAuthor: string) => {
       log(
         storage.get("activity"),
@@ -235,6 +235,19 @@ export function useAgentPanel(myName: string) {
     },
     [myName]
   );
+
+  // A pick shows in the feed (and steers the next run) AND is saved in the
+  // board's decision log, so it's remembered after the feed rolls over.
+  function pick(conflictSummary: string, chosenAuthor: string) {
+    logPick(conflictSummary, chosenAuthor);
+    authHeader().then((auth) =>
+      fetch("/api/decisions", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...auth },
+        body: JSON.stringify({ boardId: roomId, summary: conflictSummary, chosenAuthor, byName: myName }),
+      }).catch(() => {})
+    );
+  }
 
   // ── Pause / Resume / Take over ────────────────────────────────────────────
   const pause = useMutation(

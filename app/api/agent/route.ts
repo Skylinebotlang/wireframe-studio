@@ -38,7 +38,10 @@ import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/age
 import { askBrain } from "@/lib/agent-brains";
 import { scanPartial } from "@/lib/stream-scan";
 import { claimAgentRun } from "@/lib/rate-limit";
-import { getSignedInUser } from "@/lib/auth-server";
+import { getSignedInUser, type SignedInUser } from "@/lib/auth-server";
+import { addDecisions, decisionsForPrompt } from "@/lib/decisions-db";
+import { boardsConfigured } from "@/lib/boards-db";
+import type { AgentResult } from "@/lib/agent-schema";
 import {
   parseUserKey,
   PROVIDERS,
@@ -62,7 +65,8 @@ const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/; // same rule as liveblocks-auth
 
 export async function POST(request: Request) {
   // ── 0. Signed-in people only ──────────────────────────────────────────────
-  if (!(await getSignedInUser(request))) return friendlyError("Please sign in to use the agent.", 401);
+  const me = await getSignedInUser(request);
+  if (!me) return friendlyError("Please sign in to use the agent.", 401);
 
   // ── 1. Read the request ───────────────────────────────────────────────────
   let notes: AgentNote[];
@@ -171,9 +175,12 @@ export async function POST(request: Request) {
         .slice(-MAX_STEERING)
         .map((s) => `- ${s.trim().slice(0, MAX_STEERING_CHARS)}`)
     : [];
-  const promptText = steerLines.length
+  // Decisions the team already made on this board (the decision log), so
+  // the agent doesn't quietly undo them.
+  const past = boardsConfigured() ? await decisionsForPrompt(roomId) : "";
+  const promptText = (past ? `${past}\n\n` : "") + (steerLines.length
     ? `${notesText}\n\n<team_steering>\nThe team gave these instructions since the last run. Follow them; they override the notes where they conflict, and mention them in "resolution":\n${steerLines.join("\n")}\n</team_steering>`
-    : notesText;
+    : notesText);
 
   const runInfo: AgentRunInfo = {
     provider,
@@ -181,7 +188,8 @@ export async function POST(request: Request) {
     usedOwnKey,
   };
 
-  if (wantsStream) return streamAgent(provider, key, promptText, runInfo);
+  const log = (result: AgentResult) => recordMerges(roomId, me, result);
+  if (wantsStream) return streamAgent(provider, key, promptText, runInfo, log);
 
   // ── 4. Ask the AI ─────────────────────────────────────────────────────────
   const reply = await askBrain(provider, key, promptText);
@@ -197,12 +205,20 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── 6. Success: the checked result plus who/what ran it (never the key) ───
+  // ── 6. Success: log the decisions, then return the checked result plus
+  // who/what ran it (never the key) ─────────────────────────────────────────
+  await log(checked.result);
   return NextResponse.json({ ...checked.result, ...runInfo });
 }
 
 // The streaming version of steps 4 to 6 (see the header for the events).
-function streamAgent(provider: ProviderId, key: string, promptText: string, runInfo: AgentRunInfo) {
+function streamAgent(
+  provider: ProviderId,
+  key: string,
+  promptText: string,
+  runInfo: AgentRunInfo,
+  log: (result: AgentResult) => Promise<void>
+) {
   const encoder = new TextEncoder();
   const body = new ReadableStream({
     async start(controller) {
@@ -237,7 +253,10 @@ function streamAgent(provider: ProviderId, key: string, promptText: string, runI
         send({ type: "error", error: reply.error });
       } else {
         const checked = validateAgentResult(reply.data);
-        if (checked.ok) send({ type: "done", ...checked.result, ...runInfo });
+        if (checked.ok) {
+          await log(checked.result);
+          send({ type: "done", ...checked.result, ...runInfo });
+        }
         else {
           console.error("Agent: invalid answer:", checked.error);
           send({ type: "error", error: `The agent's answer wasn't in the right format (${checked.error}). Please try again.` });
@@ -249,6 +268,27 @@ function streamAgent(provider: ProviderId, key: string, promptText: string, runI
   return new Response(body, {
     headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" },
   });
+}
+
+// Decision log: each clash the agent resolved becomes a "merge" decision.
+// Never fails the run: if the log can't be reached, it's only logged.
+async function recordMerges(roomId: string, me: SignedInUser, result: AgentResult) {
+  if (!boardsConfigured() || result.action === "ask" || result.conflicts.length === 0) return;
+  try {
+    await addDecisions(
+      result.conflicts.map((c) => ({
+        boardId: roomId,
+        kind: "merge" as const,
+        summary: c.summary,
+        decision: result.resolution,
+        decidedBy: "Agent",
+        userId: me.id,
+        screens: result.screens.map((s) => s.name),
+      }))
+    );
+  } catch (err) {
+    console.error("Decisions: couldn't save the agent's merges:", err);
+  }
 }
 
 // Check ONE screen with the same rules as a full answer, so a broken screen

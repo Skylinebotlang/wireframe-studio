@@ -26,7 +26,8 @@ function config() {
 export const boardsConfigured = () => config() !== null;
 
 // One request to Supabase's REST API. Throws on failure (callers catch it).
-async function rest(path: string, init: RequestInit = {}) {
+// Also used by lib/decisions-db.ts.
+export async function rest(path: string, init: RequestInit = {}) {
   const c = config();
   if (!c) throw new Error("Supabase is not set up");
   const res = await fetch(`${c.url}/rest/v1/${path}`, {

@@ -164,7 +164,7 @@
 .lp-c3 { bottom: 12px; left: 12px; border-width: 0 0 1px 1px; }
 .lp-c4 { bottom: 12px; right: 12px; border-width: 0 1px 1px 0; }
 
-/* ── Site builder (app/SiteBuilder.tsx) ────────────────────────────────
+/* ── Build-in effect (used by app/Chapters.tsx) ────────────────────────────────
    Parts marked data-build go through: hidden → drawing (orange agent frame,
    scan line) → wire (grey wireframe) → real. The wireframe is the REAL
    content dressed as grey bars, so it always matches the final layout. */
@@ -313,54 +313,6 @@ h1[data-build][data-state="wire"] {
 /* People who turn motion off get a still page */
 @media (prefers-reduced-motion: reduce) {
   .lp *, .lp *::before, .lp *::after { animation: none !important; }
-}
-
-/* ── Loader (app/Loader.tsx) ───────────────────────────────────────────────
-   Navy cover, the 2D logo turning slowly, a thin wine progress line.
-   On exit the navy fades and the logo flies into the nav logo spot. */
-.ld {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  pointer-events: none;
-}
-.ld-bg {
-  position: absolute;
-  inset: 0;
-  background: var(--paper);
-}
-.ld-logo {
-  position: relative;
-  width: 96px;
-  height: 96px;
-  will-change: transform;
-}
-.ld-spin {
-  animation: ld-spin 3.5s linear infinite;
-}
-@keyframes ld-spin {
-  to { transform: rotate(360deg); }
-}
-.ld-track {
-  position: relative;
-  width: 120px;
-  height: 1px;
-  background: var(--line);
-  overflow: hidden;
-}
-.ld-bar {
-  height: 100%;
-  background: var(--accent-bright);
-  transform: scaleX(0);
-  transform-origin: left;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ld-spin { animation: none; }
 }
 
 /* ── Hero intro (app/HeroIntro.tsx) ────────────────────────────────────────

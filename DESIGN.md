@@ -91,10 +91,8 @@ The wireframe is the real content dressed as grey bars, so it always matches the
 
 | Where | File | What |
 |---|---|---|
-| Loader | `app/Loader.tsx` | 2D logo spins (3.5s/turn) and a wine line fills with real loading (min 1.2s, max 2.5s); the logo flies into the nav logo |
 | Hero, first 8s | `app/HeroIntro.tsx` | Three team frames build mismatched screens → ✕ clashes → frames merge → orange AI assembles one screen → headline → message → Start the chat |
 | Chapters | `app/Chapters.tsx` | Six pinned, scroll-driven screens; each clips open from a smaller frame and draws in as a wireframe |
-| Lower page | `app/SiteBuilder.tsx` | Footer etc. draw in as wireframes while scrolling; an AI status chip |
 | Cursor trail | `app/FluidCursor.tsx` | Wine fluid trail, landing page only |
 
 ## 7. Layout

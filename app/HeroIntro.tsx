@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // HERO INTRO — the first screen: a "runtime HUD" layout (from papi's Stitch
 // design) with the 6-second story playing in its central frame. It starts
-// the moment the loader hands off (app/Loader.tsx).
+// right after the splash hands off (app/Splash.tsx).
 //
 // Layout: top HUD bar (our logo, tabs, Initialize workspace), one big
 // framed console card (story stage, WIREFRAME STUDIO, the positioning line,
@@ -161,7 +161,7 @@ export function HeroIntro() {
       {/* ── Top HUD bar ─────────────────────────────────────────────── */}
       <nav className="hud-top lp-mono" aria-label="Main">
         <Link href="/" className="hud-brand" aria-label="Wireframe Studio home">
-          {/* The loader's logo lands exactly here (Loader.tsx measures it). */}
+          {/* Our logo sits here. */}
           <Image id="nav-logo" src="/logo-2d.png" alt="" width={26} height={26} priority draggable={false} />
           <span className="hud-brand-name">
             Wireframe_Studio //

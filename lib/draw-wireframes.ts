@@ -16,25 +16,21 @@
 
 import { createShapeId, toRichText, type Editor, type TLFrameShape, type TLGeoShape, type TLShape, type TLShapeId } from "tldraw";
 import type { AgentResult, BoardScreen, ComponentType } from "./agent-schema";
+import { layoutScreen, PHONE_W } from "./layout";
 
-const PHONE_W = 300; // phone frame width
-const PHONE_MIN_H = 600; // phone frame minimum height
-const PAD = 16; // space inside the frame
-const GAP = 10; // space between components
 const SCREEN_GAP = 80; // space between phone frames
 
-// How tall each kind of box is, and how it looks. (Tall enough for one line
-// of label text; tldraw grows a box whose label doesn't fit, which would
-// make it overlap the next one.)
-const LOOK: Record<ComponentType, { h: number; geo: TLGeoShape["props"]["geo"]; fill: TLGeoShape["props"]["fill"] }> = {
-  header: { h: 56, geo: "rectangle", fill: "solid" },
-  text: { h: 48, geo: "rectangle", fill: "none" },
-  input: { h: 48, geo: "rectangle", fill: "none" },
-  button: { h: 52, geo: "rectangle", fill: "solid" },
-  card: { h: 96, geo: "rectangle", fill: "semi" },
-  list: { h: 120, geo: "rectangle", fill: "semi" },
-  image: { h: 120, geo: "x-box", fill: "none" }, // the classic "image goes here" box
-  summary: { h: 88, geo: "rectangle", fill: "semi" },
+// How each kind of box looks. (Sizes and positions: lib/layout.ts.)
+const LOOK: Record<ComponentType, { geo: TLGeoShape["props"]["geo"]; fill: TLGeoShape["props"]["fill"] }> = {
+  header: { geo: "rectangle", fill: "solid" },
+  text: { geo: "rectangle", fill: "none" },
+  input: { geo: "rectangle", fill: "none" },
+  button: { geo: "rectangle", fill: "solid" },
+  card: { geo: "rectangle", fill: "semi" },
+  list: { geo: "rectangle", fill: "semi" },
+  image: { geo: "x-box", fill: "none" }, // the classic "image goes here" box
+  summary: { geo: "rectangle", fill: "semi" },
+  tabbar: { geo: "rectangle", fill: "semi" },
 };
 
 // Every frame on the page, by lowercase name.
@@ -87,41 +83,34 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
       }
       frameIds.push(frameId);
 
-      // Stack the components top to bottom.
-      let cy = PAD;
-      const boxes = screen.components.map((c) => {
-        const look = LOOK[c.type];
-        const box = { c, look, y: cy };
-        cy += look.h + GAP;
-        return box;
-      });
-      const frameH = Math.max(PHONE_MIN_H, cy - GAP + PAD);
+      // Rows, grids and the tab bar: see lib/layout.ts.
+      const { boxes, height } = layoutScreen(screen.components);
 
       editor.createShape({
         id: frameId,
         type: "frame",
         x: at.x,
         y: at.y,
-        props: { w: PHONE_W, h: frameH, name: screen.name, color: "orange" },
+        props: { w: PHONE_W, h: height, name: screen.name, color: "orange" },
       });
 
       editor.createShapes(
-        boxes.map(({ c, look, y: by }) => ({
+        boxes.map((b) => ({
           id: createShapeId(),
           type: "geo",
           parentId: frameId, // inside the phone frame (x/y are relative to it)
-          x: PAD,
-          y: by,
+          x: b.x,
+          y: b.y,
           props: {
-            geo: look.geo,
-            w: PHONE_W - PAD * 2,
-            h: look.h,
-            fill: look.fill,
+            geo: LOOK[b.c.type].geo,
+            w: b.w,
+            h: b.h,
+            fill: LOOK[b.c.type].fill,
             color: "grey",
             labelColor: "black",
             size: "s",
             font: "sans",
-            richText: toRichText(c.label),
+            richText: toRichText(b.label),
           },
         }))
       );

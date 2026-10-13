@@ -33,6 +33,7 @@ export const COMPONENT_TYPES = [
   "list",
   "image",
   "summary",
+  "tabbar", // label "Home | Search | Profile" → tabs along the bottom
 ] as const;
 
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
@@ -41,6 +42,9 @@ export type WireframeComponent = {
   type: ComponentType;
   label: string; // what the box says, e.g. "Sign in"
   notes?: string; // optional detail, e.g. "primary action"
+  // 2 or 3 = sits side by side with neighbours that have the same number
+  // (a row of buttons, a grid of cards). 1 or missing = full width.
+  columns?: 1 | 2 | 3;
 };
 
 export type Screen = {
@@ -116,11 +120,12 @@ export const AGENT_RESULT_JSON_SCHEMA = {
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["type", "label", "notes"],
+              required: ["type", "label", "notes", "columns"],
               properties: {
                 type: { type: "string", enum: [...COMPONENT_TYPES] },
                 label: { type: "string" },
                 notes: { type: "string" },
+                columns: { type: "integer", enum: [1, 2, 3] },
               },
             },
           },
@@ -179,6 +184,9 @@ export function validateAgentResult(
       if (!COMPONENT_TYPES.includes(comp.type as ComponentType)) {
         return { ok: false, error: `Unknown component type "${String(comp.type)}" on "${s.name}".` };
       }
+      if (comp.columns !== undefined && ![1, 2, 3].includes(comp.columns as number)) {
+        return { ok: false, error: `Component columns on "${s.name}" must be 1, 2 or 3.` };
+      }
       if (comp.notes !== undefined && !isText(comp.notes)) {
         return { ok: false, error: `Component notes on "${s.name}" must be text.` };
       }
@@ -203,6 +211,7 @@ export function validateAgentResult(
           type: comp.type,
           label: comp.label,
           ...(comp.notes ? { notes: comp.notes } : {}),
+          ...(comp.columns && comp.columns > 1 ? { columns: comp.columns } : {}),
         })),
       })),
     },

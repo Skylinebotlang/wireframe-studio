@@ -33,4 +33,18 @@ assert.ok(!validateAgentResult({ ...good, action: "ask", question: " " }).ok);
 assert.ok(!validateAgentResult({ ...good, action: "delete" }).ok);
 assert.strictEqual(validateAgentResult({ ...good, action: "update" }).result.action, "update");
 
+// Layout: columns 2/3 kept, 1 dropped (it's the default), others refused.
+const grid = validateAgentResult({
+  ...good,
+  screens: [{ name: "Shop", components: [
+    { type: "card", label: "A", notes: "", columns: 2 },
+    { type: "button", label: "B", notes: "", columns: 1 },
+    { type: "tabbar", label: "Home | Cart", notes: "", columns: 1 },
+  ] }],
+});
+assert.ok(grid.ok);
+assert.strictEqual(grid.result.screens[0].components[0].columns, 2);
+assert.strictEqual(grid.result.screens[0].components[1].columns, undefined);
+assert.ok(!validateAgentResult({ ...good, screens: [{ name: "X", components: [{ type: "card", label: "A", columns: 4 }] }] }).ok);
+
 console.log("agent-schema checks passed");

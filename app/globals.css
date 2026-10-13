@@ -347,3 +347,11 @@ body {
 .select-none *::selection {
   background: transparent;
 }
+
+/* Orange (and amber/yellow) is reserved for the AI. Hide those swatches from
+   tldraw's color menu so people can't pick them. The agent's own frames are
+   still drawn orange in code (lib/draw-wireframes.ts). */
+.tlui-style-panel [data-testid="style.color.orange"],
+.tlui-style-panel [data-testid="style.color.yellow"] {
+  display: none;
+}

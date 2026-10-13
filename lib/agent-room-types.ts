@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { AgentResult } from "./agent-schema";
+import type { DesignScreen, StyleGuide } from "./agent-design";
 
 // Where the agent is at:
 //   idle    → nothing running
@@ -47,7 +48,8 @@ export type ActivityKind =
   | "pause"
   | "resume"
   | "takeover" // a human took over: the run was cancelled
-  | "undo"; // someone undid the agent's last run
+  | "undo" // someone undid the agent's last run
+  | "design"; // "Make it real": someone asked for designs, or one is ready
 
 export type ActivityItem = {
   id: string;
@@ -67,4 +69,18 @@ export type AgentUndo = {
   screens: number; // how many screens it drew, for the button label
   created: string[];
   removed: string;
+};
+
+// One "Make it real" design (stage 2), saved in the room's `designs` map.
+// The canvas shape (lib/design-shape.tsx) only holds its id, so the big
+// HTML stays out of the canvas's Yjs history. Kept: the newest
+// MAX_SAVED_DESIGNS per room (lib/agent-design-room.ts).
+export type DesignRecord = {
+  name: string; // the wireframe screen it was made from, e.g. "Home"
+  html: string; // the checked, self-contained page (no scripts, no outside links)
+  screen: DesignScreen; // the wireframe it was built from (for Regenerate)
+  styleGuide: StyleGuide; // shared by every screen of one run (for Regenerate)
+  by: string; // who asked for it
+  at: number; // ms timestamp
+  provider: string; // "Gemini" | "Claude" | "OpenAI" | "Mock agent"
 };

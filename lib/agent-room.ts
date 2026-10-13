@@ -27,11 +27,11 @@
 // the request (aiKeyForRequest). It is never written into the room.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { LiveList, LiveObject } from "@liveblocks/client";
+import { LiveList, LiveMap, LiveObject } from "@liveblocks/client";
 import { useMutation, useRoom, useStorage } from "@liveblocks/react/suspense";
 import type { AgentAction, AgentNote, AgentResult, BoardScreen, Screen } from "./agent-schema";
 import type { AgentRunInfo } from "./ai-providers";
-import type { ActivityItem, ActivityKind, AgentRunState, AgentUndo, PlanStep } from "./agent-room-types";
+import type { ActivityItem, ActivityKind, AgentRunState, AgentUndo, DesignRecord, PlanStep } from "./agent-room-types";
 import type { DrawRecord } from "./draw-wireframes";
 import { aiKeyForRequest } from "./byok";
 import { authHeader } from "./auth";
@@ -65,6 +65,7 @@ export function createInitialAgentStorage() {
     agentRun: new LiveObject<AgentRunState>(IDLE_RUN),
     activity: new LiveList<ActivityItem>([]),
     agentUndo: null,
+    designs: new LiveMap<string, DesignRecord>(),
   };
 }
 

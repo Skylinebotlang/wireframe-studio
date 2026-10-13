@@ -29,4 +29,8 @@ assert.ok(own.ok && own.next.runs === DAILY_RUNS);
 const tomorrow = decide(full, Date.parse("2026-10-13T00:00:01Z"), true);
 assert.ok(tomorrow.ok && tomorrow.next.runs === 1);
 
+// Design calls: no cooldown, but they still count against the day.
+const design = decide({ lastRunAt: noon, day, runs: 1 }, noon + 1, true, 0);
+assert.ok(design.ok && design.next.runs === 2);
+
 console.log("rate-limit checks passed");

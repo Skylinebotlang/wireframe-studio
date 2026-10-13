@@ -6,6 +6,8 @@
 //   • at most 1 run every 10 seconds (any key)
 //   • at most 50 runs a day on the app's built-in key (a person's own key
 //     pays for itself, so it isn't counted against the day)
+// "Make it real" (app/api/design) counts each design call as one run, with
+// no cooldown between them (each screen is its own call, back to back).
 //
 // The counters live in the room's Liveblocks METADATA. Only our server (with
 // the secret key) can write metadata, so people in the room can't reset it,
@@ -28,9 +30,10 @@ type Counters = { lastRunAt: number; day: string; runs: number };
 export function decide(
   prev: Counters,
   now: number,
-  usesBuiltInKey: boolean
+  usesBuiltInKey: boolean,
+  cooldownMs = COOLDOWN_MS
 ): { ok: true; next: Counters } | { ok: false; error: string } {
-  const wait = prev.lastRunAt + COOLDOWN_MS - now;
+  const wait = prev.lastRunAt + cooldownMs - now;
   if (wait > 0) {
     const s = Math.ceil(wait / 1000);
     return { ok: false, error: `The agent needs a short breather. Try again in ${s} second${s === 1 ? "" : "s"}.` };
@@ -50,7 +53,7 @@ export function decide(
  * Check the room's counters and, if allowed, record this run.
  * Returns null when the run may go ahead, or a friendly error message.
  */
-export async function claimAgentRun(roomId: string, usesBuiltInKey: boolean): Promise<string | null> {
+export async function claimAgentRun(roomId: string, usesBuiltInKey: boolean, cooldownMs = COOLDOWN_MS): Promise<string | null> {
   const secret = process.env.LIVEBLOCKS_SECRET_KEY;
   if (!secret || secret.includes("paste_yours_here")) {
     return "The server isn't set up: LIVEBLOCKS_SECRET_KEY is missing from .env.local.";
@@ -70,7 +73,7 @@ export async function claimAgentRun(roomId: string, usesBuiltInKey: boolean): Pr
     runs: Number(m.agentRuns) || 0,
   };
 
-  const verdict = decide(prev, Date.now(), usesBuiltInKey);
+  const verdict = decide(prev, Date.now(), usesBuiltInKey, cooldownMs);
   if (!verdict.ok) return verdict.error;
 
   // ponytail: read-then-write, so two clicks in the same instant can both

@@ -25,6 +25,7 @@ import {
   TldrawUiMenuItem,
   useIsToolSelected,
   useTools,
+  useValue,
   type TLComponents,
   type TLShapeId,
   type TLUiOverrides,
@@ -35,12 +36,14 @@ import { AgentPanel } from "./AgentPanel";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
 import { drawWireframes, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
 import { useAgentPanel } from "@/lib/agent-room";
+import { useDesignPanel } from "@/lib/agent-design-room";
+import { DesignShapeUtil, designIdFor, placeDesign, selectedDesign } from "@/lib/design-shape";
 import type { AgentResult } from "@/lib/agent-schema";
 import { useTilt } from "@/lib/tilt";
 import type { UserIdentity } from "@/lib/user";
 
 // Defined once, outside the component, so tldraw doesn't rebuild them.
-const shapeUtils = [PromptNoteShapeUtil];
+const shapeUtils = [PromptNoteShapeUtil, DesignShapeUtil];
 const tools = [PromptNoteTool];
 
 // Add the "Prompt note" button to tldraw's toolbar (first in the row).
@@ -135,6 +138,26 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     if (problem) setMessage(problem);
   }, [editor, agent, draw]);
 
+  // ── "Make it real" (stage 2): wireframes → real mockups ──────────────────
+  const design = useDesignPanel(identity.name);
+  // The one design shape selected, if any: the panel then offers Regenerate.
+  const pickedDesign = useValue("picked design", () => (editor ? selectedDesign(editor) : null), [editor]);
+  const handleMakeReal = useCallback(async (instruction: string) => {
+    if (!editor) return;
+    setMessage("");
+    const place = (designId: string, name: string) => placeDesign(editor, designId, name);
+    let problem: string | null;
+    if (pickedDesign) {
+      problem = await design.regenerate(pickedDesign.props.designId, instruction, place);
+    } else {
+      // The selected wireframe frames, or every frame on the board.
+      const picked = new Set(editor.getSelectedShapes().filter((s) => s.type === "frame").map((s) => (s.props as { name: string }).name));
+      const board = readBoardScreens(editor).filter((s) => picked.size === 0 || picked.has(s.name));
+      problem = await design.makeReal(board, (name) => designIdFor(editor, name), place);
+    }
+    if (problem) setMessage(problem);
+  }, [editor, design, pickedDesign]);
+
   // ── "Undo last agent run": put the canvas back as it was before it ───────
   const handleUndo = useCallback(() => {
     if (!editor) return;
@@ -201,6 +224,8 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         onIdea={handleIdea}
         onResume={() => agent.resume(draw)}
         onUndo={handleUndo}
+        onMakeReal={handleMakeReal}
+        pickedDesign={pickedDesign?.props.name ?? null}
       />
     </div>
   );

@@ -14,8 +14,8 @@
 //              activity feed (see lib/agent-room.ts).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { LiveList, LiveObject } from "@liveblocks/client";
-import type { ActivityItem, AgentRunState, AgentUndo } from "./lib/agent-room-types";
+import type { LiveList, LiveMap, LiveObject } from "@liveblocks/client";
+import type { ActivityItem, AgentRunState, AgentUndo, DesignRecord } from "./lib/agent-room-types";
 
 declare global {
   interface Liveblocks {
@@ -41,6 +41,9 @@ declare global {
       // The agent's last run, for "Undo last agent run". Missing in rooms
       // made before undo existed; null once undone.
       agentUndo?: AgentUndo | null;
+      // "Make it real" designs by id (the canvas only holds the id). Missing
+      // in rooms made before designs existed; created on first use.
+      designs?: LiveMap<string, DesignRecord>;
     };
 
     // One-off messages broadcast to everyone in the room (not saved).

@@ -10,6 +10,8 @@
 //   • clash cards: what clashed, how the agent merged it, and buttons to use
 //     one person's version instead (applied on the next run)
 //   • "Frame your idea": type an idea and the agent draws it right away
+//   • "Make it real": turn the wireframes into real designs (stage 2), or
+//     redo one selected design with a short instruction
 //   • the activity feed: who did what, and which AI ran ("Run by papi using Gemini")
 //
 // Colors: wine = people's actions. ORANGE only when the agent itself is
@@ -31,6 +33,8 @@ export function AgentPanel({
   onIdea,
   onResume,
   onUndo,
+  onMakeReal,
+  pickedDesign,
 }: {
   agent: Agent;
   editor: Editor | null;
@@ -39,9 +43,12 @@ export function AgentPanel({
   onIdea: (idea: string) => void;
   onResume: () => void;
   onUndo: () => void;
+  onMakeReal: (instruction: string) => void;
+  pickedDesign: string | null; // name of the one design selected (Regenerate), or null
 }) {
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
+  const [instruction, setInstruction] = useState("");
   const working = run.status === "working";
   const paused = run.status === "paused";
   const asking = run.status === "done" && run.result?.action === "ask";
@@ -138,6 +145,35 @@ export function AgentPanel({
           )}
           {message && <p className="text-xs text-accent-bright">{message}</p>}
           {run.status === "error" && run.error && <p className="text-xs text-accent-bright">⚠ {run.error}</p>}
+        </section>
+
+        {/* ── Make it real: wireframes → real designs (stage 2) ─────────────── */}
+        <section className="space-y-1.5">
+          <Label>Make it real</Label>
+          <p className="text-[11px] leading-snug text-muted">
+            {pickedDesign
+              ? `Redo the ${pickedDesign} design. Say what to change, or leave it empty.`
+              : "Turns the wireframes (or the frames you select) into real designs. Select a design to redo it."}
+          </p>
+          {pickedDesign && (
+            <input
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              maxLength={300}
+              placeholder={`e.g. make ${pickedDesign} darker`}
+              className="w-full rounded-md border border-line bg-paper px-2 py-1.5 text-xs text-ink outline-none focus:border-accent-bright"
+            />
+          )}
+          <button
+            onClick={() => {
+              onMakeReal(pickedDesign ? instruction : "");
+              setInstruction("");
+            }}
+            disabled={!editor || working || paused}
+            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-ink hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pickedDesign ? `Regenerate ${pickedDesign}` : "Make it real"}
+          </button>
         </section>
 
         {/* ── Plan + progress ──────────────────────────────────────────────── */}

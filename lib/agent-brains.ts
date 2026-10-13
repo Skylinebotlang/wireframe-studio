@@ -1,8 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // AGENT BRAINS — how we talk to each AI provider. SERVER ONLY.
 //
-// Each "ask" function sends the board's notes to one provider and returns
-// either the raw JSON answer or a friendly error that names the problem.
+// Each "ask" function sends one message to one provider and returns either
+// the raw JSON answer or a friendly error that names the problem. A "job"
+// says which instructions and answer format to use: stage 1 draws wireframes
+// (the default), stage 2 designs real screens (lib/agent-design.ts).
 // `checkKey` does a free, harmless call to see if a key is accepted.
 //
 // KEY SAFETY: a key passed in here is used for one request and then
@@ -12,7 +14,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { AGENT_RESULT_JSON_SCHEMA } from "./agent-schema";
-import { PROVIDERS, type ProviderId } from "./ai-providers";
+import { parseUserKey, PROVIDERS, type ProviderId } from "./ai-providers";
 
 // The instructions the AI gets on every run (same for every provider).
 const SYSTEM_PROMPT = `You are the AI teammate on a shared product-design canvas. PMs, designers and developers each leave prompt notes describing what they want. You read ALL the notes together and turn them into simple mobile wireframes.
@@ -32,6 +34,17 @@ How to work:
 // The route already wrote the full message (an idea, or the board's notes).
 const userMessage = (notesText: string) => notesText;
 
+// What to ask for: the instructions, the JSON answer format, and (for
+// Claude) the name of the tool it answers with.
+export type BrainJob = { system: string; schema: object; toolName: string; toolDescription: string };
+
+const WIREFRAME_JOB: BrainJob = {
+  system: SYSTEM_PROMPT,
+  schema: AGENT_RESULT_JSON_SCHEMA,
+  toolName: "submit_wireframes",
+  toolDescription: "Submit the conflicts found between the notes, the merge explanation, and the wireframe screens.",
+};
+
 // Gemini models to try, in order. If one is busy ("high demand") or out of
 // free quota, we try the next. The first is the one listed in ai-providers.
 const GEMINI_MODELS = [
@@ -47,21 +60,49 @@ export type BrainReply = { data: unknown } | { error: string; status: number };
 // Only Gemini streams today; Claude and OpenAI answer in one go.
 export type OnText = (textSoFar: string) => void;
 
-/** Send the notes to the chosen provider using `key`. */
-export function askBrain(provider: ProviderId, key: string, notesText: string, onText?: OnText) {
-  if (provider === "anthropic") return askClaude(key, notesText);
-  if (provider === "openai") return askOpenAI(key, notesText);
-  return askGemini(key, notesText, onText);
+/** Send the message to the chosen provider using `key`. */
+export function askBrain(provider: ProviderId, key: string, notesText: string, onText?: OnText, job = WIREFRAME_JOB) {
+  if (provider === "anthropic") return askClaude(key, notesText, job);
+  if (provider === "openai") return askOpenAI(key, notesText, job);
+  return askGemini(key, notesText, onText, job);
+}
+
+/**
+ * Whose key runs the agent: the person's own key if their browser sent one
+ * (used for this one call, never stored), otherwise the app's built-in key
+ * from .env.local (Gemini if set, else Claude; AGENT_PROVIDER=anthropic
+ * forces Claude). Or a friendly reason it can't run.
+ */
+export function pickBrain(aiKey: unknown):
+  | { provider: ProviderId; key: string; usedOwnKey: boolean }
+  | { error: string; status: number } {
+  if (aiKey !== undefined && aiKey !== null) {
+    const own = parseUserKey(aiKey);
+    if ("error" in own) return { error: own.error, status: 400 };
+    return { ...own, usedOwnKey: true };
+  }
+  const usable = (k: string | undefined) => (k && !k.includes("paste_yours_here") ? k : undefined);
+  const geminiKey = usable(process.env.GEMINI_API_KEY);
+  const claudeKey = usable(process.env.ANTHROPIC_API_KEY);
+  const useClaude = process.env.AGENT_PROVIDER === "anthropic" || !geminiKey;
+  if (useClaude && !claudeKey) {
+    return {
+      error:
+        "The built-in agent isn't set up: add GEMINI_API_KEY (free, from aistudio.google.com) to .env.local, or add your own key in the 'Your AI key' panel.",
+      status: 500,
+    };
+  }
+  return { provider: useClaude ? "anthropic" : "gemini", key: (useClaude ? claudeKey : geminiKey)!, usedOwnKey: false };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GOOGLE GEMINI — asks for JSON that follows our schema exactly.
 // ─────────────────────────────────────────────────────────────────────────────
-async function askGemini(key: string, notesText: string, onText?: OnText): Promise<BrainReply> {
+async function askGemini(key: string, notesText: string, onText: OnText | undefined, job: BrainJob): Promise<BrainReply> {
   let reply: BrainReply = { error: "No Gemini model available.", status: 502 };
   let busy: BrainReply | undefined;
   for (const model of GEMINI_MODELS) {
-    reply = await askGeminiModel(model, key, notesText, onText);
+    reply = await askGeminiModel(model, key, notesText, onText, job);
     if (!("error" in reply)) return reply;
     // Only move on when this model is busy, out of quota, or not offered to
     // this key (404). Remember "busy" so the person sees that message.
@@ -73,7 +114,7 @@ async function askGemini(key: string, notesText: string, onText?: OnText): Promi
 
 // With `onText`, Gemini streams its answer (server-sent events) and we pass
 // the text along as it grows; without it, one normal request.
-async function askGeminiModel(model: string, key: string, notesText: string, onText?: OnText): Promise<BrainReply> {
+async function askGeminiModel(model: string, key: string, notesText: string, onText: OnText | undefined, job: BrainJob): Promise<BrainReply> {
   const endpoint = onText ? `${model}:streamGenerateContent?alt=sse` : `${model}:generateContent`;
   let res: Response;
   try {
@@ -83,11 +124,11 @@ async function askGeminiModel(model: string, key: string, notesText: string, onT
         method: "POST",
         headers: { "content-type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          systemInstruction: { parts: [{ text: job.system }] },
           contents: [{ role: "user", parts: [{ text: userMessage(notesText) }] }],
           generationConfig: {
             responseMimeType: "application/json",
-            responseJsonSchema: AGENT_RESULT_JSON_SCHEMA,
+            responseJsonSchema: job.schema,
           },
         }),
       }
@@ -166,7 +207,7 @@ function geminiFailure(status: number, body: unknown): { error: string; status: 
 // ANTHROPIC CLAUDE — answers by calling a "submit_wireframes" tool whose
 // input must match our schema exactly.
 // ─────────────────────────────────────────────────────────────────────────────
-async function askClaude(key: string, notesText: string): Promise<BrainReply> {
+async function askClaude(key: string, notesText: string, job: BrainJob): Promise<BrainReply> {
   const client = new Anthropic({ apiKey: key });
   let response: Anthropic.Beta.Messages.BetaMessage;
   try {
@@ -176,24 +217,23 @@ async function askClaude(key: string, notesText: string): Promise<BrainReply> {
       .stream({
         model: PROVIDERS.anthropic.model,
         max_tokens: 16000,
-        system: SYSTEM_PROMPT,
+        system: job.system,
         // If Claude declines for a safety reason, the API retries on a
         // fallback model automatically instead of just failing.
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
         tools: [
           {
-            name: "submit_wireframes",
-            description:
-              "Submit the conflicts found between the notes, the merge explanation, and the wireframe screens.",
+            name: job.toolName,
+            description: job.toolDescription,
             strict: true, // Claude's answer must match the schema exactly
-            input_schema: AGENT_RESULT_JSON_SCHEMA as unknown as Anthropic.Beta.Messages.BetaTool.InputSchema,
+            input_schema: job.schema as unknown as Anthropic.Beta.Messages.BetaTool.InputSchema,
           },
         ],
         messages: [
           {
             role: "user",
-            content: `${userMessage(notesText)}\n\nAnswer by calling submit_wireframes exactly once.`,
+            content: `${userMessage(notesText)}\n\nAnswer by calling ${job.toolName} exactly once.`,
           },
         ],
       })
@@ -210,7 +250,7 @@ async function askClaude(key: string, notesText: string): Promise<BrainReply> {
     return { error: "Claude's answer was too long and got cut off. Try fewer notes.", status: 422 };
   }
   const toolCall = response.content.find(
-    (block) => block.type === "tool_use" && block.name === "submit_wireframes"
+    (block) => block.type === "tool_use" && block.name === job.toolName
   );
   if (!toolCall || toolCall.type !== "tool_use") {
     return { error: "Claude didn't return any wireframes. Please try again.", status: 502 };
@@ -238,7 +278,7 @@ function claudeFailure(err: unknown): { error: string; status: number } {
 // ─────────────────────────────────────────────────────────────────────────────
 // OPENAI — "structured outputs" make the reply follow our schema exactly.
 // ─────────────────────────────────────────────────────────────────────────────
-async function askOpenAI(key: string, notesText: string): Promise<BrainReply> {
+async function askOpenAI(key: string, notesText: string, job: BrainJob): Promise<BrainReply> {
   let res: Response;
   try {
     res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -247,12 +287,12 @@ async function askOpenAI(key: string, notesText: string): Promise<BrainReply> {
       body: JSON.stringify({
         model: PROVIDERS.openai.model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: job.system },
           { role: "user", content: userMessage(notesText) },
         ],
         response_format: {
           type: "json_schema",
-          json_schema: { name: "wireframes", strict: true, schema: AGENT_RESULT_JSON_SCHEMA },
+          json_schema: { name: job.toolName, strict: true, schema: job.schema },
         },
       }),
     });

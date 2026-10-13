@@ -115,10 +115,39 @@ body {
     0 0 28px -10px rgba(194, 71, 95, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 /* tldraw runs in its dark mode (see TldrawApp); tint its panels to match. */
+/* Every tldraw UI color is a variable, so we swap its default greys and
+   blues for our navies, soft white and wine. Selection = wine (people). */
 .tl-container.tl-theme__dark {
   --color-panel: rgba(19, 18, 36, 0.78);
   --color-background: #090719;
+  --color-low: #191a2f;
+  --color-low-border: #2b2a42;
+  --color-divider: #2b2a42;
+  --color-panel-contrast: rgba(248, 244, 245, 0.08);
+  --color-muted-1: rgba(248, 244, 245, 0.08); /* button hover */
+  --color-hint: rgba(194, 71, 95, 0.14); /* active/pressed button */
   --color-selected: #c2475f;
+  --color-primary: #c2475f;
+  --color-focus: #d98a99;
+  --color-selection-stroke: #c2475f;
+  --color-selection-fill: rgba(194, 71, 95, 0.14);
+  --color-brush-fill: rgba(194, 71, 95, 0.08);
+  --color-brush-stroke: rgba(194, 71, 95, 0.4);
+  --color-text: #f8f4f5;
+  --color-text-0: #f8f4f5;
+  --color-text-1: #d9d4dc;
+  --color-text-3: #9e99a8;
+  --color-text-shadow: #090719;
+  --shadow-2: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 10px 32px rgba(0, 0, 0, 0.5),
+    0 0 24px -12px rgba(194, 71, 95, 0.5), inset 0 0 0 1px rgba(248, 244, 245, 0.08);
+  --shadow-3: var(--shadow-2);
+}
+/* tldraw's menus in our body font; keyboard shortcuts in mono. */
+.tl-container .tlui-layout {
+  font-family: var(--font-sans);
+}
+.tlui-kbd {
+  font-family: var(--font-mono);
 }
 
 /* ── 2. Entrance / exit animations ──────────────────────────────────────────

@@ -117,31 +117,31 @@ export function AgentPanel({
               Frame it
             </button>
           </form>
-        </section>
-
-        {/* ── Controls ─────────────────────────────────────────────────────── */}
-        <section className="space-y-2">
+          {/* The second way in: read every note on the canvas. Quieter, so
+              "Frame it" stays the one obvious main action. */}
           <button
             onClick={onSend}
             disabled={!editor || working || paused}
-            className={`w-full rounded-md px-3 py-2 text-sm text-ink transition-colors disabled:cursor-not-allowed ${
-              working ? "bg-agent" : "border border-line bg-raised hover:border-accent-bright disabled:opacity-50"
+            className={`mt-2 w-full rounded-md px-3 py-1.5 text-xs transition-colors disabled:cursor-not-allowed ${
+              working ? "bg-agent text-ink" : "border border-line text-muted hover:border-accent-bright hover:text-ink disabled:opacity-50"
             }`}
           >
-            {working ? "Agent working…" : "Send notes to agent"}
+            {working ? "Agent working…" : "or send the canvas notes to the agent"}
           </button>
-          <div className="grid grid-cols-2 gap-2">
-            {paused ? (
-              <SmallButton onClick={onResume}>Resume</SmallButton>
-            ) : (
-              <SmallButton onClick={agent.pause} disabled={!working}>
-                Pause
-              </SmallButton>
-            )}
-            <SmallButton onClick={agent.takeOver} disabled={!working && !paused}>
-              Take over
-            </SmallButton>
-          </div>
+        </section>
+
+        {/* ── Run controls: only while a run is going, or when there's one to undo ── */}
+        <section className="space-y-2 empty:hidden">
+          {(working || paused) && (
+            <div className="grid grid-cols-2 gap-2">
+              {paused ? (
+                <SmallButton onClick={onResume}>Resume</SmallButton>
+              ) : (
+                <SmallButton onClick={agent.pause}>Pause</SmallButton>
+              )}
+              <SmallButton onClick={agent.takeOver}>Take over</SmallButton>
+            </div>
+          )}
           {agent.undo && !working && !paused && (
             <SmallButton onClick={onUndo}>
               Undo last agent run ({agent.undo.screens} screen{agent.undo.screens === 1 ? "" : "s"} by {agent.undo.by})
@@ -152,7 +152,7 @@ export function AgentPanel({
         </section>
 
         {/* ── Make it real: wireframes → real designs (stage 2) ─────────────── */}
-        <section className="space-y-1.5">
+        <section className="space-y-1.5 border-t border-line pt-4">
           <Label>Make it real</Label>
           <p className="text-[11px] leading-snug text-muted">
             {pickedDesign
@@ -174,14 +174,15 @@ export function AgentPanel({
               setInstruction("");
             }}
             disabled={!editor || working || paused}
-            className="w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-ink hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-md border border-accent-bright/60 px-3 py-2 text-sm text-ink transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pickedDesign ? `Regenerate ${pickedDesign}` : "Make it real"}
           </button>
         </section>
 
-        {/* ── Plan + progress ──────────────────────────────────────────────── */}
-        <section>
+        {/* ── Plan + progress (hidden until the first run) ─────────────────── */}
+        {run.status !== "idle" && (
+        <section className="border-t border-line pt-4">
           <Label>Plan</Label>
           <ol className="space-y-1 text-xs">
             {run.steps.map((s) => (
@@ -202,6 +203,7 @@ export function AgentPanel({
             ))}
           </ol>
         </section>
+        )}
 
         {/* ── Clash cards + how it merged ──────────────────────────────────── */}
         {run.result && run.result.action !== "ask" && (
@@ -244,7 +246,7 @@ export function AgentPanel({
         />
 
         {/* ── Activity feed ────────────────────────────────────────────────── */}
-        <section>
+        <section className="border-t border-line pt-4">
           <Label>Activity</Label>
           {activity.length === 0 && <p className="text-xs text-muted">Nothing yet.</p>}
           <ul className="space-y-1.5">

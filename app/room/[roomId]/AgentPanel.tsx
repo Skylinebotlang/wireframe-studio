@@ -12,6 +12,7 @@
 //   • "Frame your idea": type an idea and the agent draws it right away
 //   • "Make it real": turn the wireframes into real designs (stage 2), or
 //     redo one selected design with a short instruction
+//   • the decision log: every clash merge and pick, kept forever
 //   • the activity feed: who did what, and which AI ran ("Run by papi using Gemini")
 //
 // Colors: wine = people's actions. ORANGE only when the agent itself is
@@ -22,6 +23,7 @@ import { useState } from "react";
 import type { Editor } from "tldraw";
 import type { useAgentPanel } from "@/lib/agent-room";
 import { AiKeyButton } from "../../AiKeyButton";
+import { DecisionLog } from "./DecisionLog";
 
 type Agent = ReturnType<typeof useAgentPanel>;
 
@@ -233,6 +235,11 @@ export function AgentPanel({
             </div>
           </section>
         )}
+
+        {/* ── Decision log (kept forever, see DecisionLog.tsx) ──────────────── */}
+        <DecisionLog
+          trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
+        />
 
         {/* ── Activity feed ────────────────────────────────────────────────── */}
         <section>

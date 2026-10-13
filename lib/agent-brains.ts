@@ -153,12 +153,15 @@ async function askGeminiModel(model: string, key: string, notesText: string, onT
   }
 
   // Gemini puts its answer (a JSON string) in the first candidate's text.
-  const text = body?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (typeof text !== "string") {
+  // Long answers can arrive split over several parts, so join them all
+  // (skipping "thought" parts, which are the model's notes, not the answer).
+  const candidate = body?.candidates?.[0];
+  const text = geminiText(candidate?.content?.parts);
+  if (!text) {
     safeLog("Gemini returned no text", body, key);
     return { error: "Gemini didn't return any wireframes. Try rewording the notes.", status: 502 };
   }
-  return parseJson(text, "Gemini");
+  return parseGemini(text, candidate?.finishReason, key);
 }
 
 // Read Gemini's event stream: each "data: {…}" line carries the next bit of
@@ -168,6 +171,7 @@ async function readGeminiStream(stream: ReadableStream<Uint8Array>, key: string,
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
+  let finishReason: unknown;
   try {
     for (;;) {
       const { value, done } = await reader.read();
@@ -178,8 +182,8 @@ async function readGeminiStream(stream: ReadableStream<Uint8Array>, key: string,
       for (const line of lines) {
         if (!line.startsWith("data:")) continue;
         const event = JSON.parse(line.slice(5));
-        const parts = event?.candidates?.[0]?.content?.parts ?? [];
-        for (const p of parts) if (typeof p?.text === "string") text += p.text;
+        text += geminiText(event?.candidates?.[0]?.content?.parts);
+        finishReason = event?.candidates?.[0]?.finishReason ?? finishReason;
         onText(text);
       }
     }
@@ -188,7 +192,30 @@ async function readGeminiStream(stream: ReadableStream<Uint8Array>, key: string,
     return { error: "The connection to Gemini dropped mid-answer. Please try again.", status: 502 };
   }
   if (!text) return { error: "Gemini didn't return any wireframes. Try rewording the notes.", status: 502 };
-  return parseJson(text, "Gemini");
+  return parseGemini(text, finishReason, key);
+}
+
+// The answer text from a list of Gemini parts ("" if there's none).
+function geminiText(parts: unknown): string {
+  if (!Array.isArray(parts)) return "";
+  return parts
+    .filter((p) => typeof p?.text === "string" && !p.thought)
+    .map((p) => p.text as string)
+    .join("");
+}
+
+// Parse Gemini's JSON; if it fails, say WHY when Gemini told us.
+function parseGemini(text: string, finishReason: unknown, key: string): BrainReply {
+  const parsed = parseJson(text, "Gemini");
+  if (!("error" in parsed)) return parsed;
+  safeLog(`Gemini answer didn't parse (finishReason ${String(finishReason)}, ${text.length} chars)`, text.slice(-300), key);
+  if (finishReason === "MAX_TOKENS") {
+    return { error: "Gemini's answer was too long and got cut off. Try asking for fewer screens.", status: 502 };
+  }
+  if (finishReason === "SAFETY" || finishReason === "RECITATION" || finishReason === "PROHIBITED_CONTENT") {
+    return { error: "Gemini stopped this answer early (its safety filter). Try rewording the idea.", status: 502 };
+  }
+  return parsed;
 }
 
 // Turn a Gemini error into a friendly message (shared with checkKey).

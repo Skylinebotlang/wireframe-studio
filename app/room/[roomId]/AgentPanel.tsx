@@ -73,7 +73,9 @@ export function AgentPanel({
         <AiKeyButton />
       </div>
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
+      {/* pb-16: room at the bottom so the "Powered by Liveblocks" badge
+          (bottom-right, free plan) never covers the last feed lines. */}
+      <div className="flex-1 space-y-5 overflow-y-auto px-4 pt-4 pb-16">
         {/* ── Frame your idea: the main way to make mockups ────────────────── */}
         <section>
           <Label>Frame your idea</Label>

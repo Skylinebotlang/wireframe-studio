@@ -28,6 +28,7 @@
 import { NextResponse } from "next/server";
 import { askBrain, pickBrain, type BrainJob } from "@/lib/agent-brains";
 import { claimAgentRun } from "@/lib/rate-limit";
+import { getSignedInUser } from "@/lib/auth-server";
 import { PROVIDERS } from "@/lib/ai-providers";
 import {
   checkDesignHtml,
@@ -69,6 +70,9 @@ const SCREEN_JOB: BrainJob = {
 };
 
 export async function POST(request: Request) {
+  // ── 0. Signed-in people only (like every other API) ───────────────────────
+  if (!(await getSignedInUser(request))) return friendlyError("Please sign in to use Make it real.", 401);
+
   // ── 1. Read and check the request ─────────────────────────────────────────
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return friendlyError("The request was not valid JSON.", 400);

@@ -88,10 +88,11 @@ body {
    Colors follow the rules above: wine for people, ORANGE ONLY for the agent.
    ──────────────────────────────────────────────────────────────────────────── */
 
-/* "Springy" easing: overshoots a little, then settles, so it feels physical. */
+/* Smooth deceleration (ease-out quint / quart): fast start, gentle settle,
+   no overshoot. Names kept so every rule that uses them still works. */
 :root {
-  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --spring-soft: cubic-bezier(0.22, 1.2, 0.36, 1);
+  --spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring-soft: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* ── 1. Glass surfaces ──────────────────────────────────────────────────────

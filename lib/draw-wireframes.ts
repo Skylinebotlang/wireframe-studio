@@ -105,11 +105,9 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
           y: b.y,
           props: {
             geo: LOOK[b.c.type].geo,
-            // tldraw draws the box at w*scale, so divide to keep the same size
-            // on screen while the label text shrinks to fit.
-            w: b.w / scale,
-            h: b.h / scale,
-            scale,
+            w: b.w,
+            h: b.h,
+            scale, // shrinks only the label text, not the box
             fill: LOOK[b.c.type].fill,
             color: "grey",
             labelColor: "black",
@@ -153,10 +151,10 @@ export function undoWireframes(editor: Editor, created: TLShapeId[], removed: TL
 // tldraw's smallest text size, so words broke mid-word ("Das / hbo"). Shrink
 // the label (down to 60%) until its longest word fits on a line and the whole
 // label fits in the lines the box has room for.
-// ponytail: estimates text width from character count (about 11px a letter
+// ponytail: estimates text width from character count (about 13px a letter
 // at size "s"); measure real text if labels with very wide letters still clip.
 export function labelScale(label: string, w: number, h: number): number {
-  const CHAR = 11, LINE = 26, SIDE = 20;
+  const CHAR = 13, LINE = 28, SIDE = 20;
   const longestWord = Math.max(1, ...label.split(/\s+/).map((word) => word.length));
   const lines = Math.max(1, Math.floor(h / LINE));
   const need = Math.max(longestWord, Math.ceil(label.length / lines)) * CHAR;

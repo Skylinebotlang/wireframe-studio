@@ -40,7 +40,7 @@ import { useYjsStore } from "./useYjsStore";
 import { AgentPanel } from "./AgentPanel";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
 import { drawWireframes, fitBoardLabels, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
-import { useAgentPanel } from "@/lib/agent-room";
+import { useAgentPanel, useTeamColors } from "@/lib/agent-room";
 import { useDesignPanel } from "@/lib/agent-design-room";
 import { DesignShapeUtil, designIdFor, placeDesign, selectedDesign } from "@/lib/design-shape";
 import type { AgentResult } from "@/lib/agent-schema";
@@ -140,6 +140,8 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
 
   // The shared agent: run status, plan, activity feed and actions.
   const agent = useAgentPanel(identity.name);
+  // Each teammate's cursor color, for their lines in the feed and decision log.
+  const colorOf = useTeamColors(identity.name, identity.color);
 
   // A message for this person only (e.g. "No notes yet").
   const [message, setMessage] = useState("");
@@ -300,6 +302,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
       {/* ── The agent panel (right) ───────────────────────────────────────── */}
       <AgentPanel
         myName={identity.name}
+        colorOf={colorOf}
         agent={agent}
         editor={editor}
         message={message}

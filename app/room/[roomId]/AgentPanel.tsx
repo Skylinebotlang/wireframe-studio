@@ -23,8 +23,6 @@ import type { Editor } from "tldraw";
 import type { useAgentPanel } from "@/lib/agent-room";
 import { AiKeyButton } from "../../AiKeyButton";
 import { DecisionLog, dayLabel } from "./DecisionLog";
-import { personColor } from "@/lib/theme";
-
 type Agent = ReturnType<typeof useAgentPanel>;
 
 export function AgentPanel({
@@ -39,6 +37,7 @@ export function AgentPanel({
   onMakeReal,
   pickedDesign,
   myName,
+  colorOf,
 }: {
   agent: Agent;
   editor: Editor | null;
@@ -51,6 +50,7 @@ export function AgentPanel({
   onMakeReal: (instruction: string) => void;
   pickedDesign: string | null; // name of the one design selected (Regenerate), or null
   myName: string; // this person's display name (their own lines say "You")
+  colorOf: (name: string) => string; // a teammate's cursor color (lib/agent-room useTeamColors)
 }) {
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
@@ -304,10 +304,11 @@ export function AgentPanel({
 
           <div id="panel-feed" role="tabpanel" aria-labelledby={`tab-${tab}`}>
           {tab === "activity" ? (
-            <ActivityFeed activity={activity} myName={myName} />
+            <ActivityFeed activity={activity} myName={myName} colorOf={colorOf} />
           ) : (
             <DecisionLog
               myName={myName}
+              colorOf={colorOf}
               trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
             />
           )}
@@ -328,7 +329,15 @@ const IDEA_KINDS = new Set(["prompt", "steer", "pick", "question"]);
 const AGENT_KINDS = new Set(["result", "error", "design"]);
 type Filter = "all" | "ideas" | "mine";
 
-function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myName: string }) {
+function ActivityFeed({
+  activity,
+  myName,
+  colorOf,
+}: {
+  activity: Agent["activity"];
+  myName: string;
+  colorOf: (name: string) => string;
+}) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<Filter>("all");
   if (activity.length === 0) {
@@ -386,12 +395,12 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
             const isAgent = a.who === "Agent"; // the agent's questions
             row = (
               <div className="flex gap-2.5">
-                {isAgent ? <AgentAvatar small /> : <PersonAvatar name={a.who} mine={mine} />}
+                {isAgent ? <AgentAvatar small /> : <PersonAvatar name={a.who} mine={mine} color={colorOf(a.who)} />}
                 <button onClick={() => toggle(a.id)} className="min-w-0 flex-1 text-left">
                   <span className="flex items-baseline gap-2 text-[11px]">
                     <span
                       className={`font-medium ${isAgent ? "text-agent" : "text-ink"}`}
-                      style={isAgent || mine ? undefined : { color: personColor(a.who) }}
+                      style={isAgent || mine ? undefined : { color: colorOf(a.who) }}
                     >
                       {name}
                     </span>
@@ -404,7 +413,7 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
                     className={`mt-1 block rounded-lg rounded-tl-sm border px-2.5 py-1.5 text-xs leading-relaxed text-ink ${clamp} ${
                       isAgent ? "border-agent/25 bg-agent/5" : mine ? "border-accent-bright/30 bg-accent/25" : ""
                     }`}
-                    style={isAgent || mine ? undefined : personTint(a.who)}
+                    style={isAgent || mine ? undefined : tint(colorOf(a.who))}
                   >
                     {a.kind === "prompt" || a.kind === "question" ? a.text : text}
                   </span>
@@ -488,19 +497,18 @@ function AgentAvatar({ small, active }: { small?: boolean; active?: boolean }) {
 
 // A person's avatar: their initial on wine.
 /** A teammate's bubble: a faint wash and border in their own color. */
-function personTint(name: string): React.CSSProperties {
-  const c = personColor(name);
+function tint(c: string): React.CSSProperties {
   return { borderColor: c + "4D", backgroundColor: c + "14" }; // ~30% / ~8% opacity
 }
 
-// You = wine (as before); everyone else = their own color, dark letter.
-function PersonAvatar({ name, mine }: { name: string; mine?: boolean }) {
+// You = wine (as before); everyone else = their cursor color, dark letter.
+function PersonAvatar({ name, mine, color }: { name: string; mine?: boolean; color: string }) {
   return (
     <span
       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium uppercase ${
         mine ? "bg-accent text-ink" : "text-paper"
       }`}
-      style={mine ? undefined : { backgroundColor: personColor(name) }}
+      style={mine ? undefined : { backgroundColor: color }}
       aria-hidden
     >
       {name.trim().charAt(0) || "?"}

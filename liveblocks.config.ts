@@ -44,6 +44,9 @@ declare global {
       // "Make it real" designs by id (the canvas only holds the id). Missing
       // in rooms made before designs existed; created on first use.
       designs?: LiveMap<string, DesignRecord>;
+      // Each person's cursor color by name, so the feed and decision log can
+      // show their color even after they leave. Created on first join.
+      colors?: LiveMap<string, string>;
     };
 
     // One-off messages broadcast to everyone in the room (not saved).

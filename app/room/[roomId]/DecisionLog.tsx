@@ -10,17 +10,23 @@
 //
 // It reloads whenever the shared activity feed shows a finished run or a
 // pick, so everyone in the room sees new decisions within a second or two.
-// Colors: orange = the agent decided; wine = you; each teammate = their own
-// color (lib/theme.ts personColor).
+// Colors: orange = the agent decided; wine = you; each teammate = their
+// cursor color (useTeamColors in lib/agent-room.ts).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
 import { useRoom } from "@liveblocks/react/suspense";
 import { authHeader } from "@/lib/auth";
 import type { Decision } from "@/lib/decisions-db";
-import { personColor } from "@/lib/theme";
-
-export function DecisionLog({ trigger, myName }: { trigger: string; myName: string }) {
+export function DecisionLog({
+  trigger,
+  myName,
+  colorOf,
+}: {
+  trigger: string;
+  myName: string;
+  colorOf: (name: string) => string;
+}) {
   const boardId = useRoom().id;
   const [decisions, setDecisions] = useState<Decision[] | null>(null); // null = loading
   const [error, setError] = useState("");
@@ -71,7 +77,7 @@ export function DecisionLog({ trigger, myName }: { trigger: string; myName: stri
           const day = dayLabel(Date.parse(d.createdAt));
           const divider = i === 0 || dayLabel(Date.parse(all[i - 1].createdAt)) !== day;
           // A teammate's pick: their name and a faint border in their own color.
-          const other = !byAgent && d.decidedBy !== myName ? personColor(d.decidedBy) : undefined;
+          const other = !byAgent && d.decidedBy !== myName ? colorOf(d.decidedBy) : undefined;
           return (
             <li key={d.id}>
               {divider && (

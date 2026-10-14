@@ -27,7 +27,9 @@
 // the request (aiKeyForRequest). It is never written into the room.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { useCallback, useEffect } from "react";
 import { LiveList, LiveMap, LiveObject } from "@liveblocks/client";
+import { PEOPLE_COLORS, personColor } from "./theme";
 import { useMutation, useRoom, useStorage } from "@liveblocks/react/suspense";
 import type { AgentAction, AgentNote, AgentResult, BoardScreen, Screen } from "./agent-schema";
 import type { AgentRunInfo } from "./ai-providers";
@@ -67,6 +69,32 @@ export function createInitialAgentStorage() {
     agentUndo: null,
     designs: new LiveMap<string, DesignRecord>(),
   };
+}
+
+/**
+ * Team colors: saves MY cursor color under my name in the room, and returns
+ * a lookup "name -> color" for the feed and decision log. Only colors from
+ * the people palette are trusted (anyone can write Storage, and orange is
+ * the agent's); unknown names fall back to a color picked from the name.
+ */
+export function useTeamColors(myName: string, myColor: string) {
+  const colors = useStorage((root) => root.colors ?? null); // (a LiveMap reads as a plain object here)
+  const remember = useMutation(({ storage }) => {
+    let map = storage.get("colors");
+    if (!map) storage.set("colors", (map = new LiveMap<string, string>()));
+    if (map.get(myName) !== myColor) map.set(myName, myColor);
+  }, [myName, myColor]);
+  useEffect(() => {
+    if (myName && myColor && colors?.[myName] !== myColor) remember();
+  }, [myName, myColor, colors, remember]);
+
+  return useCallback(
+    (name: string) => {
+      const c = colors?.[name];
+      return c && (PEOPLE_COLORS as readonly string[]).includes(c) && c !== "#F8F4F5" ? c : personColor(name);
+    },
+    [colors]
+  );
 }
 
 // Add one line to the shared feed (used inside mutations).

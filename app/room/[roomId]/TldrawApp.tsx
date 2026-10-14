@@ -39,7 +39,7 @@ import { useParams } from "next/navigation";
 import { useYjsStore } from "./useYjsStore";
 import { AgentPanel } from "./AgentPanel";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
-import { drawWireframes, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
+import { drawWireframes, fitBoardLabels, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
 import { useAgentPanel } from "@/lib/agent-room";
 import { useDesignPanel } from "@/lib/agent-design-room";
 import { DesignShapeUtil, designIdFor, placeDesign, selectedDesign } from "@/lib/design-shape";
@@ -236,6 +236,8 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
             // Cyberpunk theme: run tldraw in its dark mode.
             ed.user.updateUserPreferences({ colorScheme: "dark" });
             setEditor(ed);
+            // Old boards: fix wireframe labels drawn before they learned to fit.
+            fitBoardLabels(ed);
             // Handy for debugging in the browser console (dev only).
             if (process.env.NODE_ENV === "development") {
               (window as unknown as { editor: Editor }).editor = ed;

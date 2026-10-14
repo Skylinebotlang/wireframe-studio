@@ -14,7 +14,7 @@
 // `undoWireframes` uses that to put the canvas back as it was.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Box, createShapeId, toRichText, type Editor, type TLFrameShape, type TLGeoShape, type TLShape, type TLShapeId } from "tldraw";
+import { Box, createShapeId, toRichText, type Editor, type TLFrameShape, type TLGeoShape, type TLShape, type TLShapeId, type TLShapePartial } from "tldraw";
 import type { AgentResult, BoardScreen, ComponentType } from "./agent-schema";
 import { layoutScreen, PHONE_W } from "./layout";
 
@@ -159,4 +159,28 @@ export function labelScale(label: string, w: number, h: number): number {
   const lines = Math.max(1, Math.floor(h / LINE));
   const need = Math.max(longestWord, Math.ceil(label.length / lines)) * CHAR;
   return Math.max(0.45, Math.min(1, (w - SIDE) / need));
+}
+
+/**
+ * Repair wireframes drawn before labels learned to fit: shrink each box's
+ * label to fit, and undo the extra height tldraw added when a label broke
+ * mid-word. Runs when a board opens (see TldrawApp), so every old board fixes
+ * itself for everyone. Only touches boxes that need it, and stays out of the
+ * undo history.
+ */
+export function fitBoardLabels(editor: Editor) {
+  const updates: TLShapePartial<TLGeoShape>[] = [];
+  for (const shape of editor.getCurrentPageShapes()) {
+    if (shape.type !== "geo") continue;
+    if (editor.getShape(shape.parentId as TLShapeId)?.type !== "frame") continue;
+    const box = shape as TLGeoShape;
+    const label = (editor.getShapeUtil(box).getText(box) ?? "").trim();
+    if (!label) continue;
+    const scale = labelScale(label, box.props.w, box.props.h);
+    const props: Partial<TLGeoShape["props"]> = {};
+    if (Math.abs(box.props.scale - scale) > 0.01) props.scale = scale;
+    if (box.props.growY > 0) props.growY = 0;
+    if (Object.keys(props).length) updates.push({ id: box.id, type: "geo", props });
+  }
+  if (updates.length) editor.run(() => editor.updateShapes(updates), { history: "ignore" });
 }

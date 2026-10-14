@@ -237,8 +237,9 @@ export function screenUserMessage(opts: {
   screen: DesignScreen;
   otherScreens: string[];
   instruction: string;
+  inspiration?: string; // proven patterns for this screen (lib/ui-patterns.ts)
 }) {
-  const { idea, resolution, guide, screen, otherScreens, instruction } = opts;
+  const { idea, resolution, guide, screen, otherScreens, instruction, inspiration = "" } = opts;
   const boxes = screen.components
     .map((c, i) => `${i + 1}. ${c.type}${c.columns && c.columns > 1 ? ` ×${c.columns} per row` : ""}: "${c.label}"${c.notes ? ` (${c.notes})` : ""}`)
     .join("\n");
@@ -248,7 +249,8 @@ export function screenUserMessage(opts: {
     `Style guide for "${guide.product || "the app"}" (mood: ${guide.mood || "clean"}). Use these CSS variables:\n<style_guide>\n${styleCss(guide)}\n</style_guide>`,
     otherScreens.length ? `Other screens in this app (for navigation labels): ${otherScreens.join(", ")}.` : "",
     `The wireframe to design, "${screen.name}", top to bottom:\n<wireframe>\n${boxes}\n</wireframe>`,
-    instruction && `The team asked for this change:\n<instruction>\n${instruction}\n</instruction>`,
+    inspiration,
+    instruction &&`The team asked for this change:\n<instruction>\n${instruction}\n</instruction>`,
   ]
     .filter(Boolean)
     .join("\n\n");

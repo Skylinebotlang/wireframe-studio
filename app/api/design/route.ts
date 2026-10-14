@@ -32,6 +32,7 @@ import { NextResponse } from "next/server";
 import { askBrain, pickBrain, type BrainJob } from "@/lib/agent-brains";
 import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
 import { getSignedInUser } from "@/lib/auth-server";
+import { patternsPrompt } from "@/lib/ui-patterns";
 import { PROVIDERS } from "@/lib/ai-providers";
 import {
   checkDesignHtml,
@@ -123,7 +124,8 @@ export async function POST(request: Request) {
       message = reviewUserMessage({ idea, guide, screen, html: draft });
     } else {
       instruction = text(body.instruction, MAX_INSTRUCTION_CHARS);
-      message = screenUserMessage({ idea, resolution, guide, screen, otherScreens: names(body.otherScreens), instruction });
+      const inspiration = patternsPrompt(screen.name, screen.components.map((c) => c.label), idea);
+      message = screenUserMessage({ idea, resolution, guide, screen, otherScreens: names(body.otherScreens), instruction, inspiration });
     }
   }
 

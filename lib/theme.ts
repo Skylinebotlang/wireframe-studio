@@ -36,6 +36,17 @@ export const PEOPLE_COLORS = [
   "#F5E663", // lemon (clearly lighter than agent orange)
 ] as const;
 
+// Each teammate's color in the activity feed and decision log. Picked from
+// their name, so it's the same for everyone in the room and needs no saving.
+// Soft white is skipped (it wouldn't stand out from normal text).
+// ponytail: 5 colors, so a 6th person shares one; that's fine for small teams.
+export function personColor(name: string): string {
+  const colors = PEOPLE_COLORS.filter((c) => c !== "#F8F4F5");
+  let h = 0;
+  for (const ch of name.trim().toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return colors[h % colors.length];
+}
+
 // Team roles shown on the identity screen (Milestone 2 prints them on notes).
 export const ROLES = ["PM", "Designer", "Developer"] as const;
 export type Role = (typeof ROLES)[number];

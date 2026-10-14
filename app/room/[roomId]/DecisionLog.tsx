@@ -10,15 +10,17 @@
 //
 // It reloads whenever the shared activity feed shows a finished run or a
 // pick, so everyone in the room sees new decisions within a second or two.
-// Colors: orange label = the agent decided; wine = a person decided.
+// Colors: orange = the agent decided; wine = you; each teammate = their own
+// color (lib/theme.ts personColor).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
 import { useRoom } from "@liveblocks/react/suspense";
 import { authHeader } from "@/lib/auth";
 import type { Decision } from "@/lib/decisions-db";
+import { personColor } from "@/lib/theme";
 
-export function DecisionLog({ trigger }: { trigger: string }) {
+export function DecisionLog({ trigger, myName }: { trigger: string; myName: string }) {
   const boardId = useRoom().id;
   const [decisions, setDecisions] = useState<Decision[] | null>(null); // null = loading
   const [error, setError] = useState("");
@@ -68,6 +70,8 @@ export function DecisionLog({ trigger }: { trigger: string }) {
           const byAgent = d.decidedBy === "Agent" && d.kind === "merge";
           const day = dayLabel(Date.parse(d.createdAt));
           const divider = i === 0 || dayLabel(Date.parse(all[i - 1].createdAt)) !== day;
+          // A teammate's pick: their name and a stripe in their own color.
+          const other = !byAgent && d.decidedBy !== myName ? personColor(d.decidedBy) : undefined;
           return (
             <li key={d.id}>
               {divider && (
@@ -77,12 +81,15 @@ export function DecisionLog({ trigger }: { trigger: string }) {
                   <span className="h-px flex-1 bg-line" />
                 </div>
               )}
-              <details className="group rounded-xl border border-line bg-raised/60 p-3 text-xs">
+              <details
+                className="group rounded-xl border border-line border-l-2 bg-raised/60 p-3 text-xs"
+                style={{ borderLeftColor: byAgent ? "#FF6B2C" : other ?? "#E0607E" }}
+              >
                 <summary className="cursor-pointer list-none">
                   <p className="leading-relaxed text-ink">{d.decision}</p>
                   <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted">
-                    <span className={byAgent ? "text-agent" : "text-wine-light"}>
-                      {byAgent ? "Agent merged" : `${d.decidedBy} chose`}
+                    <span className={byAgent ? "text-agent" : other ? "" : "text-wine-light"} style={other ? { color: other } : undefined}>
+                      {byAgent ? "Agent merged" : d.decidedBy === myName ? "You chose" : `${d.decidedBy} chose`}
                     </span>
                     <span aria-hidden>·</span>
                     <time>{new Date(d.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>

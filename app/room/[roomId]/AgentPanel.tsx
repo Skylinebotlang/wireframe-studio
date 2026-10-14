@@ -23,6 +23,7 @@ import type { Editor } from "tldraw";
 import type { useAgentPanel } from "@/lib/agent-room";
 import { AiKeyButton } from "../../AiKeyButton";
 import { DecisionLog, dayLabel } from "./DecisionLog";
+import { personColor } from "@/lib/theme";
 
 type Agent = ReturnType<typeof useAgentPanel>;
 
@@ -306,6 +307,7 @@ export function AgentPanel({
             <ActivityFeed activity={activity} myName={myName} />
           ) : (
             <DecisionLog
+              myName={myName}
               trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
             />
           )}
@@ -384,10 +386,15 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
             const isAgent = a.who === "Agent"; // the agent's questions
             row = (
               <div className="flex gap-2.5">
-                {isAgent ? <AgentAvatar small /> : <PersonAvatar name={a.who} />}
+                {isAgent ? <AgentAvatar small /> : <PersonAvatar name={a.who} mine={mine} />}
                 <button onClick={() => toggle(a.id)} className="min-w-0 flex-1 text-left">
                   <span className="flex items-baseline gap-2 text-[11px]">
-                    <span className={`font-medium ${isAgent ? "text-agent" : "text-ink"}`}>{name}</span>
+                    <span
+                      className={`font-medium ${isAgent ? "text-agent" : "text-ink"}`}
+                      style={isAgent || mine ? undefined : { color: personColor(a.who) }}
+                    >
+                      {name}
+                    </span>
                     <span className="text-muted">
                       {a.kind === "pick" ? "" : a.kind === "question" ? "asked" : a.kind === "design" ? "" : "wrote"}
                     </span>
@@ -395,8 +402,9 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
                   </span>
                   <span
                     className={`mt-1 block rounded-lg rounded-tl-sm border px-2.5 py-1.5 text-xs leading-relaxed text-ink ${clamp} ${
-                      isAgent ? "border-agent/25 bg-agent/5" : mine ? "border-accent-bright/30 bg-accent/25" : "border-line bg-raised/60"
+                      isAgent ? "border-agent/25 bg-agent/5" : mine ? "border-accent-bright/30 bg-accent/25" : ""
                     }`}
+                    style={isAgent || mine ? undefined : personTint(a.who)}
                   >
                     {a.kind === "prompt" || a.kind === "question" ? a.text : text}
                   </span>
@@ -479,10 +487,20 @@ function AgentAvatar({ small, active }: { small?: boolean; active?: boolean }) {
 }
 
 // A person's avatar: their initial on wine.
-function PersonAvatar({ name }: { name: string }) {
+/** A teammate's bubble: a faint wash and border in their own color. */
+function personTint(name: string): React.CSSProperties {
+  const c = personColor(name);
+  return { borderColor: c + "4D", backgroundColor: c + "14" }; // ~30% / ~8% opacity
+}
+
+// You = wine (as before); everyone else = their own color, dark letter.
+function PersonAvatar({ name, mine }: { name: string; mine?: boolean }) {
   return (
     <span
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-medium uppercase text-ink"
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium uppercase ${
+        mine ? "bg-accent text-ink" : "text-paper"
+      }`}
+      style={mine ? undefined : { backgroundColor: personColor(name) }}
       aria-hidden
     >
       {name.trim().charAt(0) || "?"}

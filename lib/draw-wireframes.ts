@@ -149,7 +149,7 @@ export function undoWireframes(editor: Editor, created: TLShapeId[], removed: TL
 
 // Small boxes (tab-bar tabs, half-width cards) can't fit their label at
 // tldraw's smallest text size, so words broke mid-word ("Das / hbo"). Shrink
-// the label (down to 60%) until its longest word fits on a line and the whole
+// the label (down to 45%) until its longest word fits on a line and the whole
 // label fits in the lines the box has room for.
 // ponytail: estimates text width from character count (about 13px a letter
 // at size "s"); measure real text if labels with very wide letters still clip.
@@ -158,5 +158,5 @@ export function labelScale(label: string, w: number, h: number): number {
   const longestWord = Math.max(1, ...label.split(/\s+/).map((word) => word.length));
   const lines = Math.max(1, Math.floor(h / LINE));
   const need = Math.max(longestWord, Math.ceil(label.length / lines)) * CHAR;
-  return Math.max(0.6, Math.min(1, (w - SIDE) / need));
+  return Math.max(0.45, Math.min(1, (w - SIDE) / need));
 }

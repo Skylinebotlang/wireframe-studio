@@ -21,8 +21,7 @@
 import { useState } from "react";
 import type { Editor } from "tldraw";
 import type { useAgentPanel } from "@/lib/agent-room";
-import { AiKeyButton } from "../../AiKeyButton";
-import { DecisionLog, dayLabel } from "./DecisionLog";
+import { dayLabel } from "./DecisionLog";
 type Agent = ReturnType<typeof useAgentPanel>;
 
 export function AgentPanel({
@@ -57,7 +56,6 @@ export function AgentPanel({
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
   const [instruction, setInstruction] = useState("");
-  const [tab, setTab] = useState<"activity" | "decisions">("activity");
   const working = run.status === "working";
   const paused = run.status === "paused";
   const busy = !editor || working || paused;
@@ -94,7 +92,6 @@ export function AgentPanel({
             <StatusLine run={run} />
           </div>
         </div>
-        <AiKeyButton />
       </header>
 
       {/* pb-16: room at the bottom so the "Powered by Liveblocks" badge
@@ -281,44 +278,11 @@ export function AgentPanel({
           </section>
         )}
 
-        {/* ── 5. Activity / Decisions tabs ───────────────────────────────── */}
+        {/* ── 5. Activity (Decisions moved to the top bar: RoomBar.tsx) ─────── */}
         <section>
-          <div role="tablist" aria-label="Board history" className="mb-3 flex gap-1 rounded-lg bg-paper/60 p-1">
-            {(["activity", "decisions"] as const).map((t) => (
-              <button
-                key={t}
-                id={`tab-${t}`}
-                role="tab"
-                aria-selected={tab === t}
-                aria-controls="panel-feed"
-                tabIndex={tab === t ? 0 : -1}
-                onClick={() => setTab(t)}
-                // Left/Right arrows switch tabs (standard tab keyboard pattern).
-                onKeyDown={(e) => {
-                  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-                  const next = tab === "activity" ? "decisions" : "activity";
-                  setTab(next);
-                  document.getElementById(`tab-${next}`)?.focus();
-                }}
-                className={`flex-1 rounded-md py-1.5 text-xs capitalize transition-colors ${
-                  tab === t ? "bg-raised text-ink shadow-sm" : "text-muted hover:text-ink"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          <div id="panel-feed" role="tabpanel" aria-labelledby={`tab-${tab}`}>
-          {tab === "activity" ? (
+          <Label>Activity</Label>
+          <div className="mt-3">
             <ActivityFeed activity={activity} myName={myName} colorOf={colorOf} />
-          ) : (
-            <DecisionLog
-              myName={myName}
-              colorOf={colorOf}
-              trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
-            />
-          )}
           </div>
         </section>
       </div>

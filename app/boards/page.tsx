@@ -14,10 +14,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { TopBar } from "../TopBar";
 import { loadIdentity, type UserIdentity } from "@/lib/user";
-import { authHeader, supabase, useAccount } from "@/lib/auth";
+import { authHeader, useAccount } from "@/lib/auth";
 import type { Board } from "@/lib/boards-db";
 
 export default function BoardsPage() {
@@ -100,30 +100,15 @@ export default function BoardsPage() {
   }
 
   return (
-    <main className="dot-grid min-h-screen px-4 py-8 text-ink sm:px-8">
-      <div className="mx-auto max-w-5xl">
-        {/* ── Top bar ───────────────────────────────────────────────────── */}
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
-          <Link href="/" className="font-heading text-lg tracking-tight">
-            <Image src="/logo-2d.png" alt="" width={28} height={28} className="mr-2 inline-block align-middle" />
-            Wireframe<span className="text-accent-bright">·</span>Studio
-          </Link>
-          {me && (
-            <div className="flex items-center gap-4 font-mono text-[11px] uppercase tracking-widest text-muted">
-              <Link href="/login" className="flex items-center gap-2 hover:text-ink" title="Change your name or color">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: me.color }} />
-                {me.name} · {me.role}
-              </Link>
-              <button
-                type="button"
-                onClick={() => supabase.auth.signOut().then(() => router.replace("/login"))}
-                className="uppercase tracking-widest hover:text-ink"
-              >
-                Sign out
-              </button>
-            </div>
-          )}
-        </header>
+    <main className="dot-grid min-h-screen text-ink">
+      {/* ── Top bar (logo, AI key, profile menu): app/TopBar.tsx ────────── */}
+      {me && (
+        <TopBar>
+          <span className="h-4 w-px shrink-0 bg-line" aria-hidden />
+          <span className="font-mono text-xs text-ink">My boards</span>
+        </TopBar>
+      )}
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
 
         <h1 className="font-heading text-3xl tracking-wide sm:text-4xl">Your boards</h1>
         <p className="mt-1 text-sm text-muted">Every board you&apos;ve opened on this browser. Share a board&apos;s link to bring your team in.</p>

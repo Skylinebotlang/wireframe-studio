@@ -36,10 +36,9 @@ import {
   type TLUiOverrides,
 } from "tldraw";
 import "tldraw/tldraw.css";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 import { useYjsStore } from "./useYjsStore";
 import { AgentPanel } from "./AgentPanel";
+import { RoomBar } from "./RoomBar";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
 import { drawWireframes, fitBoardLabels, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
 import { useAgentPanel, useTeamColors } from "@/lib/agent-room";
@@ -121,21 +120,7 @@ const components: TLComponents = {
     );
     return show ? <DefaultStylePanel {...props} /> : null;
   },
-  // Room name in tldraw's top-center slot, with a way back to the board list.
-  TopPanel: () => {
-    const { roomId } = useParams<{ roomId: string }>();
-    return (
-      <div className="glass pointer-events-auto mt-2 flex items-center gap-2 rounded-full px-3 py-1 text-xs">
-        <Link href="/boards" className="text-muted transition-colors hover:text-ink">
-          ← My boards
-        </Link>
-        <span className="h-3 w-px bg-line" />
-        <h1 className="max-w-48 truncate font-mono text-xs font-normal text-ink" title={roomId}>
-          {roomId}
-        </h1>
-      </div>
-    );
-  },
+  // (The board name and "My boards" now live in the top bar: RoomBar.tsx.)
 };
 
 export function TldrawApp({ identity }: { identity: UserIdentity }) {
@@ -249,7 +234,14 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   }, [editor, agent]);
 
   return (
-    <div className="flex h-screen w-screen">
+    <div className="relative flex h-screen w-screen flex-col">
+      {/* ── Top bar: board name, Decisions, Share, AI key, profile ──────────── */}
+      <RoomBar
+        myName={identity.name}
+        colorOf={colorOf}
+        decisionsTrigger={agent.activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
+      />
+      <div className="flex min-h-0 flex-1">
       {/* ── The canvas (left) ─────────────────────────────────────────────── */}
       <div className="relative min-w-0 flex-1">
         <Tldraw
@@ -353,6 +345,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         onMakeReal={handleMakeReal}
         pickedDesign={pickedDesign?.props.name ?? null}
       />
+      </div>
     </div>
   );
 }

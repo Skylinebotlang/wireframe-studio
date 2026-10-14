@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Field } from "../AccountForm";
-import { friendlyAuthError, supabase, useAccount } from "@/lib/auth";
+import { friendlyAuthError, isLeakedPassword, LEAKED_PASSWORD_MESSAGE, supabase, useAccount } from "@/lib/auth";
 
 export default function ResetPasswordPage() {
   const account = useAccount(); // undefined = still reading the link
@@ -27,6 +27,10 @@ export default function ResetPasswordPage() {
     if (password !== String(f.get("again") ?? "")) return setError("The two passwords don't match.");
     setError("");
     setPending(true);
+    if (await isLeakedPassword(password)) {
+      setPending(false);
+      return setError(LEAKED_PASSWORD_MESSAGE);
+    }
     const { error: failed } = await supabase.auth.updateUser({ password });
     setPending(false);
     if (failed) return setError(friendlyAuthError(failed.message));

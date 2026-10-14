@@ -13,7 +13,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { friendlyAuthError, supabase } from "@/lib/auth";
+import { friendlyAuthError, isLeakedPassword, LEAKED_PASSWORD_MESSAGE, supabase } from "@/lib/auth";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -33,6 +33,10 @@ export function AccountForm({ mode, onDone }: { mode: "signin" | "signup"; onDon
     if (signup ? password.length < 8 : !password) return setError(signup ? "Use a password of at least 8 characters." : "Enter your password.");
     setError("");
     setPending(true);
+    if (signup && (await isLeakedPassword(password))) {
+      setPending(false);
+      return setError(LEAKED_PASSWORD_MESSAGE);
+    }
     const { data, error: failed } = signup
       ? await supabase.auth.signUp({ email, password, options: { data: { name } } })
       : await supabase.auth.signInWithPassword({ email, password });

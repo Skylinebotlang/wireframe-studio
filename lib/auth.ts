@@ -68,6 +68,34 @@ export async function authHeader(): Promise<Record<string, string>> {
   return data.session ? { authorization: `Bearer ${data.session.access_token}` } : {};
 }
 
+/**
+ * Has this password shown up in a known data leak? Our own version of
+ * Supabase's paid "leaked password protection". Uses HaveIBeenPwned's free
+ * k-anonymity check: only the first 5 characters of the password's SHA-1
+ * hash leave this browser, never the password. If the check can't be reached,
+ * we let the password through (it's an extra guard, not the lock).
+ * ponytail: runs in the browser, so someone calling Supabase directly can skip
+ * it; switch on Supabase's own check (Pro plan) for a server-side guarantee.
+ */
+export async function isLeakedPassword(password: string): Promise<boolean> {
+  try {
+    const bytes = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(password));
+    const hash = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${hash.slice(0, 5)}`, { headers: { "Add-Padding": "true" } });
+    if (!res.ok) return false;
+    const rest = hash.slice(5);
+    return (await res.text()).split("\n").some((line) => {
+      const [suffix, count] = line.trim().split(":");
+      return suffix === rest && Number(count) > 0;
+    });
+  } catch {
+    return false;
+  }
+}
+
+export const LEAKED_PASSWORD_MESSAGE =
+  "That password has appeared in a data leak on another site, so it's easy to guess. Please pick a different one.";
+
 // Supabase error messages, said in plain words.
 export function friendlyAuthError(message: string) {
   const m = message.toLowerCase();

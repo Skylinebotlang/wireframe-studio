@@ -133,8 +133,9 @@ body {
   --color-focus: var(--wine-light);
   --color-selection-stroke: var(--accent-bright);
   --color-selection-fill: color-mix(in srgb, var(--accent-bright) 14%, transparent);
-  --color-brush-fill: color-mix(in srgb, var(--accent-bright) 8%, transparent);
-  --color-brush-stroke: color-mix(in srgb, var(--accent-bright) 40%, transparent);
+  /* Drag-select box: bright enough to read on navy (8% looked like a black box). */
+  --color-brush-fill: color-mix(in srgb, var(--accent-bright) 20%, transparent);
+  --color-brush-stroke: var(--accent-bright);
   --color-text: var(--ink);
   --color-text-0: var(--ink);
   --color-text-1: color-mix(in srgb, var(--ink) 65%, var(--muted));

@@ -52,6 +52,8 @@ const tools = [PromptNoteTool];
 // Wireframe boxes are tldraw "grey" shapes inside phone frames. tldraw's
 // dark theme paints them silver on pure black, which looks harsh; recolor
 // them to soft navies from our palette so wireframes read as calm blocks.
+// tldraw needs raw hex here (not CSS variables); keep these in step with
+// the tokens in app/globals.css (--surface, --raised, --line).
 const dark = DefaultColorThemePalette.darkMode;
 dark.solid = "#191a2f"; // the "semi" fill (cards, lists) is based on this
 dark.grey.solid = "#4a4866"; // outlines + solid fills (headers, buttons)
@@ -69,7 +71,7 @@ const uiOverrides: TLUiOverrides = {
   tools(editor, toolItems) {
     toolItems["prompt-note"] = {
       id: "prompt-note",
-      icon: "tool-note",
+      icon: "comment", // speech bubble, so it never looks like tldraw's plain Note
       label: "tool.prompt-note",
       onSelect: () => editor.setCurrentTool("prompt-note"),
     };
@@ -98,9 +100,9 @@ const components: TLComponents = {
           ← My boards
         </Link>
         <span className="h-3 w-px bg-line" />
-        <span className="max-w-48 truncate font-mono text-ink" title={roomId}>
+        <h1 className="max-w-48 truncate font-mono text-xs font-normal text-ink" title={roomId}>
           {roomId}
-        </span>
+        </h1>
       </div>
     );
   },

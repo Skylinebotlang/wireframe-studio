@@ -129,7 +129,7 @@ export function AgentPanel({
               maxLength={1000}
               aria-label="Describe what to design"
               placeholder={asking ? "Type your answer…" : "Describe a screen or flow… e.g. a sign-up flow for a dog-walking app"}
-              className="block w-full resize-none bg-transparent px-3 pt-3 text-[13px] leading-relaxed text-ink outline-none placeholder:text-muted/70"
+              className="block w-full resize-none bg-transparent px-3 pt-3 text-[13px] leading-relaxed text-ink outline-none placeholder:text-muted"
             />
             <div className="flex items-center justify-between px-2 pb-2">
               <span className="pl-1 font-mono text-[10px] text-muted/80" title="Shift+Enter for a new line">
@@ -138,7 +138,7 @@ export function AgentPanel({
               <button
                 type="submit"
                 aria-label="Frame it"
-                title="Frame it"
+                title={busy ? "The agent is busy" : idea.trim() ? "Frame it" : "Type an idea first"}
                 disabled={busy || !idea.trim()}
                 className="flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-accent px-3 text-xs font-medium text-ink transition hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -177,7 +177,7 @@ export function AgentPanel({
               maxLength={300}
               aria-label={`What to change in ${pickedDesign}`}
               placeholder={`What to change? e.g. make ${pickedDesign} darker`}
-              className="mt-2 w-full rounded-lg border border-line bg-paper/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-muted/70 focus:border-accent-bright/70"
+              className="mt-2 w-full rounded-lg border border-line bg-paper/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-muted focus:border-accent-bright/70"
             />
           )}
         </section>
@@ -275,13 +275,23 @@ export function AgentPanel({
 
         {/* ── 5. Activity / Decisions tabs ───────────────────────────────── */}
         <section>
-          <div role="tablist" className="mb-3 flex gap-1 rounded-lg bg-paper/60 p-1">
+          <div role="tablist" aria-label="Board history" className="mb-3 flex gap-1 rounded-lg bg-paper/60 p-1">
             {(["activity", "decisions"] as const).map((t) => (
               <button
                 key={t}
+                id={`tab-${t}`}
                 role="tab"
                 aria-selected={tab === t}
+                aria-controls="panel-feed"
+                tabIndex={tab === t ? 0 : -1}
                 onClick={() => setTab(t)}
+                // Left/Right arrows switch tabs (standard tab keyboard pattern).
+                onKeyDown={(e) => {
+                  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                  const next = tab === "activity" ? "decisions" : "activity";
+                  setTab(next);
+                  document.getElementById(`tab-${next}`)?.focus();
+                }}
                 className={`flex-1 rounded-md py-1.5 text-xs capitalize transition-colors ${
                   tab === t ? "bg-raised text-ink shadow-sm" : "text-muted hover:text-ink"
                 }`}
@@ -291,6 +301,7 @@ export function AgentPanel({
             ))}
           </div>
 
+          <div id="panel-feed" role="tabpanel" aria-labelledby={`tab-${tab}`}>
           {tab === "activity" ? (
             <ActivityFeed activity={activity} myName={myName} />
           ) : (
@@ -298,6 +309,7 @@ export function AgentPanel({
               trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
             />
           )}
+          </div>
         </section>
       </div>
     </aside>

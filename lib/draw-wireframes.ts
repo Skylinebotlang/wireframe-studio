@@ -95,7 +95,9 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
       });
 
       editor.createShapes(
-        boxes.map((b) => ({
+        boxes.map((b) => {
+          const scale = labelScale(b.label, b.w, b.h);
+          return {
           id: createShapeId(),
           type: "geo",
           parentId: frameId, // inside the phone frame (x/y are relative to it)
@@ -103,8 +105,11 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
           y: b.y,
           props: {
             geo: LOOK[b.c.type].geo,
-            w: b.w,
-            h: b.h,
+            // tldraw draws the box at w*scale, so divide to keep the same size
+            // on screen while the label text shrinks to fit.
+            w: b.w / scale,
+            h: b.h / scale,
+            scale,
             fill: LOOK[b.c.type].fill,
             color: "grey",
             labelColor: "black",
@@ -113,7 +118,8 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
             font: "sans",
             richText: toRichText(b.label),
           },
-        }))
+          };
+        })
       );
 
       if (!old) x += PHONE_W + SCREEN_GAP;
@@ -141,4 +147,18 @@ export function undoWireframes(editor: Editor, created: TLShapeId[], removed: TL
     const isTop = (s: TLShape) => !back.some((p) => p.id === s.parentId);
     editor.createShapes([...back.filter(isTop), ...back.filter((s) => !isTop(s))]);
   });
+}
+
+// Small boxes (tab-bar tabs, half-width cards) can't fit their label at
+// tldraw's smallest text size, so words broke mid-word ("Das / hbo"). Shrink
+// the label (down to 60%) until its longest word fits on a line and the whole
+// label fits in the lines the box has room for.
+// ponytail: estimates text width from character count (about 11px a letter
+// at size "s"); measure real text if labels with very wide letters still clip.
+export function labelScale(label: string, w: number, h: number): number {
+  const CHAR = 11, LINE = 26, SIDE = 20;
+  const longestWord = Math.max(1, ...label.split(/\s+/).map((word) => word.length));
+  const lines = Math.max(1, Math.floor(h / LINE));
+  const need = Math.max(longestWord, Math.ceil(label.length / lines)) * CHAR;
+  return Math.max(0.6, Math.min(1, (w - SIDE) / need));
 }

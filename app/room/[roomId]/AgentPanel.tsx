@@ -130,13 +130,15 @@ export function AgentPanel({
               className="block w-full resize-none bg-transparent px-3 pt-3 text-[13px] leading-relaxed text-ink outline-none placeholder:text-muted/70"
             />
             <div className="flex items-center justify-between px-2 pb-2">
-              <span className="pl-1 font-mono text-[10px] text-muted/80">Enter to send · Shift+Enter new line</span>
+              <span className="pl-1 font-mono text-[10px] text-muted/80" title="Shift+Enter for a new line">
+                Enter ↵ to send
+              </span>
               <button
                 type="submit"
                 aria-label="Frame it"
                 title="Frame it"
                 disabled={busy || !idea.trim()}
-                className="flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-medium text-ink transition hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-accent px-3 text-xs font-medium text-ink transition hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Frame it
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>

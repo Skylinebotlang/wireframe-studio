@@ -49,14 +49,19 @@ import type { UserIdentity } from "@/lib/user";
 const shapeUtils = [PromptNoteShapeUtil, DesignShapeUtil];
 const tools = [PromptNoteTool];
 
-// Wireframe boxes are tldraw "grey" shapes. tldraw's dark grey is a bright
-// silver fill on near-black, which looks harsh; recolor it to soft navies
-// from our palette so the wireframes read as calm, quiet blocks.
-const grey = DefaultColorThemePalette.darkMode.grey;
-grey.solid = "#4a4866"; // outlines + solid fills (headers, buttons)
-grey.fill = "#4a4866";
-grey.semi = "#1f1f36"; // cards, lists
-grey.frame = { ...grey.frame, fill: "#131224", stroke: "#2b2a42", headingFill: "#191a2f", headingStroke: "#2b2a42" };
+// Wireframe boxes are tldraw "grey" shapes inside phone frames. tldraw's
+// dark theme paints them silver on pure black, which looks harsh; recolor
+// them to soft navies from our palette so wireframes read as calm blocks.
+const dark = DefaultColorThemePalette.darkMode;
+dark.solid = "#191a2f"; // the "semi" fill (cards, lists) is based on this
+dark.grey.solid = "#4a4866"; // outlines + solid fills (headers, buttons)
+dark.grey.fill = "#4a4866";
+for (const c of Object.values(dark)) {
+  // Every color's phone-frame background + title tab.
+  if (typeof c === "object" && "frame" in c) {
+    Object.assign(c.frame, { fill: "#131224", stroke: "#2b2a42", headingFill: "#191a2f", headingStroke: "#2b2a42" });
+  }
+}
 
 // Add the "Prompt note" button to tldraw's toolbar (first in the row).
 const uiOverrides: TLUiOverrides = {

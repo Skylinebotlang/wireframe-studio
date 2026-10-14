@@ -175,6 +175,14 @@ export function AgentPanel({
             <input
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
+              // Enter = same as clicking "Regenerate" (unless a run is going).
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && editor && !working && !paused) {
+                  e.preventDefault();
+                  onMakeReal(instruction);
+                  setInstruction("");
+                }
+              }}
               maxLength={300}
               placeholder={`e.g. make ${pickedDesign} darker`}
               className="w-full rounded-md border border-line bg-paper px-2 py-1.5 text-xs text-ink outline-none focus:border-accent-bright"

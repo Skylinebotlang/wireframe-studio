@@ -207,6 +207,16 @@ export function useDesignPanel(myName: string) {
       if (!save(runId, opts.ids[i], record)) return null;
       opts.onDesign(opts.ids[i], screen.name);
       made++;
+
+      // 3. Design-director pass: the AI checks the page against a design
+      // checklist and fixes it. Saved over the first version only if it
+      // comes back clean; otherwise the first version simply stays.
+      const reviewed = await call(runId, { kind: "review", idea, styleGuide: guide, screen, html: record.html });
+      if (reviewed === "stopped") return null;
+      if (!("error" in reviewed) && typeof reviewed.html === "string") {
+        if ((await holdWhilePaused(runId)) === "stop") return null;
+        if (!save(runId, opts.ids[i], { ...record, html: reviewed.html, at: Date.now() })) return null;
+      }
     }
 
     if (made === 0) return fail(problems[0] ?? "The agent couldn't design these screens. Please try again.");

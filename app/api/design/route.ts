@@ -10,6 +10,9 @@
 //   { kind: "screen", roomId, idea, resolution, styleGuide, screen: { name,
 //     components: [{ type, label, notes? }] }, otherScreens, instruction?, aiKey? }
 //     → { html, providerLabel, usedOwnKey }
+//   { kind: "review", roomId, idea, styleGuide, screen, html, aiKey? }
+//     → { html, providerLabel, usedOwnKey }   the same screen, checked against
+//       a design checklist and fixed by the AI (the "design director" pass)
 //   Errors always → { error: "a sentence a person can read" }
 //
 // Every answer is checked before it's returned (lib/agent-design.ts): the
@@ -27,7 +30,7 @@
 
 import { NextResponse } from "next/server";
 import { askBrain, pickBrain, type BrainJob } from "@/lib/agent-brains";
-import { claimAgentRun } from "@/lib/rate-limit";
+import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
 import { getSignedInUser } from "@/lib/auth-server";
 import { PROVIDERS } from "@/lib/ai-providers";
 import {
@@ -36,6 +39,9 @@ import {
   MAX_DESIGN_SCREENS,
   MOCK_STYLE_GUIDE,
   mockScreenHtml,
+  REVIEW_SYSTEM_PROMPT,
+  reviewUserMessage,
+  visibleText,
   SCREEN_HTML_JSON_SCHEMA,
   SCREEN_SYSTEM_PROMPT,
   screenUserMessage,
@@ -62,6 +68,12 @@ const STYLE_JOB: BrainJob = {
   toolName: "submit_style_guide",
   toolDescription: "Submit the app's style guide.",
 };
+const REVIEW_JOB: BrainJob = {
+  system: REVIEW_SYSTEM_PROMPT,
+  schema: SCREEN_HTML_JSON_SCHEMA,
+  toolName: "submit_screen",
+  toolDescription: "Submit the reviewed and fixed screen as one self-contained HTML document.",
+};
 const SCREEN_JOB: BrainJob = {
   system: SCREEN_SYSTEM_PROMPT,
   schema: SCREEN_HTML_JSON_SCHEMA,
@@ -77,7 +89,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return friendlyError("The request was not valid JSON.", 400);
   const { kind, roomId } = body;
-  if (kind !== "style" && kind !== "screen") return friendlyError("Unknown design request.", 400);
+  if (kind !== "style" && kind !== "screen" && kind !== "review") return friendlyError("Unknown design request.", 400);
   if (typeof roomId !== "string" || !ROOM_ID_PATTERN.test(roomId)) {
     return friendlyError("Missing or invalid room. Reload the page and try again.", 400);
   }
@@ -93,6 +105,7 @@ export async function POST(request: Request) {
   let screen: DesignScreen | null = null;
   let instruction = "";
   let guide = MOCK_STYLE_GUIDE;
+  let draft = ""; // review: the page to check
   if (kind === "style") {
     const screens = names(body.screens);
     if (screens.length === 0) return friendlyError("There are no screens to make real yet. Frame an idea first.", 400);
@@ -103,8 +116,15 @@ export async function POST(request: Request) {
     guide = checkedGuide.guide;
     screen = readScreen(body.screen);
     if (!screen) return friendlyError("That screen has nothing on it to design.", 400);
-    instruction = text(body.instruction, MAX_INSTRUCTION_CHARS);
-    message = screenUserMessage({ idea, resolution, guide, screen, otherScreens: names(body.otherScreens), instruction });
+    if (kind === "review") {
+      const page = checkDesignHtml(body.html); // only a page that passed before
+      if (!page.ok) return friendlyError("That design can't be reviewed.", 400);
+      draft = page.html;
+      message = reviewUserMessage({ idea, guide, screen, html: draft });
+    } else {
+      instruction = text(body.instruction, MAX_INSTRUCTION_CHARS);
+      message = screenUserMessage({ idea, resolution, guide, screen, otherScreens: names(body.otherScreens), instruction });
+    }
   }
 
   // ── 2. Mock: fixed samples, no AI, no rate limit (never in production) ──
@@ -112,6 +132,7 @@ export async function POST(request: Request) {
     const info = { providerLabel: "Mock agent", usedOwnKey: false };
     if (kind === "style") return NextResponse.json({ styleGuide: MOCK_STYLE_GUIDE, ...info });
     await new Promise((r) => setTimeout(r, MOCK_DELAY_MS));
+    if (kind === "review") return NextResponse.json({ html: draft, ...info }); // mock: unchanged
     const checked = checkDesignHtml(mockScreenHtml(screen!, guide, instruction));
     if (!checked.ok) return friendlyError(checked.error, 502);
     return NextResponse.json({ html: checked.html, ...info });
@@ -125,18 +146,28 @@ export async function POST(request: Request) {
   const info = { providerLabel: PROVIDERS[brain.provider].label, usedOwnKey: brain.usedOwnKey };
 
   // ── 4. Ask the AI, then check the answer before it can reach the canvas ──
-  const reply = await askBrain(brain.provider, brain.key, message, undefined, kind === "style" ? STYLE_JOB : SCREEN_JOB);
-  if ("error" in reply) return friendlyError(reply.error, reply.status);
+  const job = kind === "style" ? STYLE_JOB : kind === "review" ? REVIEW_JOB : SCREEN_JOB;
+  // A failed AI call gives its run back (same as the agent; see Retry).
+  const failed = async (message: string, status: number) => {
+    await refundAgentRun(roomId, !brain.usedOwnKey);
+    return friendlyError(message, status);
+  };
+  const reply = await askBrain(brain.provider, brain.key, message, undefined, job);
+  if ("error" in reply) return failed(reply.error, reply.status);
 
   if (kind === "style") {
     const checked = checkStyleGuide(reply.data);
-    if (!checked.ok) return friendlyError(checked.error, 502);
+    if (!checked.ok) return failed(checked.error, 502);
     return NextResponse.json({ styleGuide: checked.guide, ...info });
   }
-  const checked = checkDesignHtml((reply.data as { html?: unknown } | null)?.html);
+  let checked = checkDesignHtml((reply.data as { html?: unknown } | null)?.html);
+  // A review may tidy the page, never gut it: keep most of what people see.
+  if (checked.ok && kind === "review" && visibleText(checked.html).length < visibleText(draft).length * 0.7) {
+    checked = { ok: false, error: "The review dropped part of the screen, so the first version stays." };
+  }
   if (!checked.ok) {
-    console.error(`Design: rejected "${screen!.name}":`, checked.error);
-    return friendlyError(checked.error, 502);
+    console.error(`Design: rejected "${screen!.name}" (${kind}):`, checked.error);
+    return failed(checked.error, 502);
   }
   return NextResponse.json({ html: checked.html, ...info });
 }
@@ -147,7 +178,12 @@ function readScreen(value: unknown): DesignScreen | null {
   const name = text(s.name, MAX_NAME_CHARS);
   const components = (Array.isArray(s.components) ? s.components : [])
     .slice(0, MAX_COMPONENTS)
-    .map((c) => ({ type: text(c?.type, 20) || "text", label: text(c?.label, 120), notes: text(c?.notes, 300) }))
+    .map((c) => ({
+      type: text(c?.type, 20) || "text",
+      label: text(c?.label, 120),
+      notes: text(c?.notes, 300),
+      ...([2, 3].includes(c?.columns) ? { columns: c.columns as number } : {}),
+    }))
     .filter((c) => c.label);
   return name && components.length ? { name, components } : null;
 }

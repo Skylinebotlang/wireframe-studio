@@ -8,6 +8,12 @@
 //      like the same product.
 //   2. ONE HTML page per screen, built from the wireframe's boxes and that
 //      style guide (given to the AI as CSS variables).
+//   3. A REVIEW pass per screen: the AI checks its own page against a design
+//      checklist and returns a fixed version (kept only if it passes the
+//      same safety checks).
+//
+// The style guide is made strict in code, not trusted to the AI: contrast is
+// fixed (WCAG), the type scale is forced in order, spacing snaps to 4 px.
 //
 // This file has the formats, the prompts, the safety checks and the mock.
 // No secrets and no network: safe to import in the browser and the server.
@@ -93,7 +99,13 @@ export function checkStyleGuide(data: unknown): { ok: true; guide: StyleGuide } 
     if (isOrange(v)) return { ok: false, error: `The style guide used orange (${v}), which is reserved for the AI. Please try again.` };
     colors[k] = v.toLowerCase();
   }
+  fixContrast(colors);
   const t = (d.type ?? {}) as Record<string, unknown>;
+  // Clamp each size, then force display > title > body > caption.
+  const caption = clamp(t.caption, 10, 14, 12);
+  const body = Math.max(clamp(t.body, 13, 18, 15), caption + 1);
+  const title = Math.max(clamp(t.title, 17, 28, 20), body + 2);
+  const display = Math.max(clamp(t.display, 24, 44, 32), title + 4);
   return {
     ok: true,
     guide: {
@@ -102,26 +114,57 @@ export function checkStyleGuide(data: unknown): { ok: true; guide: StyleGuide } 
       colors,
       font: typeof d.font === "string" && d.font in FONTS ? (d.font as FontId) : "sans",
       radius: clamp(d.radius, 0, 28, 12),
-      spacing: clamp(d.spacing, 4, 12, 8),
-      type: {
-        display: clamp(t.display, 24, 44, 32),
-        title: clamp(t.title, 17, 28, 20),
-        body: clamp(t.body, 13, 18, 15),
-        caption: clamp(t.caption, 10, 14, 12),
-      },
+      spacing: Math.round(clamp(d.spacing, 4, 12, 8) / 4) * 4, // 4, 8 or 12
+      type: { display, title, body, caption },
     },
   };
+}
+
+// ── Contrast (WCAG 2) ────────────────────────────────────────────────────────
+
+function luminance(hex: string) {
+  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const [r, g, b] = ch.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two #rrggbb colors (1 to 21). */
+export function contrast(a: string, b: string) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const DARK = "#111318";
+const LIGHT = "#ffffff";
+const readableOn = (bg: string) => (contrast(DARK, bg) >= contrast(LIGHT, bg) ? DARK : LIGHT);
+
+// Mix two #rrggbb colors: t = 0 → a, 1 → b.
+function mix(a: string, b: string, t: number) {
+  const c = [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t));
+  return "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
+// Make the guide readable whatever the AI picked (fixing beats rejecting:
+// a rejection costs a whole retry).
+function fixContrast(c: StyleGuide["colors"]) {
+  if (contrast(c.text, c.background) < 4.5 || contrast(c.text, c.surface) < 4.5) c.text = readableOn(c.background);
+  if (contrast(c.onPrimary, c.primary) < 4.5) c.onPrimary = readableOn(c.primary);
+  for (let t = 0.2; contrast(c.muted, c.background) < 3 && t <= 1; t += 0.2) c.muted = mix(c.muted, c.text, t);
 }
 
 /** The style guide as CSS variables (what every screen is built on). */
 export function styleCss(g: StyleGuide) {
   const c = g.colors;
-  return `:root{--bg:${c.background};--surface:${c.surface};--text:${c.text};--muted:${c.muted};--primary:${c.primary};--on-primary:${c.onPrimary};--accent:${c.accent};--border:${c.border};--radius:${g.radius}px;--space:${g.spacing}px;--font:${FONTS[g.font]};--fs-display:${g.type.display}px;--fs-title:${g.type.title}px;--fs-body:${g.type.body}px;--fs-caption:${g.type.caption}px}`;
+  const s = g.spacing;
+  const space = [1, 2, 3, 4, 6, 8].map((m, i) => `--space-${i + 1}:${s * m}px`).join(";");
+  return `:root{--bg:${c.background};--surface:${c.surface};--text:${c.text};--muted:${c.muted};--primary:${c.primary};--on-primary:${c.onPrimary};--accent:${c.accent};--border:${c.border};--radius:${g.radius}px;--radius-sm:${Math.round(g.radius / 2)}px;--radius-lg:${Math.min(32, Math.round(g.radius * 1.5))}px;--space:${s}px;${space};--shadow-1:0 1px 2px rgba(16,18,27,.06),0 1px 3px rgba(16,18,27,.08);--shadow-2:0 4px 12px rgba(16,18,27,.08),0 12px 32px rgba(16,18,27,.10);--font:${FONTS[g.font]};--fs-display:${g.type.display}px;--fs-title:${g.type.title}px;--fs-body:${g.type.body}px;--fs-caption:${g.type.caption}px;--lh-tight:1.2;--lh-body:1.5;--weight-regular:400;--weight-strong:600}`;
 }
 
 // ── What a screen request carries ────────────────────────────────────────────
 
-export type DesignComponent = { type: string; label: string; notes?: string };
+// columns 2/3 = sits side by side with neighbours that have the same number
+// (rows and grids from the wireframe layout); tabbar label = "A | B | C".
+export type DesignComponent = { type: string; label: string; notes?: string; columns?: number };
 export type DesignScreen = { name: string; components: DesignComponent[] };
 
 // ── Prompts ──────────────────────────────────────────────────────────────────
@@ -137,10 +180,44 @@ export const SCREEN_SYSTEM_PROMPT = `You are a senior mobile UI designer. Turn O
 
 Output ONE complete HTML document ("<!doctype html><html>…</html>") for a ${PHONE_CSS_W}x${PHONE_CSS_H} px phone screen:
 - Put all CSS in one <style> in <head>. Start it with the given :root CSS variables and use them (var(--primary), var(--radius), var(--font)…) so every screen matches the style guide. body: margin 0, width ${PHONE_CSS_W}px, min-height ${PHONE_CSS_H}px, background var(--bg), font-family var(--font).
-- Follow the wireframe: same parts, same order, same labels. Turn each box into a real UI element (header → app bar or title area; input → styled text field; button → real button; card/list/summary → designed content with realistic sample data; image → placeholder made of CSS gradients or shapes). You may add small details a real app would have (status bar, icons drawn with CSS or inline SVG, a tab bar) if they fit.
+- Follow the wireframe: same parts, same order, same labels. Turn each box into a real UI element (header → app bar or title area; input → styled text field; button → real button; card/list/summary → designed content with realistic sample data; image → placeholder made of CSS gradients or shapes). "×2 per row" / "×3 per row" means those neighbours sit side by side (a row of buttons, a grid of cards). tabbar → a bottom navigation bar with one tab per "|"-separated label and an icon each. You may add small details a real app would have (status bar, icons) if they fit.
+- Design like a top product studio:
+  - Use ONLY the variables for colours, spacing (var(--space-1)…var(--space-6)), corner radius (--radius-sm/--radius/--radius-lg), shadows (--shadow-1/2), font sizes and weights. No other hex colours or pixel spacing except 1px borders.
+  - 4/8 px grid; consistent side margins (var(--space-4)); generous whitespace; clear hierarchy (one large title, then sections).
+  - Exactly one primary action per screen, in var(--primary); everything else quieter.
+  - Tap targets at least 44 px tall; text never smaller than var(--fs-caption); max two font weights.
+  - One icon style everywhere: simple inline SVG, stroke 1.75, stroke="currentColor", no fill, 20–24 px.
+  - Realistic, specific sample content (real-sounding names, prices, times, counts). Never "Lorem ipsum", "Item 1" or "Text here".
+  - Nothing may overflow or be cut off at ${PHONE_CSS_W}px wide; long text wraps or uses ellipsis.
 - Self-contained: NO <script>, NO event handlers (onclick…), NO <iframe>/<object>/<embed>/<link>/<form>, NO external URLs of any kind (no web fonts, no image links, no http/https anywhere). Inline SVG and data: URLs are fine.
 - ${NO_ORANGE}
 - Keep it compact: under 25 KB. Return it in the "html" field.`;
+
+export const REVIEW_SYSTEM_PROMPT = `You are a design director reviewing ONE mobile screen (an HTML page, ${PHONE_CSS_W}px wide) made by a junior designer. Find every problem on this checklist and FIX it in the page. Change nothing that is already good, and keep the same content, parts and order.
+
+Checklist:
+1. Contrast: all text clearly readable on its background.
+2. Grid and spacing: everything aligned to a 4/8 px rhythm, consistent side margins, even gaps between related items, more space between sections than within them.
+3. Hierarchy: one clear title, one clear primary action (var(--primary)); secondary things visibly quieter.
+4. Fit: nothing overflows, overlaps or is cut off at ${PHONE_CSS_W}px; long text wraps or uses ellipsis; tap targets at least 44 px.
+5. Consistency: only the style guide's CSS variables for colours, spacing, radius, shadows and type; one icon style; max two font weights.
+6. Content: realistic, specific sample data; no placeholders like "Lorem ipsum", "Item 1", "Text".
+7. Polish: balanced density (not cramped, not empty), subtle depth with --shadow-1/2 or borders, considered empty space.
+
+Same rules as before: one complete HTML document, CSS in one <style> starting with the given :root variables, NO <script>, NO event handlers, NO <iframe>/<object>/<embed>/<link>/<form>, NO external URLs (inline SVG and data: URLs are fine), under 25 KB.
+- ${NO_ORANGE}
+Return the improved page in the "html" field.`;
+
+export function reviewUserMessage(opts: { idea: string; guide: StyleGuide; screen: DesignScreen; html: string }) {
+  const { idea, guide, screen, html } = opts;
+  return [
+    idea && `The product idea:\n<idea>\n${idea}\n</idea>`,
+    `Style guide for "${guide.product || "the app"}" (mood: ${guide.mood || "clean"}). The page must use these CSS variables:\n<style_guide>\n${styleCss(guide)}\n</style_guide>`,
+    `The screen "${screen.name}" to review and fix:\n<page>\n${html}\n</page>`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 export function styleUserMessage(idea: string, resolution: string, screenNames: string[]) {
   return [
@@ -163,7 +240,7 @@ export function screenUserMessage(opts: {
 }) {
   const { idea, resolution, guide, screen, otherScreens, instruction } = opts;
   const boxes = screen.components
-    .map((c, i) => `${i + 1}. ${c.type}: "${c.label}"${c.notes ? ` (${c.notes})` : ""}`)
+    .map((c, i) => `${i + 1}. ${c.type}${c.columns && c.columns > 1 ? ` ×${c.columns} per row` : ""}: "${c.label}"${c.notes ? ` (${c.notes})` : ""}`)
     .join("\n");
   return [
     idea && `The product idea:\n<idea>\n${idea}\n</idea>`,
@@ -211,12 +288,26 @@ export function checkDesignHtml(raw: unknown): { ok: true; html: string } | { ok
   if (!/<html[\s>]/i.test(html) || !/<body[\s>]/i.test(html)) {
     return { ok: false, error: "The design wasn't a complete HTML page. Please try again." };
   }
+  // The AI can stop mid-page and still hand back valid JSON; a cut-off page
+  // never reaches the canvas.
+  if (!/<\/body\s*>[\s\S]*<\/html\s*>\s*$/i.test(html)) {
+    return { ok: false, error: "The design got cut off before it was finished. Please try again." };
+  }
   for (const [pattern, what] of FORBIDDEN) {
     if (pattern.test(html)) return { ok: false, error: `The design contained ${what}, so it was rejected. Please try again.` };
   }
   const orange = orangeInCss(html);
   if (orange) return { ok: false, error: `The design used orange (${orange}), which is reserved for the AI. Please try again.` };
   return { ok: true, html };
+}
+
+/** The words a person would see on the page (no CSS, no tags). */
+export function visibleText(html: string) {
+  return html
+    .replace(/<style[\s\S]*?<\/style\s*>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ── Orange detection ─────────────────────────────────────────────────────────

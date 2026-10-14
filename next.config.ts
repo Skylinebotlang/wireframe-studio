@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // (e.g. http://172.17.59.93:3000). Next.js blocks this by default.
   // Each * matches one number in the IP address.
   allowedDevOrigins: ["192.168.*.*", "172.*.*.*", "10.*.*.*"],
+  // Hide the round "N" Next.js button in the corner (dev only; never on the live site).
+  devIndicators: false,
 };
 
 export default nextConfig;

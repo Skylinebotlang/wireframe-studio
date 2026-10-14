@@ -144,6 +144,27 @@ body {
     0 0 24px -12px rgba(194, 71, 95, 0.5), inset 0 0 0 1px rgba(248, 244, 245, 0.08);
   --shadow-3: var(--shadow-2);
 }
+/* tldraw's corner panels (menu at top-left, zoom at bottom-left) sit flush
+   against the screen edge with square corners by default. Float them as
+   rounded glass pills with a gap, matching the room-name pill at the top. */
+.tlui-menu-zone,
+.tlui-navigation-panel {
+  margin: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 244, 245, 0.08);
+  background: var(--color-panel);
+}
+.tlui-navigation-panel::before {
+  display: none; /* tldraw's square "cut-out" corner behind the zoom box */
+}
+.tlui-toolbar__tools {
+  border-radius: 14px;
+  border: 1px solid rgba(248, 244, 245, 0.08);
+}
+.tlui-toolbar {
+  margin-bottom: 8px;
+}
+
 /* tldraw's menus in our body font; keyboard shortcuts in mono. */
 .tl-container .tlui-layout {
   font-family: var(--font-sans);

@@ -19,11 +19,13 @@
 import { useMemo, useCallback, useState } from "react";
 import {
   DefaultColorThemePalette,
+  DefaultStylePanel,
   DefaultToolbar,
   DefaultToolbarContent,
   Editor,
   Tldraw,
   TldrawUiMenuItem,
+  useEditor,
   useIsToolSelected,
   useTools,
   useValue,
@@ -90,6 +92,18 @@ const components: TLComponents = {
         <DefaultToolbarContent />
       </DefaultToolbar>
     );
+  },
+  // tldraw's color/style panel: only while there is something to style (a
+  // selection, or a drawing tool picked). Otherwise it sat open top-right,
+  // eating canvas space next to the agent panel.
+  StylePanel: (props) => {
+    const editor = useEditor();
+    const show = useValue(
+      "style panel needed",
+      () => editor.getSelectedShapeIds().length > 0 || !editor.isIn("select"),
+      [editor]
+    );
+    return show ? <DefaultStylePanel {...props} /> : null;
   },
   // Room name in tldraw's top-center slot, with a way back to the board list.
   TopPanel: () => {

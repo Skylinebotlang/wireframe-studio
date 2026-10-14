@@ -235,12 +235,8 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
 
   return (
     <div className="relative flex h-screen w-screen flex-col">
-      {/* ── Top bar: board name, Decisions, Share, AI key, profile ──────────── */}
-      <RoomBar
-        myName={identity.name}
-        colorOf={colorOf}
-        decisionsTrigger={agent.activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
-      />
+      {/* ── Top bar: board name, Share, AI key, profile ─────────────────────── */}
+      <RoomBar />
       <div className="flex min-h-0 flex-1">
       {/* ── The canvas (left) ─────────────────────────────────────────────── */}
       <div className="relative min-w-0 flex-1">

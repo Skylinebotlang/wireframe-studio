@@ -278,7 +278,7 @@ export function AgentPanel({
           </section>
         )}
 
-        {/* ── 5. Activity (Decisions moved to the top bar: RoomBar.tsx) ─────── */}
+        {/* ── 5. Activity ─────────────────────────────────────────────────── */}
         <section>
           <Label>Activity</Label>
           <div className="mt-3">

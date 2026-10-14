@@ -19,10 +19,14 @@
 import { useStorage } from "@liveblocks/react/suspense";
 import { BaseBoxShapeUtil, HTMLContainer, T, type Editor, type RecordProps, type TLBaseShape, type TLFrameShape } from "tldraw";
 import { checkDesignHtml, PHONE_CSS_H, PHONE_CSS_W } from "./agent-design";
+import { screenshotHtml } from "./screenshot";
 
 const DESIGN_W = 300; // same width as a wireframe phone frame
 const DESIGN_H = Math.round((DESIGN_W * PHONE_CSS_H) / PHONE_CSS_W);
 const GAP_BELOW = 60; // space between a wireframe and its design
+
+// Checked HTML of each design shown on screen, by design id (for export).
+const shownHtml = new Map<string, string>();
 
 const CSP =
   `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">`;
@@ -67,6 +71,28 @@ export class DesignShapeUtil extends BaseBoxShapeUtil<TLDesignShape> {
     );
   }
 
+  // Export (menu → Export → PNG/SVG, or right-click → Export as): tldraw
+  // can't copy an iframe, so we draw the design into a picture ourselves
+  // (lib/screenshot.ts) and put that in the export.
+  // ponytail: uses the HTML of designs drawn on screen this session (kept in
+  // `shownHtml`); a design never scrolled into view exports as a plain card.
+  override async toSvg(shape: TLDesignShape) {
+    const { w, h, designId } = shape.props;
+    const html = shownHtml.get(designId);
+    const png = html ? await screenshotHtml(html, PHONE_CSS_W, Math.round(h / (w / PHONE_CSS_W))) : null;
+    const clip = `design-clip-${shape.id.replace(/\W/g, "")}`;
+    return (
+      <g>
+        <clipPath id={clip}>
+          <rect width={w} height={h} rx={18} ry={18} />
+        </clipPath>
+        <rect width={w} height={h} rx={18} ry={18} fill="#191a2f" />
+        {png && <image href={png} width={w} height={h} clipPath={`url(#${clip})`} preserveAspectRatio="none" />}
+        <rect width={w} height={h} rx={18} ry={18} fill="none" stroke="#ff6b2c" strokeWidth={2} />
+      </g>
+    );
+  }
+
   override indicator(shape: TLDesignShape) {
     return <rect width={shape.props.w} height={shape.props.h} rx={18} ry={18} />;
   }
@@ -75,6 +101,7 @@ export class DesignShapeUtil extends BaseBoxShapeUtil<TLDesignShape> {
 function DesignView({ w, h, designId, name }: TLDesignShape["props"]) {
   const record = useStorage((root) => root.designs?.[designId] ?? null); // (a LiveMap reads as a plain object here)
   const checked = record ? checkDesignHtml(record.html) : null;
+  if (checked?.ok) shownHtml.set(designId, checked.html); // for export (toSvg)
   const scale = w / PHONE_CSS_W;
 
   return (

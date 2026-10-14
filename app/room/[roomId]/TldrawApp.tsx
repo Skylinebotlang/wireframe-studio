@@ -18,6 +18,7 @@
 
 import { useMemo, useCallback, useState } from "react";
 import {
+  DefaultColorThemePalette,
   DefaultToolbar,
   DefaultToolbarContent,
   Editor,
@@ -47,6 +48,15 @@ import type { UserIdentity } from "@/lib/user";
 // Defined once, outside the component, so tldraw doesn't rebuild them.
 const shapeUtils = [PromptNoteShapeUtil, DesignShapeUtil];
 const tools = [PromptNoteTool];
+
+// Wireframe boxes are tldraw "grey" shapes. tldraw's dark grey is a bright
+// silver fill on near-black, which looks harsh; recolor it to soft navies
+// from our palette so the wireframes read as calm, quiet blocks.
+const grey = DefaultColorThemePalette.darkMode.grey;
+grey.solid = "#4a4866"; // outlines + solid fills (headers, buttons)
+grey.fill = "#4a4866";
+grey.semi = "#1f1f36"; // cards, lists
+grey.frame = { ...grey.frame, fill: "#131224", stroke: "#2b2a42", headingFill: "#191a2f", headingStroke: "#2b2a42" };
 
 // Add the "Prompt note" button to tldraw's toolbar (first in the row).
 const uiOverrides: TLUiOverrides = {

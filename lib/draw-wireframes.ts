@@ -109,6 +109,7 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
             color: "grey",
             labelColor: "black",
             size: "s",
+            dash: "solid", // clean straight lines, not tldraw's hand-drawn wobble
             font: "sans",
             richText: toRichText(b.label),
           },

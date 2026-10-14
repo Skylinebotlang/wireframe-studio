@@ -19,7 +19,7 @@ export const THEME = {
   raised: "#191A2F", // inputs, raised areas
   muted: "#9E99A8", // secondary text
   line: "#2B2A42", // hairline borders
-  blue: "#681E2E", // the "people" accent (wine) — name kept for old code
+  wine: "#681E2E", // the "people" accent
   agent: "#FF6B2C", // the agent accent (do NOT use for humans)
   dots: "#F8F4F517", // canvas dotted background (faint soft white)
 } as const;

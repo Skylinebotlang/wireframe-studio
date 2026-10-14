@@ -5,6 +5,9 @@
 //   POST   { name }              → { board }  make a new board
 //   PUT    { boardId }           → { ok }     "I opened this board"
 //   PATCH  { boardId, name }     → { ok }     rename a board
+//   DELETE { boardId }           → { ok }     delete a board (its creator only):
+//                                  the list entry, its decision log AND the
+//                                  drawings in Liveblocks. Can't be undone.
 //
 // SIGN-IN REQUIRED: every call needs the Supabase sign-in token, and "you"
 // is the account in that token (never an id the browser sends).
@@ -13,7 +16,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { boardsConfigured, listBoards, renameBoard, visitBoard } from "@/lib/boards-db";
+import { Liveblocks } from "@liveblocks/node";
+import { boardsConfigured, deleteBoard, listBoards, renameBoard, visitBoard } from "@/lib/boards-db";
 import { getSignedInUser } from "@/lib/auth-server";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/; // same rule as room ids
@@ -35,7 +39,7 @@ export async function POST(request: Request) {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "board";
   const id = `${slug}-${crypto.randomUUID().slice(0, 6)}`;
   return run(async () => {
-    await visitBoard(me.id, id, name);
+    await visitBoard(me.id, id, name, me.name);
     return NextResponse.json({ board: { id, name } });
   });
 }
@@ -46,7 +50,7 @@ export async function PUT(request: Request) {
   const body = await readBody(request);
   if (!ID.test(body?.boardId ?? "")) return friendlyError("Invalid board.", 400);
   return run(async () => {
-    await visitBoard(me.id, body.boardId);
+    await visitBoard(me.id, body.boardId, undefined, me.name);
     return NextResponse.json({ ok: true });
   });
 }
@@ -63,6 +67,23 @@ export async function PATCH(request: Request) {
       ? NextResponse.json({ ok: true })
       : friendlyError("Open this board first, then you can rename it.", 403)
   );
+}
+
+export async function DELETE(request: Request) {
+  const me = await getSignedInUser(request);
+  if (!me) return signInFirst();
+  const body = await readBody(request);
+  if (!ID.test(body?.boardId ?? "")) return friendlyError("Invalid board.", 400);
+  return run(async () => {
+    if (!(await deleteBoard(me.id, body.boardId))) {
+      return friendlyError("Only the person who made this board can delete it.", 403);
+    }
+    // The drawings too, so the old link opens an empty board. Best effort:
+    // the list entry is already gone either way.
+    const secret = process.env.LIVEBLOCKS_SECRET_KEY;
+    if (secret) await new Liveblocks({ secret }).deleteRoom(body.boardId).catch((err) => console.error("Boards: couldn't delete the room:", err));
+    return NextResponse.json({ ok: true });
+  });
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

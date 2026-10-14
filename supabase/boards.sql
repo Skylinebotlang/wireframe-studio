@@ -36,3 +36,6 @@ alter table public.board_visits enable row level security;
 -- browser roles (anon, authenticated) get nothing.
 grant select, insert, update, delete on public.boards to service_role;
 grant select, insert, update, delete on public.board_visits to service_role;
+
+-- Who opened a board, by name (shown on /boards as "With Alice, Bob").
+alter table public.board_visits add column user_name text check (char_length(user_name) <= 80);

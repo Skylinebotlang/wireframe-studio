@@ -85,6 +85,20 @@ export default function BoardsPage() {
     setBoards((list) => list?.map((b) => (b.id === board.id ? { ...b, name: name.trim() } : b)) ?? null);
   }
 
+  // Delete (creator only): the list entry, its decisions AND the drawings.
+  async function remove(board: Board) {
+    if (!window.confirm(`Delete "${board.name}" for everyone? Its drawings and decisions are deleted too. This can't be undone.`)) return;
+    setError("");
+    const res = await fetch("/api/boards", {
+      method: "DELETE",
+      headers: { "content-type": "application/json", ...(await authHeader()) },
+      body: JSON.stringify({ boardId: board.id }),
+    }).catch(() => null);
+    const data = await res?.json().catch(() => null);
+    if (!res?.ok) return setError(data?.error ?? "Couldn't delete the board. Please try again.");
+    setBoards((list) => list?.filter((b) => b.id !== board.id) ?? null);
+  }
+
   return (
     <main className="dot-grid min-h-screen px-4 py-8 text-ink sm:px-8">
       <div className="mx-auto max-w-5xl">
@@ -146,7 +160,7 @@ export default function BoardsPage() {
           {boards && boards.length > 0 && (
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {boards.map((b) => (
-                <BoardCard key={b.id} board={b} onRename={(name) => rename(b, name)} />
+                <BoardCard key={b.id} board={b} onRename={(name) => rename(b, name)} onDelete={() => remove(b)} />
               ))}
             </ul>
           )}
@@ -164,10 +178,22 @@ async function fetchBoards(): Promise<{ boards: Board[]; error: string }> {
   return { boards: data.boards, error: "" };
 }
 
-// One board: click to open, pencil to rename.
-function BoardCard({ board, onRename }: { board: Board; onRename: (name: string) => void }) {
+// One board: click to open, pencil to rename, plus who else is in it,
+// copy link, and delete (creator only).
+function BoardCard({ board, onRename, onDelete }: { board: Board; onRename: (name: string) => void; onDelete: () => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(board.name);
+  const [copied, setCopied] = useState(false);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/room/${board.id}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.prompt("Copy this link:", `${window.location.origin}/room/${board.id}`);
+    }
+  };
+  const shown = board.others.slice(0, 4);
 
   return (
     <li className="group relative rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent-bright">
@@ -208,6 +234,30 @@ function BoardCard({ board, onRename }: { board: Board; onRename: (name: string)
         Opened {timeAgo(board.lastOpenedAt)}
       </p>
       <p className="mt-0.5 truncate font-mono text-[11px] text-muted">/room/{board.id}</p>
+      <p className="mt-2 truncate text-xs text-muted">
+        {shown.length === 0
+          ? "Only you so far"
+          : `With ${shown.join(", ")}${board.others.length > shown.length ? ` +${board.others.length - shown.length}` : ""}`}
+      </p>
+      {/* z-10 keeps these above the card-wide link. */}
+      <div className="relative z-10 mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={copyLink}
+          className="rounded-md border border-line bg-raised px-2.5 py-1 text-xs text-ink hover:border-accent-bright"
+        >
+          {copied ? "Copied ✓" : "Copy link"}
+        </button>
+        {board.mine && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded-md border border-line px-2.5 py-1 text-xs text-muted hover:border-accent-bright hover:text-accent-bright"
+          >
+            Delete
+          </button>
+        )}
+      </div>
       {!editing && (
         <button
           onClick={() => setEditing(true)}

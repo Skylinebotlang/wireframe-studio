@@ -12,6 +12,8 @@ export type Board = {
   createdBy: string;
   updatedAt: string; // ISO time, last opened by anyone
   lastOpenedAt: string; // ISO time, last opened by THIS person
+  mine: boolean; // this person made it (only they may delete it)
+  others: string[]; // names of other people who opened it, most recent first
 };
 
 type Row = { last_opened_at: string; boards: { id: string; name: string; created_by: string; updated_at: string } };
@@ -53,12 +55,22 @@ export async function listBoards(userId: string): Promise<Board[]> {
     `board_visits?user_id=eq.${encodeURIComponent(userId)}` +
       `&select=last_opened_at,boards(id,name,created_by,updated_at)&order=last_opened_at.desc&limit=100`
   );
+  // Who else opened these boards (one query for all of them).
+  const ids = rows.map((r) => r.boards.id);
+  const people: { board_id: string; user_id: string; user_name: string | null }[] = ids.length
+    ? await rest(
+        `board_visits?board_id=in.(${ids.map((id) => `"${id}"`).join(",")})` +
+          `&user_id=neq.${encodeURIComponent(userId)}&select=board_id,user_id,user_name&order=last_opened_at.desc&limit=1000`
+      )
+    : [];
   return rows.map((r) => ({
     id: r.boards.id,
     name: r.boards.name,
     createdBy: r.boards.created_by,
     updatedAt: r.boards.updated_at,
     lastOpenedAt: r.last_opened_at,
+    mine: r.boards.created_by === userId,
+    others: people.filter((p) => p.board_id === r.boards.id).map((p) => p.user_name || "Someone"),
   }));
 }
 
@@ -67,7 +79,7 @@ export async function listBoards(userId: string): Promise<Board[]> {
  * (rooms made by just typing a link get their id as a name), refreshes its
  * "last opened" time, and adds it to this person's list.
  */
-export async function visitBoard(userId: string, boardId: string, name?: string) {
+export async function visitBoard(userId: string, boardId: string, name?: string, userName?: string) {
   const now = new Date().toISOString();
   // Upsert without overwriting an existing name or creator.
   await rest("boards?on_conflict=id", {
@@ -82,7 +94,7 @@ export async function visitBoard(userId: string, boardId: string, name?: string)
   await rest("board_visits?on_conflict=board_id,user_id", {
     method: "POST",
     headers: { prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ board_id: boardId, user_id: userId, last_opened_at: now }),
+    body: JSON.stringify({ board_id: boardId, user_id: userId, last_opened_at: now, ...(userName ? { user_name: userName.slice(0, 80) } : {}) }),
   });
 }
 
@@ -96,5 +108,17 @@ export async function renameBoard(userId: string, boardId: string, name: string)
     method: "PATCH",
     body: JSON.stringify({ name }),
   });
+  return true;
+}
+
+/**
+ * Delete a board from the list: only its creator may. Its visits and
+ * decision log go with it (database cascade). Returns false if not allowed.
+ * (The drawings in Liveblocks are deleted by the caller.)
+ */
+export async function deleteBoard(userId: string, boardId: string): Promise<boolean> {
+  const rows: { created_by: string }[] = await rest(`boards?id=eq.${encodeURIComponent(boardId)}&select=created_by`);
+  if (!rows.length || rows[0].created_by !== userId) return false;
+  await rest(`boards?id=eq.${encodeURIComponent(boardId)}`, { method: "DELETE" });
   return true;
 }

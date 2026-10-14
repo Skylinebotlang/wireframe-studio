@@ -11,7 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { getSignedInUser } from "@/lib/auth-server";
-import { boardsConfigured } from "@/lib/boards-db";
+import { boardsConfigured, editorCheck } from "@/lib/boards-db";
 import { addDecisions, listDecisions } from "@/lib/decisions-db";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/; // same rule as room ids
@@ -33,6 +33,9 @@ export async function POST(request: Request) {
   const chosen = typeof body?.chosenAuthor === "string" ? body.chosenAuthor.trim().slice(0, 80) : "";
   const byName = typeof body?.byName === "string" && body.byName.trim() ? body.byName.trim() : me.name;
   if (!ID.test(boardId) || !summary || !chosen) return friendlyError("Missing the clash or the chosen version.", 400);
+  // Viewers can't pick a clash winner (roles: lib/boards-db.ts).
+  const notAllowed = await editorCheck(me.id, boardId);
+  if (notAllowed) return friendlyError(notAllowed, 403);
   return run(async () => {
     await addDecisions([
       { boardId, kind: "pick", summary, decision: `Use ${chosen}'s version`, decidedBy: byName, userId: me.id },

@@ -19,6 +19,7 @@
 import { Liveblocks } from "@liveblocks/node";
 import { NextResponse } from "next/server";
 import { getSignedInUser } from "@/lib/auth-server";
+import { boardsConfigured, canEdit, getRole, visitBoard } from "@/lib/boards-db";
 
 // Only letters, numbers, dashes and underscores are allowed in room ids.
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
@@ -65,16 +66,36 @@ export async function POST(request: Request) {
     );
   }
 
-  // 3. Ask Liveblocks for a signed token that grants access to THIS room.
+  // 3. This person's role on the board (lib/boards-db.ts). First time here?
+  // Record the visit first: someone new joins as a viewer, the person who
+  // just created it is owner. (Later visits are recorded by PUT /api/boards,
+  // in parallel, so joining stays fast.) No database set up → everyone edits.
+  let editor = true;
+  if (boardsConfigured()) {
+    try {
+      let role = await getRole(account.id, room);
+      if (!role) {
+        await visitBoard(account.id, room, undefined, account.name);
+        role = await getRole(account.id, room);
+      }
+      editor = canEdit(role);
+    } catch (err) {
+      console.error("Liveblocks auth: couldn't read the role:", err);
+      return NextResponse.json({ error: "Couldn't check your access to this board. Please try again." }, { status: 502 });
+    }
+  }
+  // Viewers may look and show their cursor, but not change the canvas or the
+  // agent panel. Liveblocks enforces it, so browser tricks can't get round it.
+  const VIEW = ["room:read", "room:presence:write"] as const;
+
+  // 4. Ask Liveblocks for a signed token that grants access to THIS room.
   try {
     const liveblocks = new Liveblocks({ secret: secretKey });
 
     // prepareSession creates a session for this user, carrying their
     // public info (name/role/color). session.allow() grants them access
-    // to the room they asked for — required, otherwise Liveblocks
-    // rejects the connection with "You have no access to this room".
-    // (For the prototype, everyone gets full access to every room;
-    // tighter permissions can come later with a login system.)
+    // to the room they asked for: full for owners/editors, look-only for
+    // viewers.
     const session = liveblocks.prepareSession(account.id, {
       userInfo: {
         name: identity.name,
@@ -82,26 +103,25 @@ export async function POST(request: Request) {
         color: identity.color,
       },
     });
-    session.allow(room, session.FULL_ACCESS);
+    session.allow(room, editor ? session.FULL_ACCESS : session.READ_ACCESS);
 
-    // Also make sure the ROOM itself allows everyone to write.
-    // Newer Liveblocks projects have "Access Control" enabled, which makes
-    // the room's own access rules win over the token permissions above.
-    // This creates the room (with open write access) on first use and
-    // patches older rooms that were created without it.
-    try {
-      const roomData = await liveblocks.getOrCreateRoom(room, {
-        defaultAccesses: ["room:write"],
+    // The ROOM's own access rules say the same thing (newer Liveblocks
+    // projects with "Access Control" let room rules win over the token):
+    // by default look-only, plus write for this person if they may edit.
+    // Created on first use; only updated when the rules actually changed
+    // (each call to Liveblocks takes a moment, and this runs on every join).
+    const existing = await liveblocks.getOrCreateRoom(room, {
+      defaultAccesses: [...VIEW],
+      usersAccesses: editor ? { [account.id]: ["room:write"] } : {},
+    });
+    const defaultsOk =
+      existing.defaultAccesses.length === VIEW.length && VIEW.every((a) => existing.defaultAccesses.includes(a));
+    const mineOk = editor ? !!existing.usersAccesses?.[account.id]?.includes("room:write") : !existing.usersAccesses?.[account.id];
+    if (!defaultsOk || !mineOk) {
+      await liveblocks.updateRoom(room, {
+        defaultAccesses: [...VIEW],
+        usersAccesses: { [account.id]: editor ? ["room:write"] : null },
       });
-      if (!roomData.defaultAccesses?.length) {
-        await liveblocks.updateRoom(room, {
-          defaultAccesses: ["room:write"],
-        });
-      }
-    } catch (roomErr) {
-      // Non-fatal: if the project doesn't use Access Control, the token
-      // permission above is already enough.
-      console.error("Room access setup failed (non-fatal):", roomErr);
     }
 
     const { status, body: token } = await session.authorize();

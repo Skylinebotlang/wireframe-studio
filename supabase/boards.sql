@@ -39,3 +39,10 @@ grant select, insert, update, delete on public.board_visits to service_role;
 
 -- Who opened a board, by name (shown on /boards as "With Alice, Bob").
 alter table public.board_visits add column user_name text check (char_length(user_name) <= 80);
+
+-- Roles per board (Owner / Editor / Viewer). New visitors join as viewer.
+-- Applied 2026-10-15: everyone who had already opened a board became editor,
+-- each board's creator became owner.
+alter table public.board_visits add column role text not null default 'viewer' check (role in ('owner','editor','viewer'));
+update public.board_visits set role = 'editor';
+update public.board_visits v set role = 'owner' from public.boards b where b.id = v.board_id and b.created_by = v.user_id;

@@ -12,11 +12,12 @@ export type Board = {
   createdBy: string;
   updatedAt: string; // ISO time, last opened by anyone
   lastOpenedAt: string; // ISO time, last opened by THIS person
-  mine: boolean; // this person made it (only they may delete it)
+  mine: boolean; // this person is an owner (only owners may delete it)
+  role: Role; // this person's role on it
   others: string[]; // names of other people who opened it, most recent first
 };
 
-type Row = { last_opened_at: string; boards: { id: string; name: string; created_by: string; updated_at: string } };
+type Row = { last_opened_at: string; role: Role; boards: { id: string; name: string; created_by: string; updated_at: string } };
 
 function config() {
   const url = process.env.SUPABASE_URL;
@@ -53,7 +54,7 @@ export async function rest(path: string, init: RequestInit = {}) {
 export async function listBoards(userId: string): Promise<Board[]> {
   const rows: Row[] = await rest(
     `board_visits?user_id=eq.${encodeURIComponent(userId)}` +
-      `&select=last_opened_at,boards(id,name,created_by,updated_at)&order=last_opened_at.desc&limit=100`
+      `&select=last_opened_at,role,boards(id,name,created_by,updated_at)&order=last_opened_at.desc&limit=100`
   );
   // Who else opened these boards (one query for all of them).
   const ids = rows.map((r) => r.boards.id);
@@ -69,7 +70,8 @@ export async function listBoards(userId: string): Promise<Board[]> {
     createdBy: r.boards.created_by,
     updatedAt: r.boards.updated_at,
     lastOpenedAt: r.last_opened_at,
-    mine: r.boards.created_by === userId,
+    mine: r.role === "owner",
+    role: r.role,
     others: people.filter((p) => p.board_id === r.boards.id).map((p) => p.user_name || "Someone"),
   }));
 }
@@ -81,10 +83,11 @@ export async function listBoards(userId: string): Promise<Board[]> {
  */
 export async function visitBoard(userId: string, boardId: string, name?: string, userName?: string) {
   const now = new Date().toISOString();
-  // Upsert without overwriting an existing name or creator.
-  await rest("boards?on_conflict=id", {
+  // Upsert without overwriting an existing name or creator. Returns the row
+  // only if it was just made, i.e. this person created the board.
+  const created: unknown[] = await rest("boards?on_conflict=id", {
     method: "POST",
-    headers: { prefer: "resolution=ignore-duplicates" },
+    headers: { prefer: "resolution=ignore-duplicates,return=representation" },
     body: JSON.stringify({ id: boardId, name: name || boardId, created_by: userId }),
   });
   await rest(`boards?id=eq.${encodeURIComponent(boardId)}`, {
@@ -95,6 +98,75 @@ export async function visitBoard(userId: string, boardId: string, name?: string,
     method: "POST",
     headers: { prefer: "resolution=merge-duplicates" },
     body: JSON.stringify({ board_id: boardId, user_id: userId, last_opened_at: now, ...(userName ? { user_name: userName.slice(0, 80) } : {}) }),
+  });
+  // A new visitor's role defaults to viewer (database default, never
+  // overwritten on later visits). The person who just created it is owner.
+  if (created?.length) await setRoleRow(boardId, userId, "owner");
+}
+
+// ── Roles: Owner / Editor / Viewer, one per person per board ─────────────────
+
+export type Role = "owner" | "editor" | "viewer";
+export const ROLES: Role[] = ["owner", "editor", "viewer"];
+export type Member = { userId: string; name: string; role: Role };
+
+/** This person's role on a board, or null if they've never opened it. */
+export async function getRole(userId: string, boardId: string): Promise<Role | null> {
+  const rows: { role: Role }[] = await rest(
+    `board_visits?board_id=eq.${encodeURIComponent(boardId)}&user_id=eq.${encodeURIComponent(userId)}&select=role`
+  );
+  return rows[0]?.role ?? null;
+}
+
+/** May this person change the board (draw, run the agent)? */
+export const canEdit = (role: Role | null) => role === "owner" || role === "editor";
+
+/**
+ * For the AI and decision routes: null if this person may change the board,
+ * else a friendly message. No database set up → allowed (nothing to check).
+ */
+export async function editorCheck(userId: string, boardId: string): Promise<string | null> {
+  if (!boardsConfigured()) return null;
+  try {
+    return canEdit(await getRole(userId, boardId))
+      ? null
+      : "You're a viewer on this board. Ask an owner to make you an editor.";
+  } catch (err) {
+    console.error("Role check failed:", err);
+    return "Couldn't check your access to this board. Please try again.";
+  }
+}
+
+/** Everyone who has opened a board, owners first. */
+export async function listMembers(boardId: string): Promise<Member[]> {
+  const rows: { user_id: string; user_name: string | null; role: Role }[] = await rest(
+    `board_visits?board_id=eq.${encodeURIComponent(boardId)}&select=user_id,user_name,role&order=last_opened_at.desc&limit=200`
+  );
+  return rows
+    .map((r) => ({ userId: r.user_id, name: r.user_name || "Someone", role: r.role }))
+    .sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role));
+}
+
+/**
+ * An owner changes someone's role. Returns an error message, or null.
+ * The last owner can't step down (the board would have nobody in charge).
+ */
+export async function changeRole(byUserId: string, boardId: string, userId: string, role: Role): Promise<string | null> {
+  if ((await getRole(byUserId, boardId)) !== "owner") return "Only an owner can change roles.";
+  const target = await getRole(userId, boardId);
+  if (!target) return "That person hasn't opened this board.";
+  if (target === "owner" && role !== "owner") {
+    const owners = (await listMembers(boardId)).filter((m) => m.role === "owner");
+    if (owners.length <= 1) return "A board needs at least one owner. Make someone else owner first.";
+  }
+  await setRoleRow(boardId, userId, role);
+  return null;
+}
+
+async function setRoleRow(boardId: string, userId: string, role: Role) {
+  await rest(`board_visits?board_id=eq.${encodeURIComponent(boardId)}&user_id=eq.${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
   });
 }
 
@@ -112,13 +184,12 @@ export async function renameBoard(userId: string, boardId: string, name: string)
 }
 
 /**
- * Delete a board from the list: only its creator may. Its visits and
+ * Delete a board from the list: only an owner may. Its visits and
  * decision log go with it (database cascade). Returns false if not allowed.
  * (The drawings in Liveblocks are deleted by the caller.)
  */
 export async function deleteBoard(userId: string, boardId: string): Promise<boolean> {
-  const rows: { created_by: string }[] = await rest(`boards?id=eq.${encodeURIComponent(boardId)}&select=created_by`);
-  if (!rows.length || rows[0].created_by !== userId) return false;
+  if ((await getRole(userId, boardId)) !== "owner") return false;
   await rest(`boards?id=eq.${encodeURIComponent(boardId)}`, { method: "DELETE" });
   return true;
 }

@@ -16,7 +16,7 @@
 //      every window, driven by the shared run status.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useMemo, useCallback, useRef, useState } from "react";
+import { useMemo, useCallback, useEffect, useRef, useState } from "react";
 import {
   DefaultColorThemePalette,
   DefaultStylePanel,
@@ -39,6 +39,8 @@ import "tldraw/tldraw.css";
 import { useYjsStore } from "./useYjsStore";
 import { AgentPanel } from "./AgentPanel";
 import { RoomBar } from "./RoomBar";
+import { useParams } from "next/navigation";
+import { useBoardTeam } from "@/lib/board-role";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
 import { drawWireframes, fitBoardLabels, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
 import { useAgentPanel, useTeamColors } from "@/lib/agent-room";
@@ -143,6 +145,15 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   const agent = useAgentPanel(identity.name);
   // Each teammate's cursor color, for their lines in the feed and decision log.
   const colorOf = useTeamColors(identity.name, identity.color);
+  // My role on this board (Owner / Editor / Viewer) and the member list.
+  const { roomId } = useParams<{ roomId: string }>();
+  const team = useBoardTeam(roomId);
+  const viewer = team.me === "viewer";
+  // Viewers can look but not change the canvas. (Liveblocks also refuses
+  // their changes on the server; this just stops the tools from pretending.)
+  useEffect(() => {
+    editor?.updateInstanceState({ isReadonly: viewer });
+  }, [editor, viewer]);
 
   // A message for this person only (e.g. "No notes yet").
   const [message, setMessage] = useState("");
@@ -236,7 +247,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   return (
     <div className="relative flex h-screen w-screen flex-col">
       {/* ── Top bar: board name, Share, AI key, profile ─────────────────────── */}
-      <RoomBar />
+      <RoomBar team={team} myId={identity.id} colorOf={colorOf} />
       <div className="flex min-h-0 flex-1">
       {/* ── The canvas (left) ─────────────────────────────────────────────── */}
       <div className="relative min-w-0 flex-1">
@@ -318,6 +329,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
       <AgentPanel
         myName={identity.name}
         colorOf={colorOf}
+        readOnly={viewer}
         agent={agent}
         editor={editor}
         message={message}

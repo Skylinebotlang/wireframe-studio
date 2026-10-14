@@ -38,6 +38,7 @@ export function AgentPanel({
   pickedDesign,
   myName,
   colorOf,
+  readOnly,
 }: {
   agent: Agent;
   editor: Editor | null;
@@ -52,6 +53,7 @@ export function AgentPanel({
   pickedDesign: string | null; // name of the one design selected (Regenerate), or null
   myName: string; // this person's display name (their own lines say "You")
   colorOf: (name: string) => string; // a teammate's cursor color (lib/agent-room useTeamColors)
+  readOnly: boolean; // this person is a Viewer: they watch, they can't run the agent
 }) {
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
@@ -97,7 +99,13 @@ export function AgentPanel({
       {/* pb-16: room at the bottom so the "Powered by Liveblocks" badge
           (bottom-right, free plan) never covers the last lines. */}
       <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-16">
-        {/* ── 2. Composer ───────────────────────────────────────────────── */}
+        {/* ── 2. Composer (Viewers get a note instead) ───────────────────── */}
+        {readOnly ? (
+          <p className="rounded-xl border border-line bg-raised/60 p-3 text-xs leading-relaxed text-muted">
+            You&apos;re a <span className="text-ink">viewer</span> on this board: you can watch everything live, but
+            not draw or run the agent. Ask an owner (Team, top right) to make you an editor.
+          </p>
+        ) : (
         <section>
           {/* The agent wasn't sure: its question (the agent speaking). */}
           {asking && (
@@ -181,6 +189,7 @@ export function AgentPanel({
             />
           )}
         </section>
+        )}
 
         {/* ── 3. Run card: only while something is happening ─────────────── */}
         {showRunCard && (
@@ -205,17 +214,19 @@ export function AgentPanel({
                     </li>
                   ))}
                 </ol>
-                <div className="grid grid-cols-2 gap-2">
-                  {paused ? (
-                    <QuietButton onClick={onResume}>Resume</QuietButton>
-                  ) : (
-                    <QuietButton onClick={agent.pause}>Pause</QuietButton>
-                  )}
-                  <QuietButton onClick={agent.takeOver}>Take over</QuietButton>
-                </div>
+                {!readOnly && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {paused ? (
+                      <QuietButton onClick={onResume}>Resume</QuietButton>
+                    ) : (
+                      <QuietButton onClick={agent.pause}>Pause</QuietButton>
+                    )}
+                    <QuietButton onClick={agent.takeOver}>Take over</QuietButton>
+                  </div>
+                )}
               </>
             )}
-            {agent.undo && !working && !paused && (
+            {agent.undo && !working && !paused && !readOnly && (
               <QuietButton onClick={onUndo} full>
                 <UndoIcon /> Undo last run · {agent.undo.screens} screen{agent.undo.screens === 1 ? "" : "s"} by {agent.undo.by}
               </QuietButton>
@@ -252,7 +263,7 @@ export function AgentPanel({
               return (
                 <div key={i} className="rounded-xl border border-line bg-raised/60 p-3 text-xs">
                   <p className="leading-relaxed">{c.summary}</p>
-                  {authors.length > 0 && (
+                  {authors.length > 0 && !readOnly && (
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {authors.map((who) => (
                         <button

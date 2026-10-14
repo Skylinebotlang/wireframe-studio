@@ -48,3 +48,6 @@ next-env.d.ts
 # logs and local tool folders
 *.log
 .impeccable
+
+# UX audit reports (made from signed-in sessions; keep local)
+.ux/

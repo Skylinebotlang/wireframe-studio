@@ -21,6 +21,7 @@ import {
   DefaultColorThemePalette,
   DefaultStylePanel,
   DefaultToolbar,
+  DefaultFillStyle,
   DefaultToolbarContent,
   Editor,
   Tldraw,
@@ -252,6 +253,9 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
           onMount={(ed) => {
             // Cyberpunk theme: run tldraw in its dark mode.
             ed.user.updateUserPreferences({ colorScheme: "dark" });
+            // New rectangles/shapes start see-through (outline only), so you
+            // can always see what's under them. People can still pick a fill.
+            ed.setStyleForNextShapes(DefaultFillStyle, "none");
             setEditor(ed);
             // Old boards: fix wireframe labels drawn before they learned to fit.
             fitBoardLabels(ed);

@@ -31,6 +31,8 @@ import {
   type TLUiOverrides,
 } from "tldraw";
 import "tldraw/tldraw.css";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useYjsStore } from "./useYjsStore";
 import { AgentPanel } from "./AgentPanel";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
@@ -69,6 +71,21 @@ const components: TLComponents = {
         <TldrawUiMenuItem {...toolItems["prompt-note"]} isSelected={isSelected} />
         <DefaultToolbarContent />
       </DefaultToolbar>
+    );
+  },
+  // Room name in tldraw's top-center slot, with a way back to the board list.
+  TopPanel: () => {
+    const { roomId } = useParams<{ roomId: string }>();
+    return (
+      <div className="glass pointer-events-auto mt-2 flex items-center gap-2 rounded-full px-3 py-1 text-xs">
+        <Link href="/boards" className="text-muted transition-colors hover:text-ink">
+          ← My boards
+        </Link>
+        <span className="h-3 w-px bg-line" />
+        <span className="max-w-48 truncate font-mono text-ink" title={roomId}>
+          {roomId}
+        </span>
+      </div>
     );
   },
 };

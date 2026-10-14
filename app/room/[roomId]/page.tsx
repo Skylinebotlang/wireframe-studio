@@ -11,7 +11,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { Room } from "./Room";
 import { TldrawApp } from "./TldrawApp";
 import { IdentityGate } from "./IdentityGate";
@@ -83,14 +82,8 @@ export default function RoomPage() {
   // We know who this is: connect and draw.
   return (
     <Room roomId={roomId}>
+      {/* The room name + "My boards" link sit in tldraw's top bar (TldrawApp). */}
       <TldrawApp identity={identity} />
-      {/* A small, fixed room label so you always know where you are. */}
-      <div className="glass pointer-events-none fixed left-3 top-14 z-50 rounded-md px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest text-muted backdrop-blur">
-        Room: {roomId} ·{" "}
-        <Link href="/boards" className="pointer-events-auto underline hover:text-ink">
-          my boards
-        </Link>
-      </div>
     </Room>
   );
 }

@@ -54,3 +54,11 @@ next-env.d.ts
 
 # Browser-test screenshots and logs from Playwright
 .playwright-mcp/
+
+# Notes for AI coding tools and design tools (kept locally, not in the repo)
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+DESIGN.md
+PRODUCT.md
+memory/

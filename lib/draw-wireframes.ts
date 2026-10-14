@@ -154,7 +154,7 @@ export function undoWireframes(editor: Editor, created: TLShapeId[], removed: TL
 // ponytail: estimates text width from character count (about 13px a letter
 // at size "s"); measure real text if labels with very wide letters still clip.
 export function labelScale(label: string, w: number, h: number): number {
-  const CHAR = 13, LINE = 28, SIDE = 20;
+  const CHAR = 13, LINE = 28, SIDE = 32;
   const longestWord = Math.max(1, ...label.split(/\s+/).map((word) => word.length));
   const lines = Math.max(1, Math.floor(h / LINE));
   const need = Math.max(longestWord, Math.ceil(label.length / lines)) * CHAR;

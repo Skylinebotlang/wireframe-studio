@@ -16,7 +16,7 @@
 //      every window, driven by the shared run status.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useRef, useState } from "react";
 import {
   DefaultColorThemePalette,
   DefaultStylePanel,
@@ -28,6 +28,7 @@ import {
   useEditor,
   useIsToolSelected,
   useTools,
+  useTransform,
   useValue,
   type TLComponents,
   type TLShapeId,
@@ -83,6 +84,20 @@ const uiOverrides: TLUiOverrides = {
 };
 
 const components: TLComponents = {
+  // A teammate's drag-select box. tldraw's own draws it at ~7% strength,
+  // which reads as a dark/black box on our navy canvas. Draw it in their
+  // cursor color: light fill, clear outline.
+  CollaboratorBrush: ({ brush, color }) => {
+    const ref = useRef<SVGSVGElement>(null);
+    useTransform(ref as React.RefObject<SVGSVGElement>, brush.x, brush.y); // tldraw's own brush does the same
+    const w = Math.max(1, brush.w);
+    const h = Math.max(1, brush.h);
+    return (
+      <svg className="tl-overlays__item" ref={ref} aria-hidden="true">
+        <rect width={w} height={h} fill={color ?? "#c2475f"} fillOpacity={0.15} stroke={color ?? "#c2475f"} className="tl-brush" />
+      </svg>
+    );
+  },
   Toolbar: (props) => {
     const toolItems = useTools();
     const isSelected = useIsToolSelected(toolItems["prompt-note"]);

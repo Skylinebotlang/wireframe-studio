@@ -42,7 +42,7 @@ const labelFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wireframe Studio — multiplayer AI workspace",
+  title: "Wireframe Studio: multiplayer AI workspace",
   description:
     "A shared canvas where PMs, designers and developers drop prompt notes and an AI agent turns them into wireframes, together.",
 };

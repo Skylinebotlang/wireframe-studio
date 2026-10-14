@@ -51,3 +51,6 @@ next-env.d.ts
 
 # UX audit reports (made from signed-in sessions; keep local)
 .ux/
+
+# Browser-test screenshots and logs from Playwright
+.playwright-mcp/

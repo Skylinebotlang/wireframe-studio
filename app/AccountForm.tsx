@@ -72,6 +72,13 @@ export function AccountForm({ mode, onDone }: { mode: "signin" | "signup"; onDon
         {error}
       </p>
 
+      {!signup && (
+        <p className="text-center font-mono text-[11px] text-muted">
+          <Link href="/forgot-password" className="underline underline-offset-4 hover:text-ink">
+            Forgot password?
+          </Link>
+        </p>
+      )}
       <p className="mt-2 text-center font-mono text-[11px] text-muted">
         {signup ? "Already have an account? " : "New here? "}
         <Link href={signup ? "/login" : "/signup"} className="text-ink underline underline-offset-4">
@@ -82,7 +89,7 @@ export function AccountForm({ mode, onDone }: { mode: "signin" | "signup"; onDon
   );
 }
 
-function Field({ label, ...input }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+export function Field({ label, ...input }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className="block">
       <span className="font-mono text-[11px] uppercase tracking-widest text-muted">{label}</span>

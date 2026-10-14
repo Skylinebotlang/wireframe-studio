@@ -150,7 +150,6 @@ export function useAgentPanel(myName: string) {
       const n = result.screens.length;
       const line =
         `Run by ${by} using ${info.providerLabel}` +
-        (info.usedOwnKey ? "" : " (built-in free agent)") +
         (result.action === "ask"
           ? " · asked a question"
           : ` · ${result.action === "update" ? "updated or added" : "added"} ${n} screen${n === 1 ? "" : "s"}, ` +

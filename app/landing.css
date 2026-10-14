@@ -901,7 +901,6 @@ h1[data-build][data-state="wire"] {
 .hud-pool { width: 100%; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 10px; color: var(--muted); }
 .hud-pool ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
 .hud-pool li { border: 1px solid var(--line); padding: 5px 12px; color: var(--ink); }
-.hud-pool li.is-free { border-color: var(--accent-bright); color: var(--accent-bright); }
 
 .hud-bottom {
   display: flex;

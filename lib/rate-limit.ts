@@ -43,7 +43,7 @@ export function decide(
   if (usesBuiltInKey && runs >= DAILY_RUNS) {
     return {
       ok: false,
-      error: `This room has used all ${DAILY_RUNS} free agent runs for today. They reset at midnight UTC, or add your own AI key in "Your AI key" to keep going.`,
+      error: `This room has used all ${DAILY_RUNS} agent runs for today. They reset at midnight UTC, or add your own AI key in "Your AI key" to keep going.`,
     };
   }
   return { ok: true, next: { lastRunAt: now, day, runs: usesBuiltInKey ? runs + 1 : runs } };

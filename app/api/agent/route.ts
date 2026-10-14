@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     const useClaude = process.env.AGENT_PROVIDER === "anthropic" || !geminiKey;
     if (useClaude && !claudeKey) {
       return friendlyError(
-        "The built-in agent isn't set up: add GEMINI_API_KEY (free, from aistudio.google.com) to .env.local, or add your own key in the 'Your AI key' panel.",
+        "The agent isn't set up: add an AI key (GEMINI_API_KEY or ANTHROPIC_API_KEY) to .env.local, or add your own key in the 'Your AI key' panel.",
         500
       );
     }

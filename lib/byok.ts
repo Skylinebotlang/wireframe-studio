@@ -30,7 +30,7 @@ export function loadAiKey(): SavedAiKey | null {
 
 /**
  * What to put in the agent request body as `aiKey`: the saved key, or
- * undefined (then the server uses the app's built-in free agent).
+ * undefined (then the server uses the app's own key).
  * Usage: fetch("/api/agent", { body: JSON.stringify({ notes, aiKey: aiKeyForRequest() }) })
  */
 export function aiKeyForRequest(): SavedAiKey | undefined {

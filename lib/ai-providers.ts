@@ -69,5 +69,5 @@ export function parseUserKey(
 export type AgentRunInfo = {
   provider: ProviderId;
   providerLabel: string; // "Gemini" | "Claude" | "OpenAI"
-  usedOwnKey: boolean; // false = the app's built-in free agent
+  usedOwnKey: boolean; // false = the app's own key
 };

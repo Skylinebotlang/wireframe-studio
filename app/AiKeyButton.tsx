@@ -130,7 +130,7 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
           </>
         ) : (
           <div className="text-muted">
-            No key added. The agent uses the app&apos;s built-in free Gemini agent.
+            No key added. The agent uses the app&apos;s own AI key.
           </div>
         )}
       </div>

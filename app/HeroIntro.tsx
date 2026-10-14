@@ -270,12 +270,11 @@ export function HeroIntro() {
         </div>
 
         <div className="hud-pool lp-mono">
-          <span className="hud-pool-k">Bring your own AI, or use ours:</span>
+          <span className="hud-pool-k">Bring your own AI:</span>
           <ul>
             {PROVIDER_IDS.map((id) => (
               <li key={id}>{PROVIDERS[id].label}</li>
             ))}
-            <li className="is-free">Free built-in</li>
           </ul>
         </div>
       </div>

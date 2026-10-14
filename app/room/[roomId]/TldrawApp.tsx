@@ -122,9 +122,6 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   // True while the board has nothing on it (shows the "what to do first" hint).
   const isEmpty = useValue("board is empty", () => !!editor && editor.getCurrentPageShapeIds().size === 0, [editor]);
 
-  // Phones only: is the agent panel (a bottom sheet there) pulled up?
-  const [sheetOpen, setSheetOpen] = useState(false);
-
   // The shared agent: run status, plan, activity feed and actions.
   const agent = useAgentPanel(identity.name);
 
@@ -210,7 +207,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   }, [editor, agent]);
 
   return (
-    <div className="flex h-[100dvh] w-screen">
+    <div className="flex h-screen w-screen">
       {/* ── The canvas (left) ─────────────────────────────────────────────── */}
       <div className="relative min-w-0 flex-1">
         <Tldraw
@@ -283,22 +280,6 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
       </div>
 
       {/* ── The agent panel (right) ───────────────────────────────────────── */}
-      {/* Phones (narrower than 768px): the panel would squeeze the canvas, so
-          it becomes a bottom sheet, hidden until "Agent" is tapped. On
-          tablets and laptops it stays a column on the right as before. */}
-      <button
-        onClick={() => setSheetOpen((o) => !o)}
-        aria-expanded={sheetOpen}
-        className="glass fixed bottom-20 right-3 z-[310] flex items-center gap-2 rounded-full px-3.5 py-2 text-xs text-ink md:hidden"
-      >
-        <span className={`h-2 w-2 rounded-full ${agent.run.status === "working" ? "animate-pulse bg-agent" : "bg-wine-light"}`} />
-        {sheetOpen ? "Close" : "Agent"}
-      </button>
-      <div
-        className={`h-full shrink-0 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-[300] max-md:h-[78dvh] max-md:transition-transform max-md:duration-300 ${
-          sheetOpen ? "" : "max-md:pointer-events-none max-md:translate-y-full"
-        }`}
-      >
       <AgentPanel
         myName={identity.name}
         agent={agent}
@@ -314,7 +295,6 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         onMakeReal={handleMakeReal}
         pickedDesign={pickedDesign?.props.name ?? null}
       />
-      </div>
     </div>
   );
 }

@@ -81,7 +81,7 @@ export function AgentPanel({
   };
 
   return (
-    <aside className="flex h-full w-[340px] shrink-0 flex-col border-l border-line bg-surface text-ink max-md:w-full max-md:rounded-t-2xl max-md:border-l-0 max-md:border-t max-md:shadow-2xl">
+    <aside className="flex h-full w-[340px] shrink-0 flex-col border-l border-line bg-surface text-ink">
       {/* ── 1. Header ───────────────────────────────────────────────────── */}
       <header className="flex items-center justify-between px-4 pt-4 pb-3">
         <div className="flex items-center gap-2.5">

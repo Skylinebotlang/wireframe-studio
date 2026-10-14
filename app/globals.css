@@ -63,7 +63,7 @@ body {
 
 /* Neon glow for big headings. */
 .neon-text {
-  text-shadow: 0 0 12px rgba(194, 71, 95, 0.6), 0 0 32px rgba(104, 30, 46, 0.6);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent-bright) 60%, transparent), 0 0 32px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* Dotted canvas background — faint soft-white dots on deep navy. Used on the home
@@ -71,14 +71,14 @@ body {
 .dot-grid,
 .tl-container .tl-background {
   background-color: var(--paper) !important;
-  background-image: radial-gradient(circle, rgba(248, 244, 245, 0.09) 1.2px, transparent 1.2px);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 9%, transparent) 1.2px, transparent 1.2px);
   background-size: 24px 24px;
 }
 
 /* Thin, unobtrusive scrollbars. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2b2a42 transparent;
+  scrollbar-color: var(--line) transparent;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -111,37 +111,37 @@ body {
   backdrop-filter: blur(14px) saturate(160%);
 }
 .glass {
-  background: rgba(19, 18, 36, 0.78);
-  border: 1px solid rgba(248, 244, 245, 0.08);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 10px 40px rgba(0, 0, 0, 0.5),
-    0 0 28px -10px rgba(194, 71, 95, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 0 28px -10px color-mix(in srgb, var(--accent-bright) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 /* tldraw runs in its dark mode (see TldrawApp); tint its panels to match. */
 /* Every tldraw UI color is a variable, so we swap its default greys and
    blues for our navies, soft white and wine. Selection = wine (people). */
 .tl-container.tl-theme__dark {
-  --color-panel: rgba(19, 18, 36, 0.78);
-  --color-background: #090719;
-  --color-low: #191a2f;
-  --color-low-border: #2b2a42;
-  --color-divider: #2b2a42;
-  --color-panel-contrast: rgba(248, 244, 245, 0.08);
-  --color-muted-1: rgba(248, 244, 245, 0.08); /* button hover */
-  --color-hint: rgba(194, 71, 95, 0.14); /* active/pressed button */
-  --color-selected: #c2475f;
-  --color-primary: #c2475f;
-  --color-focus: #d98a99;
-  --color-selection-stroke: #c2475f;
-  --color-selection-fill: rgba(194, 71, 95, 0.14);
-  --color-brush-fill: rgba(194, 71, 95, 0.08);
-  --color-brush-stroke: rgba(194, 71, 95, 0.4);
-  --color-text: #f8f4f5;
-  --color-text-0: #f8f4f5;
-  --color-text-1: #d9d4dc;
-  --color-text-3: #9e99a8;
-  --color-text-shadow: #090719;
+  --color-panel: color-mix(in srgb, var(--surface) 78%, transparent);
+  --color-background: var(--paper);
+  --color-low: var(--raised);
+  --color-low-border: var(--line);
+  --color-divider: var(--line);
+  --color-panel-contrast: color-mix(in srgb, var(--ink) 8%, transparent);
+  --color-muted-1: color-mix(in srgb, var(--ink) 8%, transparent); /* button hover */
+  --color-hint: color-mix(in srgb, var(--accent-bright) 14%, transparent); /* active/pressed button */
+  --color-selected: var(--accent-bright);
+  --color-primary: var(--accent-bright);
+  --color-focus: var(--wine-light);
+  --color-selection-stroke: var(--accent-bright);
+  --color-selection-fill: color-mix(in srgb, var(--accent-bright) 14%, transparent);
+  --color-brush-fill: color-mix(in srgb, var(--accent-bright) 8%, transparent);
+  --color-brush-stroke: color-mix(in srgb, var(--accent-bright) 40%, transparent);
+  --color-text: var(--ink);
+  --color-text-0: var(--ink);
+  --color-text-1: color-mix(in srgb, var(--ink) 65%, var(--muted));
+  --color-text-3: var(--muted);
+  --color-text-shadow: var(--paper);
   --shadow-2: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 10px 32px rgba(0, 0, 0, 0.5),
-    0 0 24px -12px rgba(194, 71, 95, 0.5), inset 0 0 0 1px rgba(248, 244, 245, 0.08);
+    0 0 24px -12px color-mix(in srgb, var(--accent-bright) 50%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
   --shadow-3: var(--shadow-2);
 }
 /* tldraw's corner panels (menu at top-left, zoom at bottom-left) sit flush
@@ -151,7 +151,7 @@ body {
 .tlui-navigation-panel {
   margin: 8px;
   border-radius: 12px;
-  border: 1px solid rgba(248, 244, 245, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
   background: var(--color-panel);
 }
 .tlui-navigation-panel::before {
@@ -159,7 +159,7 @@ body {
 }
 .tlui-toolbar__tools {
   border-radius: 14px;
-  border: 1px solid rgba(248, 244, 245, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
 }
 .tlui-toolbar {
   margin-bottom: 8px;
@@ -233,8 +233,8 @@ body {
   right: -50%;
   top: 70%;
   height: 120%;
-  background-image: linear-gradient(to right, rgba(194, 71, 95, 0.1) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(194, 71, 95, 0.1) 1px, transparent 1px);
+  background-image: linear-gradient(to right, color-mix(in srgb, var(--accent-bright) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--accent-bright) 10%, transparent) 1px, transparent 1px);
   background-size: 56px 56px;
   transform: perspective(380px) rotateX(64deg);
   transform-origin: top center;
@@ -294,8 +294,8 @@ body {
   right: 0;
   top: -90px;
   height: 90px;
-  background: linear-gradient(to bottom, transparent, rgba(255, 107, 44, 0.06));
-  border-bottom: 1px solid rgba(255, 107, 44, 0.45);
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--agent) 6%, transparent));
+  border-bottom: 1px solid color-mix(in srgb, var(--agent) 45%, transparent);
   animation: agent-sweep 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 @keyframes agent-sweep {
@@ -306,10 +306,10 @@ body {
 @keyframes agent-frame {
   0%,
   100% {
-    box-shadow: inset 0 0 0 1px rgba(255, 107, 44, 0.35);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--agent) 35%, transparent);
   }
   50% {
-    box-shadow: inset 0 0 0 1px rgba(255, 107, 44, 0.1);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--agent) 10%, transparent);
   }
 }
 @keyframes fade-in {
@@ -330,7 +330,7 @@ body {
   /* Without the sweep, still show that the agent is working: a steady
      orange edge around the canvas instead of the moving scan line. */
   .agent-scan {
-    box-shadow: inset 0 0 0 2px rgba(255, 107, 44, 0.5);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--agent) 50%, transparent);
   }
   .agent-scan::before {
     display: none;

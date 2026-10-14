@@ -14,7 +14,7 @@
 // `undoWireframes` uses that to put the canvas back as it was.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createShapeId, toRichText, type Editor, type TLFrameShape, type TLGeoShape, type TLShape, type TLShapeId } from "tldraw";
+import { Box, createShapeId, toRichText, type Editor, type TLFrameShape, type TLGeoShape, type TLShape, type TLShapeId } from "tldraw";
 import type { AgentResult, BoardScreen, ComponentType } from "./agent-schema";
 import { layoutScreen, PHONE_W } from "./layout";
 
@@ -120,10 +120,11 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
     }
   });
 
-  // Bring the new screens into view for the person who ran the agent.
-  editor.select(...frameIds);
-  editor.zoomToSelection({ animation: { duration: 400 } });
-  editor.selectNone();
+  // Bring the new screens into view for the person who ran the agent, with
+  // a margin (about 170px a side) so they don't sit under the style panel (top-right) or the
+  // toolbar (bottom). Never zoom in past 100%.
+  const bounds = Box.Common(frameIds.map((id) => editor.getShapePageBounds(id)!).filter(Boolean));
+  if (frameIds.length) editor.zoomToBounds(bounds, { inset: 340, targetZoom: 1, animation: { duration: 400 } });
   record.created = frameIds;
   return record;
 }

@@ -10,7 +10,9 @@
 //   { kind: "screen", roomId, idea, resolution, styleGuide, screen: { name,
 //     components: [{ type, label, notes? }] }, otherScreens, instruction?, aiKey? }
 //     → { html, providerLabel, usedOwnKey }
-//   { kind: "review", roomId, idea, styleGuide, screen, html, aiKey? }
+//   { kind: "review", roomId, idea, styleGuide, screen, html, screenshot?, aiKey? }
+//     (screenshot: "data:image/png;base64,…" of the page, made in the browser
+//      by lib/screenshot.ts; the AI looks at it alongside the HTML)
 //     → { html, providerLabel, usedOwnKey }   the same screen, checked against
 //       a design checklist and fixed by the AI (the "design director" pass)
 //   Errors always → { error: "a sentence a person can read" }
@@ -61,6 +63,7 @@ const MAX_RESOLUTION_CHARS = 2000;
 const MAX_INSTRUCTION_CHARS = 300;
 const MAX_NAME_CHARS = 60;
 const MAX_COMPONENTS = 30;
+const MAX_SCREENSHOT_BYTES = 1_500_000; // base64 text of the PNG
 const MOCK_DELAY_MS = 1200; // time to try Pause / Take over while testing
 
 const STYLE_JOB: BrainJob = {
@@ -107,6 +110,7 @@ export async function POST(request: Request) {
   let instruction = "";
   let guide = MOCK_STYLE_GUIDE;
   let draft = ""; // review: the page to check
+  let shot: BrainJob["image"]; // review: the screenshot, if a valid PNG came with it
   if (kind === "style") {
     const screens = names(body.screens);
     if (screens.length === 0) return friendlyError("There are no screens to make real yet. Frame an idea first.", 400);
@@ -121,6 +125,8 @@ export async function POST(request: Request) {
       const page = checkDesignHtml(body.html); // only a page that passed before
       if (!page.ok) return friendlyError("That design can't be reviewed.", 400);
       draft = page.html;
+      const m = typeof body.screenshot === "string" ? body.screenshot.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/) : null;
+      if (m && m[1].length <= MAX_SCREENSHOT_BYTES) shot = { mime: "image/png", base64: m[1] };
       message = reviewUserMessage({ idea, guide, screen, html: draft });
     } else {
       instruction = text(body.instruction, MAX_INSTRUCTION_CHARS);
@@ -148,7 +154,7 @@ export async function POST(request: Request) {
   const info = { providerLabel: PROVIDERS[brain.provider].label, usedOwnKey: brain.usedOwnKey };
 
   // ── 4. Ask the AI, then check the answer before it can reach the canvas ──
-  const job = kind === "style" ? STYLE_JOB : kind === "review" ? REVIEW_JOB : SCREEN_JOB;
+  const job = kind === "style" ? STYLE_JOB : kind === "review" ? { ...REVIEW_JOB, image: shot } : SCREEN_JOB;
   // A failed AI call gives its run back (same as the agent; see Retry).
   const failed = async (message: string, status: number) => {
     await refundAgentRun(roomId, !brain.usedOwnKey);

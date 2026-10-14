@@ -193,7 +193,7 @@ Output ONE complete HTML document ("<!doctype html><html>…</html>") for a ${PH
 - ${NO_ORANGE}
 - Keep it compact: under 25 KB. Return it in the "html" field.`;
 
-export const REVIEW_SYSTEM_PROMPT = `You are a design director reviewing ONE mobile screen (an HTML page, ${PHONE_CSS_W}px wide) made by a junior designer. Find every problem on this checklist and FIX it in the page. Change nothing that is already good, and keep the same content, parts and order.
+export const REVIEW_SYSTEM_PROMPT = `You are a design director reviewing ONE mobile screen (an HTML page, ${PHONE_CSS_W}px wide) made by a junior designer. When a screenshot of the rendered page is attached, LOOK at it first: it shows what people actually see (overlaps, cut-off or wrapping text, cramped or uneven spacing, weak contrast, misaligned edges). Find every problem on this checklist and FIX it in the page. Change nothing that is already good, and keep the same content, parts and order.
 
 Checklist:
 1. Contrast: all text clearly readable on its background.

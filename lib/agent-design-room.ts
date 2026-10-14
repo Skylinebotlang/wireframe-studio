@@ -27,8 +27,9 @@ import { LiveMap } from "@liveblocks/client";
 import { useMutation, useRoom } from "@liveblocks/react/suspense";
 import type { BoardScreen } from "./agent-schema";
 import type { ActivityItem, DesignRecord, PlanStep } from "./agent-room-types";
-import { MAX_DESIGN_SCREENS, type DesignScreen, type StyleGuide } from "./agent-design";
+import { MAX_DESIGN_SCREENS, PHONE_CSS_H, PHONE_CSS_W, type DesignScreen, type StyleGuide } from "./agent-design";
 import { aiKeyForRequest } from "./byok";
+import { screenshotHtml } from "./screenshot";
 import { authHeader } from "./auth";
 
 // ~20-60 KB each; a free Liveblocks room holds about 1 MB of Storage.
@@ -211,7 +212,10 @@ export function useDesignPanel(myName: string) {
       // 3. Design-director pass: the AI checks the page against a design
       // checklist and fixes it. Saved over the first version only if it
       // comes back clean; otherwise the first version simply stays.
-      const reviewed = await call(runId, { kind: "review", idea, styleGuide: guide, screen, html: record.html });
+      // With a screenshot, the reviewer sees what actually renders (null =
+      // couldn't capture; it then reviews from the HTML alone).
+      const screenshot = await screenshotHtml(record.html, PHONE_CSS_W, PHONE_CSS_H);
+      const reviewed = await call(runId, { kind: "review", idea, styleGuide: guide, screen, html: record.html, screenshot });
       if (reviewed === "stopped") return null;
       if (!("error" in reviewed) && typeof reviewed.html === "string") {
         if ((await holdWhilePaused(runId)) === "stop") return null;

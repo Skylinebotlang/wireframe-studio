@@ -39,7 +39,13 @@ const userMessage = (notesText: string) => notesText;
 
 // What to ask for: the instructions, the JSON answer format, and (for
 // Claude) the name of the tool it answers with.
-export type BrainJob = { system: string; schema: object; toolName: string; toolDescription: string };
+export type BrainJob = {
+  system: string;
+  schema: object;
+  toolName: string;
+  toolDescription: string;
+  image?: { mime: "image/png"; base64: string }; // optional picture sent with the message (review pass)
+};
 
 const WIREFRAME_JOB: BrainJob = {
   system: SYSTEM_PROMPT,
@@ -128,7 +134,15 @@ async function askGeminiModel(model: string, key: string, notesText: string, onT
         headers: { "content-type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: job.system }] },
-          contents: [{ role: "user", parts: [{ text: userMessage(notesText) }] }],
+          contents: [
+            {
+              role: "user",
+              parts: [
+                ...(job.image ? [{ inlineData: { mimeType: job.image.mime, data: job.image.base64 } }] : []),
+                { text: userMessage(notesText) },
+              ],
+            },
+          ],
           generationConfig: {
             responseMimeType: "application/json",
             responseJsonSchema: job.schema,
@@ -263,7 +277,12 @@ async function askClaude(key: string, notesText: string, job: BrainJob): Promise
         messages: [
           {
             role: "user",
-            content: `${userMessage(notesText)}\n\nAnswer by calling ${job.toolName} exactly once.`,
+            content: [
+              ...(job.image
+                ? [{ type: "image" as const, source: { type: "base64" as const, media_type: job.image.mime, data: job.image.base64 } }]
+                : []),
+              { type: "text" as const, text: `${userMessage(notesText)}\n\nAnswer by calling ${job.toolName} exactly once.` },
+            ],
           },
         ],
       })
@@ -318,7 +337,15 @@ async function askOpenAI(key: string, notesText: string, job: BrainJob): Promise
         model: PROVIDERS.openai.model,
         messages: [
           { role: "system", content: job.system },
-          { role: "user", content: userMessage(notesText) },
+          {
+            role: "user",
+            content: job.image
+              ? [
+                  { type: "image_url", image_url: { url: `data:${job.image.mime};base64,${job.image.base64}` } },
+                  { type: "text", text: userMessage(notesText) },
+                ]
+              : userMessage(notesText),
+          },
         ],
         response_format: {
           type: "json_schema",

@@ -360,9 +360,14 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
           const name = mine ? "You" : a.who;
           const time = new Date(a.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           const clamp = open.has(a.id) ? "" : "line-clamp-3";
+          const isAgentLine = a.who === "Agent";
+          // The name is already shown above the text, so drop it from the
+          // start of the line ("papi asked the agent to..." -> "asked the agent to...").
+          const text = a.text.startsWith(a.who + " ") ? a.text.slice(a.who.length + 1) : a.text;
           let row: React.ReactNode;
 
-          if (IDEA_KINDS.has(a.kind)) {
+          // A person asking for designs ("Make it real") counts as their idea.
+          if (IDEA_KINDS.has(a.kind) || (a.kind === "design" && !isAgentLine)) {
             // A person's own words: the thing you most want to find again.
             const isAgent = a.who === "Agent"; // the agent's questions
             row = (
@@ -372,7 +377,7 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
                   <span className="flex items-baseline gap-2 text-[11px]">
                     <span className={`font-medium ${isAgent ? "text-agent" : "text-ink"}`}>{name}</span>
                     <span className="text-muted">
-                      {a.kind === "pick" ? "picked a version" : a.kind === "question" ? "asked" : "wrote"}
+                      {a.kind === "pick" ? "" : a.kind === "question" ? "asked" : a.kind === "design" ? "" : "wrote"}
                     </span>
                     <time className="ml-auto shrink-0 font-mono text-[10px] text-muted">{time}</time>
                   </span>
@@ -381,22 +386,22 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
                       isAgent ? "border-agent/25 bg-agent/5" : mine ? "border-accent-bright/30 bg-accent/25" : "border-line bg-raised/60"
                     }`}
                   >
-                    {a.text}
+                    {a.kind === "prompt" || a.kind === "question" ? a.text : text}
                   </span>
                 </button>
               </div>
             );
-          } else if (AGENT_KINDS.has(a.kind)) {
+          } else if (AGENT_KINDS.has(a.kind) && isAgentLine) {
             row = (
               <div className="flex gap-2.5">
                 <AgentAvatar small />
                 <button onClick={() => toggle(a.id)} className="min-w-0 flex-1 text-left">
                   <span className="flex items-baseline gap-2 text-[11px]">
-                    <span className="font-medium text-agent">{a.who === "Agent" ? "Agent" : name}</span>
+                    <span className="font-medium text-agent">Agent</span>
                     <time className="ml-auto shrink-0 font-mono text-[10px] text-muted">{time}</time>
                   </span>
                   <span className={`mt-0.5 block text-xs leading-relaxed ${a.kind === "error" ? "text-wine-light" : "text-ink/85"} ${clamp}`}>
-                    {a.text}
+                    {text}
                   </span>
                 </button>
               </div>
@@ -405,7 +410,7 @@ function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myNam
             // Housekeeping: small and quiet, lined up with the text above.
             row = (
               <p className="flex items-baseline gap-2 pl-[34px] text-[11px] leading-snug text-muted/80">
-                <span className="min-w-0 flex-1">{mine && a.text.startsWith(myName + " ") ? "You" + a.text.slice(myName.length) : a.text}</span>
+                <span className="min-w-0 flex-1">{mine && a.text.startsWith(myName + " ") ? "You " + text : a.text}</span>
                 <time className="shrink-0 font-mono text-[10px]">{time}</time>
               </p>
             );

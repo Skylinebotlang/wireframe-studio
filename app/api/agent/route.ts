@@ -38,6 +38,7 @@ import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/age
 import { askBrain } from "@/lib/agent-brains";
 import { scanPartial } from "@/lib/stream-scan";
 import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
+import { claimUserRun, refundUserRun } from "@/lib/user-limit";
 import { getSignedInUser, type SignedInUser } from "@/lib/auth-server";
 import { addDecisions, decisionsForPrompt } from "@/lib/decisions-db";
 import { boardsConfigured } from "@/lib/boards-db";
@@ -144,8 +145,15 @@ export async function POST(request: Request) {
 
   // ── Rate limit: checked AFTER the key is picked (own keys skip the daily
   // cap) and BEFORE the AI is called, so a blocked run costs nothing.
+  // Per person first (atomic), then per room; if the room says no, give
+  // the person's run back.
+  const personal = usedOwnKey ? null : await claimUserRun(me.id);
+  if (personal) return friendlyError(personal, 429);
   const limited = await claimAgentRun(roomId, !usedOwnKey);
-  if (limited) return friendlyError(limited, 429);
+  if (limited) {
+    if (!usedOwnKey) await refundUserRun(me.id);
+    return friendlyError(limited, 429);
+  }
 
   // Lay the notes out as plain text the AI can read, one block per note.
   const notesBlocks = notes
@@ -190,7 +198,10 @@ export async function POST(request: Request) {
 
   const log = (result: AgentResult) => recordMerges(roomId, me, result);
   // A failed AI call doesn't count against the room's limits (see Retry).
-  const refund = () => refundAgentRun(roomId, !usedOwnKey);
+  const refund = async () => {
+    await refundAgentRun(roomId, !usedOwnKey);
+    if (!usedOwnKey) await refundUserRun(me.id);
+  };
   if (wantsStream) return streamAgent(provider, key, promptText, runInfo, log, refund);
 
   // ── 4. Ask the AI ─────────────────────────────────────────────────────────

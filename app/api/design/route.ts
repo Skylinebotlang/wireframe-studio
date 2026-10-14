@@ -33,6 +33,7 @@
 import { NextResponse } from "next/server";
 import { askBrain, pickBrain, type BrainJob } from "@/lib/agent-brains";
 import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
+import { claimUserRun, refundUserRun } from "@/lib/user-limit";
 import { getSignedInUser } from "@/lib/auth-server";
 import { patternsPrompt } from "@/lib/ui-patterns";
 import { PROVIDERS } from "@/lib/ai-providers";
@@ -87,7 +88,8 @@ const SCREEN_JOB: BrainJob = {
 
 export async function POST(request: Request) {
   // ── 0. Signed-in people only (like every other API) ───────────────────────
-  if (!(await getSignedInUser(request))) return friendlyError("Please sign in to use Make it real.", 401);
+  const me = await getSignedInUser(request);
+  if (!me) return friendlyError("Please sign in to use Make it real.", 401);
 
   // ── 1. Read and check the request ─────────────────────────────────────────
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
@@ -149,8 +151,13 @@ export async function POST(request: Request) {
   // ── 3. Whose key, then the room's daily limit (before the AI is called) ──
   const brain = pickBrain(body.aiKey);
   if ("error" in brain) return friendlyError(brain.error, brain.status);
+  const personal = brain.usedOwnKey ? null : await claimUserRun(me.id);
+  if (personal) return friendlyError(personal, 429);
   const limited = await claimAgentRun(roomId, !brain.usedOwnKey, 0);
-  if (limited) return friendlyError(limited, 429);
+  if (limited) {
+    if (!brain.usedOwnKey) await refundUserRun(me.id);
+    return friendlyError(limited, 429);
+  }
   const info = { providerLabel: PROVIDERS[brain.provider].label, usedOwnKey: brain.usedOwnKey };
 
   // ── 4. Ask the AI, then check the answer before it can reach the canvas ──
@@ -158,6 +165,7 @@ export async function POST(request: Request) {
   // A failed AI call gives its run back (same as the agent; see Retry).
   const failed = async (message: string, status: number) => {
     await refundAgentRun(roomId, !brain.usedOwnKey);
+    if (!brain.usedOwnKey) await refundUserRun(me.id);
     return friendlyError(message, status);
   };
   const reply = await askBrain(brain.provider, brain.key, message, undefined, job);

@@ -34,6 +34,7 @@ export function AgentPanel({
   onResume,
   onUndo,
   onRetry,
+  retryDesigns,
   onMakeReal,
   pickedDesign,
   myName,
@@ -47,6 +48,7 @@ export function AgentPanel({
   onResume: () => void;
   onUndo: () => void;
   onRetry?: () => void; // set when this person started the run that failed
+  retryDesigns: number; // designs that failed in this person's last Make it real (others worked)
   onMakeReal: (instruction: string) => void;
   pickedDesign: string | null; // name of the one design selected (Regenerate), or null
   myName: string; // this person's display name (their own lines say "You")
@@ -222,6 +224,11 @@ export function AgentPanel({
               </QuietButton>
             )}
             {message && <p className="text-xs leading-relaxed text-wine-light">{message}</p>}
+            {retryDesigns > 0 && onRetry && !working && !paused && (
+              <QuietButton onClick={onRetry} full>
+                Retry {retryDesigns} failed screen{retryDesigns === 1 ? "" : "s"}
+              </QuietButton>
+            )}
             {run.status === "error" && run.error && (
               <div className="space-y-2">
                 <p className="flex gap-2 text-xs leading-relaxed text-ink">

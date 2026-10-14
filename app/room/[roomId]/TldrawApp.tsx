@@ -173,7 +173,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   // ── "Send to agent": collect every note on the board ─────────────────────
   // Reads our Prompt notes and tldraw's plain sticky notes (press N).
   // What this person last asked for, so "Retry" can ask again.
-  const [lastAsk, setLastAsk] = useState<{ idea: string } | "notes" | null>(null);
+  const [lastAsk, setLastAsk] = useState<{ idea: string } | "notes" | "design" | null>(null);
 
   const handleSend = useCallback(async () => {
     setLastAsk("notes");
@@ -232,6 +232,14 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     }
     if (problem) setMessage(problem);
   }, [editor, design, pickedDesign]);
+
+  // Retry: redo only the designs that failed last time (same style guide).
+  const handleRetryDesign = useCallback(async () => {
+    if (!editor) return;
+    setMessage("");
+    const problem = await design.retryFailed((designId, name) => placeDesign(editor, designId, name));
+    if (problem) setMessage(problem);
+  }, [editor, design]);
 
   // ── "Undo last agent run": put the canvas back as it was before it ───────
   const handleUndo = useCallback(() => {
@@ -329,7 +337,17 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         onIdea={handleIdea}
         // Retry the failed run with whatever AI key is set NOW (switch keys
         // in "Your AI key" first if one provider is down).
-        onRetry={lastAsk ? () => (lastAsk === "notes" ? handleSend() : handleIdea(lastAsk.idea)) : undefined}
+        onRetry={
+          lastAsk === "design"
+            ? design.failed
+              ? handleRetryDesign
+              : undefined
+            : lastAsk
+              ? () => (lastAsk === "notes" ? handleSend() : handleIdea(lastAsk.idea))
+              : undefined
+        }
+        // Some designs failed but others worked: offer to redo just those.
+        retryDesigns={lastAsk === "design" && agent.run.status === "done" ? design.failed : 0}
         onResume={() => agent.resume(draw)}
         onUndo={handleUndo}
         onMakeReal={handleMakeReal}

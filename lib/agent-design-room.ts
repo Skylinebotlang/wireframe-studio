@@ -6,6 +6,8 @@
 //   const design = useDesignPanel(identity.name);
 //   design.makeReal(boardScreens, idsFor, onDesign)   → design these screens
 //   design.regenerate(designId, "make it darker", onDesign) → redo one design
+//   design.retryFailed(onDesign)  → redo only the screens that failed last time
+//                                   (design.failed says how many; this browser only)
 //
 // A run, driven from the browser of the person who clicked, one server call
 // at a time (app/api/design):
@@ -23,6 +25,7 @@
 // MAX_SAVED_DESIGNS only, so the room doesn't grow forever.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { useState } from "react";
 import { LiveMap } from "@liveblocks/client";
 import { useMutation, useRoom } from "@liveblocks/react/suspense";
 import type { BoardScreen } from "./agent-schema";
@@ -44,10 +47,14 @@ const plan = (doneUpTo: number, workingUpTo = doneUpTo): PlanStep[] =>
 type Control = "go" | "paused" | "stop";
 // Puts a saved design on the canvas (TldrawApp → placeDesign).
 type OnDesign = (designId: string, screenName: string) => void;
+// What a run was asked to do, kept for Retry.
+type RunJob = { screens: DesignScreen[]; ids: string[]; guide?: StyleGuide; instruction?: string };
 
 export function useDesignPanel(myName: string) {
   const room = useRoom();
   const roomId = room.id;
+  // The screens that failed in this person's last run (null = none), for Retry.
+  const [failed, setFailed] = useState<RunJob | null>(null);
 
   // ── Claim the agent for a design run. Returns the run id, or null if busy.
   // Also returns what the screens are about: the last idea typed and the
@@ -178,6 +185,7 @@ export function useDesignPanel(myName: string) {
     // 2. Each screen in turn: designed, saved, placed on the canvas.
     let made = 0;
     const problems: string[] = [];
+    const failedAt: number[] = []; // which screens to offer for Retry
     for (const [i, screen] of opts.screens.entries()) {
       if ((await holdWhilePaused(runId)) === "stop") return null;
       const r = await call(runId, {
@@ -192,6 +200,7 @@ export function useDesignPanel(myName: string) {
       if (r === "stopped") return null;
       if ("error" in r) {
         problems.push(`${screen.name}: ${r.error}`);
+        failedAt.push(i);
         continue; // one bad screen doesn't sink the others
       }
       provider = String(r.providerLabel ?? provider);
@@ -224,12 +233,20 @@ export function useDesignPanel(myName: string) {
     }
 
     if (made === 0) return fail(problems[0] ?? "The agent couldn't design these screens. Please try again.");
-    const failed = problems.length ? ` (${problems.length} failed: ${problems.join("; ")})` : "";
-    end(runId, "", `Made ${made} screen${made === 1 ? "" : "s"} real using ${provider}${failed}`);
+    const failedNote = problems.length ? ` (${problems.length} failed: ${problems.join("; ")})` : "";
+    end(runId, "", `Made ${made} screen${made === 1 ? "" : "s"} real using ${provider}${failedNote}`);
+    // Retry redoes only the failed screens, with the same style guide.
+    setFailed(
+      failedAt.length
+        ? { screens: failedAt.map((i) => opts.screens[i]), ids: failedAt.map((i) => opts.ids[i]), guide, instruction: opts.instruction }
+        : null
+    );
     return problems.length ? `Some screens failed: ${problems.join("; ")}` : null;
 
     function fail(message: string) {
       end(runId, message, "");
+      // Nothing was made: Retry redoes the whole run (style guide too, if it failed there).
+      setFailed({ screens: opts.screens, ids: opts.ids, guide, instruction: opts.instruction });
       return message;
     }
   }
@@ -281,7 +298,18 @@ export function useDesignPanel(myName: string) {
     });
   }
 
-  return { makeReal, regenerate };
+  /** Redo only the screens that failed in this person's last run. */
+  async function retryFailed(onDesign: OnDesign) {
+    if (!failed) return null;
+    const n = failed.screens.length;
+    return designRun({
+      feedLine: `${myName} asked the agent to retry ${n} screen${n === 1 ? "" : "s"}`,
+      ...failed,
+      onDesign,
+    });
+  }
+
+  return { makeReal, regenerate, retryFailed, failed: failed?.screens.length ?? 0 };
 }
 
 function log(feed: { push: (a: ActivityItem) => void; length: number; delete: (i: number) => void }, who: string, kind: ActivityItem["kind"], text: string) {

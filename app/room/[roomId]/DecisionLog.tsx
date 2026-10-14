@@ -70,7 +70,7 @@ export function DecisionLog({ trigger, myName }: { trigger: string; myName: stri
           const byAgent = d.decidedBy === "Agent" && d.kind === "merge";
           const day = dayLabel(Date.parse(d.createdAt));
           const divider = i === 0 || dayLabel(Date.parse(all[i - 1].createdAt)) !== day;
-          // A teammate's pick: their name and a stripe in their own color.
+          // A teammate's pick: their name and a faint border in their own color.
           const other = !byAgent && d.decidedBy !== myName ? personColor(d.decidedBy) : undefined;
           return (
             <li key={d.id}>
@@ -82,8 +82,8 @@ export function DecisionLog({ trigger, myName }: { trigger: string; myName: stri
                 </div>
               )}
               <details
-                className="group rounded-xl border border-line border-l-2 bg-raised/60 p-3 text-xs"
-                style={{ borderLeftColor: byAgent ? "#FF6B2C" : other ?? "#E0607E" }}
+                className="group rounded-xl border border-line bg-raised/60 p-3 text-xs"
+                style={other ? { borderColor: other + "4D" } : undefined}
               >
                 <summary className="cursor-pointer list-none">
                   <p className="leading-relaxed text-ink">{d.decision}</p>

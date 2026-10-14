@@ -35,11 +35,29 @@ const toAccount = (u: SupabaseUser): Account => ({
 export function useAccount(): Account | null | undefined {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setAccount(data.session ? toAccount(data.session.user) : null));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) =>
-      setAccount(session ? toAccount(session.user) : null)
-    );
-    return () => data.subscription.unsubscribe();
+    let answered = false;
+    const answer = (session: { user: SupabaseUser } | null) => {
+      answered = true;
+      setAccount(session ? toAccount(session.user) : null);
+    };
+    supabase.auth
+      .getSession()
+      .then(({ data }) => answer(data.session))
+      .catch(() => answer(null));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => answer(session));
+    // Renewing an expired sign-in can hang (e.g. another tab holds the lock).
+    // Never leave the page blank: after 6s, treat it as signed out, so the
+    // sign-in form shows. Signing in again fixes the session.
+    const giveUp = setTimeout(() => {
+      if (!answered) {
+        console.warn("Sign-in check timed out; showing the sign-in form.");
+        setAccount(null);
+      }
+    }, 6000);
+    return () => {
+      clearTimeout(giveUp);
+      data.subscription.unsubscribe();
+    };
   }, []);
   return account;
 }

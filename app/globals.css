@@ -40,6 +40,7 @@
   --color-accent: var(--accent);
   --color-accent-bright: var(--accent-bright);
   --color-agent: var(--agent);
+  --color-wine-light: var(--wine-light);
 
   /* Fonts — wired to the next/font variables from app/layout.tsx */
   --font-heading: var(--font-bulzing), sans-serif;

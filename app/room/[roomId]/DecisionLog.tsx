@@ -45,32 +45,49 @@ export function DecisionLog({ trigger }: { trigger: string }) {
     };
   }, [boardId, trigger]);
 
+  // Each decision is a card: who decided (badge) + when, the clash in quiet
+  // text, the outcome in bright text, and the screens it touched as chips.
   return (
-    <section>
-      <h3 className="mb-2 font-mono text-[11px] uppercase tracking-widest text-muted">
-        Decisions{decisions ? ` (${decisions.length})` : ""}
-      </h3>
-      {error && <p className="text-xs text-accent-bright">{error}</p>}
-      {decisions === null && !error && <p className="text-xs text-muted">Loading…</p>}
+    <div>
+      {error && <p className="text-xs text-wine-light">{error}</p>}
+      {decisions === null && !error && <p className="py-6 text-center text-xs text-muted">Loading…</p>}
       {decisions?.length === 0 && (
-        <p className="text-xs text-muted">No decisions yet. When teammates&apos; notes clash, how it was settled shows up here.</p>
+        <p className="py-6 text-center text-xs leading-relaxed text-muted">
+          No decisions yet. When teammates&apos; notes clash, how it was settled shows up here.
+        </p>
       )}
       <ol className="space-y-2">
-        {decisions?.map((d) => (
-          <li key={d.id} className="rounded-md border border-line bg-raised p-2.5 text-xs leading-relaxed">
-            <p className="text-muted">{d.summary}</p>
-            <p className="mt-1 text-ink">→ {d.decision}</p>
-            <p className="mt-1.5 font-mono text-[11px] text-muted">
-              <span className={d.decidedBy === "Agent" && d.kind === "merge" ? "text-agent" : "text-accent-bright"}>
-                {d.kind === "merge" ? "Agent merged" : `${d.decidedBy} chose`}
-              </span>
-              {" · "}
-              {new Date(d.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-              {d.screens.length > 0 && ` · ${d.screens.join(", ")}`}
-            </p>
-          </li>
-        ))}
+        {decisions?.map((d) => {
+          const byAgent = d.decidedBy === "Agent" && d.kind === "merge";
+          return (
+            <li key={d.id} className="rounded-xl border border-line bg-raised/60 p-3 text-xs">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
+                    byAgent ? "bg-agent/15 text-agent" : "bg-accent/50 text-ink"
+                  }`}
+                >
+                  {byAgent ? "Agent merged" : `${d.decidedBy} chose`}
+                </span>
+                <time className="font-mono text-[10px] text-muted">
+                  {new Date(d.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </time>
+              </div>
+              <p className="leading-relaxed text-muted">{d.summary}</p>
+              <p className="mt-1.5 border-l-2 border-accent-bright/60 pl-2 leading-relaxed text-ink">{d.decision}</p>
+              {d.screens.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {d.screens.map((s) => (
+                    <span key={s} className="rounded-md bg-paper/70 px-1.5 py-0.5 font-mono text-[10px] text-muted">
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ol>
-    </section>
+    </div>
   );
 }

@@ -3,20 +3,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // AGENT PANEL — the right-hand column of the workspace. Everyone in the room
 // sees the same thing, because it all reads from the shared agent state in
-// Liveblocks (lib/agent-room.ts):
+// Liveblocks (lib/agent-room.ts).
 //
-//   • status + "Send to agent" / Pause / Resume / Take over / Undo last run
-//   • the plan, with progress ticks
-//   • clash cards: what clashed, how the agent merged it, and buttons to use
-//     one person's version instead (applied on the next run)
-//   • "Frame your idea": type an idea and the agent draws it right away
-//   • "Make it real": turn the wireframes into real designs (stage 2), or
-//     redo one selected design with a short instruction
-//   • the decision log: every clash merge and pick, kept forever
-//   • the activity feed: who did what, and which AI ran ("Run by papi using Gemini")
+// Top to bottom:
+//   1. Header: "Agent", its status, and the "Your AI key" button.
+//   2. Composer: type an idea and press Enter (chat style). Under it, two
+//      quieter actions: "Use canvas notes" and "Make it real".
+//   3. Run card (only while something is happening): plan progress,
+//      Pause / Resume / Take over, Undo last run, errors + Retry.
+//   4. Clash cards from the last run, with "Use X's version" buttons.
+//   5. Two tabs: Activity (who did what) and Decisions (kept forever).
 //
-// Colors: wine = people's actions. ORANGE only when the agent itself is
-// working or speaking.
+// Colors: wine = people. ORANGE only when the agent itself is working or
+// speaking (its avatar, its status, its question, "How I merged it").
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from "react";
@@ -53,9 +52,12 @@ export function AgentPanel({
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
   const [instruction, setInstruction] = useState("");
+  const [tab, setTab] = useState<"activity" | "decisions">("activity");
   const working = run.status === "working";
   const paused = run.status === "paused";
+  const busy = !editor || working || paused;
   const asking = run.status === "done" && run.result?.action === "ask";
+  const showRunCard = working || paused || run.status === "error" || !!message || !!agent.undo;
 
   // Who wrote each clashing note, read from the notes on the canvas.
   const authorOf = (noteId: string) => {
@@ -64,38 +66,52 @@ export function AgentPanel({
     return name || null;
   };
 
+  const sendIdea = () => {
+    if (!idea.trim() || busy) return;
+    onIdea(idea);
+    setIdea("");
+  };
+
+  const makeReal = () => {
+    if (busy) return;
+    onMakeReal(pickedDesign ? instruction : "");
+    setInstruction("");
+  };
+
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-line bg-surface text-ink">
-      {/* ── Header: title, status, key button ─────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-line px-4 py-3">
-        <div>
-          <h2 className="font-heading text-sm tracking-wide">Agent</h2>
-          <StatusLine run={run} />
+    <aside className="flex h-full w-[340px] shrink-0 flex-col border-l border-line bg-surface text-ink">
+      {/* ── 1. Header ───────────────────────────────────────────────────── */}
+      <header className="flex items-center justify-between px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2.5">
+          <AgentAvatar active={working || paused} />
+          <div>
+            <h2 className="font-heading text-sm leading-none tracking-wide">Agent</h2>
+            <StatusLine run={run} />
+          </div>
         </div>
         <AiKeyButton />
-      </div>
+      </header>
 
       {/* pb-16: room at the bottom so the "Powered by Liveblocks" badge
-          (bottom-right, free plan) never covers the last feed lines. */}
-      <div className="flex-1 space-y-5 overflow-y-auto px-4 pt-4 pb-16">
-        {/* ── Frame your idea: the main way to make mockups ────────────────── */}
+          (bottom-right, free plan) never covers the last lines. */}
+      <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-16">
+        {/* ── 2. Composer ───────────────────────────────────────────────── */}
         <section>
-          <Label>Frame your idea</Label>
-          {/* The agent wasn't sure: its question, in orange (the agent speaking). */}
+          {/* The agent wasn't sure: its question (the agent speaking). */}
           {asking && (
-            <p className="mb-2 border-l-2 border-agent pl-2.5 text-xs leading-relaxed text-ink">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-agent">Agent asks · </span>
-              {run.result?.question}
-            </p>
+            <div className="mb-2 flex gap-2">
+              <AgentAvatar small />
+              <p className="rounded-lg rounded-tl-sm bg-raised px-3 py-2 text-xs leading-relaxed">
+                {run.result?.question}
+              </p>
+            </div>
           )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!idea.trim()) return;
-              onIdea(idea);
-              setIdea("");
+              sendIdea();
             }}
-            className="space-y-1.5"
+            className="rounded-xl border border-line bg-paper/60 transition-colors focus-within:border-accent-bright/70"
           >
             <textarea
               value={idea}
@@ -104,228 +120,330 @@ export function AgentPanel({
                 // Enter sends, Shift+Enter makes a new line.
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  e.currentTarget.form?.requestSubmit();
+                  sendIdea();
                 }
               }}
               rows={3}
               maxLength={1000}
-              placeholder={asking ? "Type your answer…" : "e.g. a sign-up flow for a dog-walking app"}
-              className="w-full resize-none rounded-md border border-line bg-paper px-2 py-1.5 text-xs text-ink outline-none focus:border-accent-bright"
+              aria-label="Describe what to design"
+              placeholder={asking ? "Type your answer…" : "Describe a screen or flow… e.g. a sign-up flow for a dog-walking app"}
+              className="block w-full resize-none bg-transparent px-3 pt-3 text-[13px] leading-relaxed text-ink outline-none placeholder:text-muted/70"
             />
-            <button
-              disabled={!editor || working || paused || !idea.trim()}
-              className="w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-ink hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Frame it
-            </button>
+            <div className="flex items-center justify-between px-2 pb-2">
+              <span className="pl-1 font-mono text-[10px] text-muted/80">Enter to send · Shift+Enter new line</span>
+              <button
+                type="submit"
+                aria-label="Frame it"
+                title="Frame it"
+                disabled={busy || !idea.trim()}
+                className="flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-medium text-ink transition hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Frame it
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
           </form>
-          {/* The second way in: read every note on the canvas. Quieter, so
-              "Frame it" stays the one obvious main action. */}
-          <button
-            onClick={onSend}
-            disabled={!editor || working || paused}
-            className={`mt-2 w-full rounded-md px-3 py-1.5 text-xs transition-colors disabled:cursor-not-allowed ${
-              working ? "bg-agent text-ink" : "border border-line text-muted hover:border-accent-bright hover:text-ink disabled:opacity-50"
-            }`}
-          >
-            {working ? "Agent working…" : "or send the canvas notes to the agent"}
-          </button>
-        </section>
 
-        {/* ── Run controls: only while a run is going, or when there's one to undo ── */}
-        <section className="space-y-2 empty:hidden">
-          {(working || paused) && (
-            <div className="grid grid-cols-2 gap-2">
-              {paused ? (
-                <SmallButton onClick={onResume}>Resume</SmallButton>
-              ) : (
-                <SmallButton onClick={agent.pause}>Pause</SmallButton>
-              )}
-              <SmallButton onClick={agent.takeOver}>Take over</SmallButton>
-            </div>
-          )}
-          {agent.undo && !working && !paused && (
-            <SmallButton onClick={onUndo}>
-              Undo last agent run ({agent.undo.screens} screen{agent.undo.screens === 1 ? "" : "s"} by {agent.undo.by})
-            </SmallButton>
-          )}
-          {message && <p className="text-xs text-accent-bright">{message}</p>}
-          {run.status === "error" && run.error && (
-            <div className="space-y-1.5">
-              <p className="text-xs text-accent-bright">⚠ {run.error}</p>
-              {onRetry && (
-                <>
-                  <SmallButton onClick={onRetry}>Retry</SmallButton>
-                  <p className="font-mono text-[11px] text-muted">Tip: switch AI in &quot;Your AI key&quot; first if one keeps failing.</p>
-                </>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* ── Make it real: wireframes → real designs (stage 2) ─────────────── */}
-        <section className="space-y-1.5 border-t border-line pt-4">
-          <Label>Make it real</Label>
-          <p className="text-[11px] leading-snug text-muted">
-            {pickedDesign
-              ? `Redo the ${pickedDesign} design. Say what to change, or leave it empty.`
-              : "Turns the wireframes (or the frames you select) into real designs. Select a design to redo it."}
-          </p>
+          {/* Two quieter ways in. */}
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <QuietButton onClick={onSend} disabled={busy} title="Read every note on the canvas, settle clashes, and draw">
+              <NotesIcon /> Use canvas notes
+            </QuietButton>
+            <QuietButton
+              onClick={makeReal}
+              disabled={busy}
+              title={pickedDesign ? `Redo the ${pickedDesign} design` : "Turn the wireframes (or the selected frames) into real designs"}
+            >
+              <SparkIcon /> {pickedDesign ? `Redo ${pickedDesign}` : "Make it real"}
+            </QuietButton>
+          </div>
           {pickedDesign && (
             <input
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
-              // Enter = same as clicking "Regenerate" (unless a run is going).
+              // Enter = same as clicking "Redo" (unless a run is going).
               onKeyDown={(e) => {
-                if (e.key === "Enter" && editor && !working && !paused) {
+                if (e.key === "Enter") {
                   e.preventDefault();
-                  onMakeReal(instruction);
-                  setInstruction("");
+                  makeReal();
                 }
               }}
               maxLength={300}
-              placeholder={`e.g. make ${pickedDesign} darker`}
-              className="w-full rounded-md border border-line bg-paper px-2 py-1.5 text-xs text-ink outline-none focus:border-accent-bright"
+              aria-label={`What to change in ${pickedDesign}`}
+              placeholder={`What to change? e.g. make ${pickedDesign} darker`}
+              className="mt-2 w-full rounded-lg border border-line bg-paper/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-muted/70 focus:border-accent-bright/70"
             />
           )}
-          <button
-            onClick={() => {
-              onMakeReal(pickedDesign ? instruction : "");
-              setInstruction("");
-            }}
-            disabled={!editor || working || paused}
-            className="w-full rounded-md border border-accent-bright/60 px-3 py-2 text-sm text-ink transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pickedDesign ? `Regenerate ${pickedDesign}` : "Make it real"}
-          </button>
         </section>
 
-        {/* ── Plan + progress (hidden until the first run) ─────────────────── */}
-        {run.status !== "idle" && (
-        <section className="border-t border-line pt-4">
-          <Label>Plan</Label>
-          <ol className="space-y-1 text-xs">
-            {run.steps.map((s) => (
-              <li key={s.label} className="flex items-center gap-2">
-                <span
-                  className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] ${
-                    s.state === "done"
-                      ? "border-accent-bright bg-accent text-ink"
-                      : s.state === "working"
-                        ? "animate-pulse border-agent text-agent"
-                        : "border-line text-muted"
-                  }`}
-                >
-                  {s.state === "done" ? "✓" : ""}
-                </span>
-                <span className={s.state === "todo" ? "text-muted" : "text-ink"}>{s.label}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
+        {/* ── 3. Run card: only while something is happening ─────────────── */}
+        {showRunCard && (
+          <section className="space-y-3 rounded-xl border border-line bg-raised/60 p-3">
+            {(working || paused) && (
+              <>
+                <ol className="space-y-1.5 text-xs">
+                  {run.steps.map((s) => (
+                    <li key={s.label} className="flex items-center gap-2">
+                      <span
+                        className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] ${
+                          s.state === "done"
+                            ? "border-accent-bright bg-accent text-ink"
+                            : s.state === "working"
+                              ? "animate-pulse border-agent text-agent"
+                              : "border-line text-muted"
+                        }`}
+                      >
+                        {s.state === "done" ? "✓" : ""}
+                      </span>
+                      <span className={s.state === "todo" ? "text-muted" : "text-ink"}>{s.label}</span>
+                    </li>
+                  ))}
+                </ol>
+                <div className="grid grid-cols-2 gap-2">
+                  {paused ? (
+                    <QuietButton onClick={onResume}>Resume</QuietButton>
+                  ) : (
+                    <QuietButton onClick={agent.pause}>Pause</QuietButton>
+                  )}
+                  <QuietButton onClick={agent.takeOver}>Take over</QuietButton>
+                </div>
+              </>
+            )}
+            {agent.undo && !working && !paused && (
+              <QuietButton onClick={onUndo} full>
+                <UndoIcon /> Undo last run · {agent.undo.screens} screen{agent.undo.screens === 1 ? "" : "s"} by {agent.undo.by}
+              </QuietButton>
+            )}
+            {message && <p className="text-xs leading-relaxed text-wine-light">{message}</p>}
+            {run.status === "error" && run.error && (
+              <div className="space-y-2">
+                <p className="flex gap-2 text-xs leading-relaxed text-ink">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-bright" aria-hidden />
+                  {run.error}
+                </p>
+                {onRetry && (
+                  <>
+                    <QuietButton onClick={onRetry} full>Retry</QuietButton>
+                    <p className="font-mono text-[10px] text-muted">Tip: switch AI under “Key” if one keeps failing.</p>
+                  </>
+                )}
+              </div>
+            )}
+          </section>
         )}
 
-        {/* ── Clash cards + how it merged ──────────────────────────────────── */}
-        {run.result && run.result.action !== "ask" && (
-          <section>
-            <Label>Clashes ({run.result.conflicts.length})</Label>
-            {run.result.conflicts.length === 0 && <p className="text-xs text-muted">No clashes between the notes.</p>}
-            <div className="space-y-2">
-              {run.result.conflicts.map((c, i) => {
-                const authors = [...new Set(c.noteIds.map(authorOf).filter((a): a is string => !!a))];
-                return (
-                  <div key={i} className="rounded-md border border-line bg-raised p-2.5 text-xs">
-                    <p className="leading-relaxed">{c.summary}</p>
-                    {authors.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {authors.map((who) => (
-                          <button
-                            key={who}
-                            onClick={() => agent.pick(c.summary, who)}
-                            className="rounded border border-accent-bright/60 px-2 py-0.5 text-[11px] text-ink hover:bg-accent"
-                          >
-                            Use {who}&apos;s version
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-3 border-l-2 border-agent pl-2.5 text-xs leading-relaxed text-ink">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-agent">How I merged it · </span>
-              {run.result.resolution}
+        {/* ── 4. Clash cards + how it merged ─────────────────────────────── */}
+        {run.result && run.result.action !== "ask" && run.result.conflicts.length > 0 && (
+          <section className="space-y-2">
+            <Label>Clashes in the last run · {run.result.conflicts.length}</Label>
+            {run.result.conflicts.map((c, i) => {
+              const authors = [...new Set(c.noteIds.map(authorOf).filter((a): a is string => !!a))];
+              return (
+                <div key={i} className="rounded-xl border border-line bg-raised/60 p-3 text-xs">
+                  <p className="leading-relaxed">{c.summary}</p>
+                  {authors.length > 0 && (
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      {authors.map((who) => (
+                        <button
+                          key={who}
+                          onClick={() => agent.pick(c.summary, who)}
+                          className="rounded-full border border-line px-2.5 py-1 text-[11px] text-ink transition-colors hover:border-accent-bright hover:bg-accent/40"
+                        >
+                          Use {who}&apos;s version
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <div className="flex gap-2 pt-1">
+              <AgentAvatar small />
+              <p className="rounded-lg rounded-tl-sm bg-raised px-3 py-2 text-xs leading-relaxed">
+                <span className="mb-0.5 block font-mono text-[10px] uppercase tracking-widest text-agent">How I merged it</span>
+                {run.result.resolution}
+              </p>
             </div>
           </section>
         )}
 
-        {/* ── Decision log (kept forever, see DecisionLog.tsx) ──────────────── */}
-        <DecisionLog
-          trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
-        />
-
-        {/* ── Activity feed ────────────────────────────────────────────────── */}
-        <section className="border-t border-line pt-4">
-          <Label>Activity</Label>
-          {activity.length === 0 && <p className="text-xs text-muted">Nothing yet.</p>}
-          <ul className="space-y-1.5">
-            {[...activity].reverse().map((a) => (
-              <li key={a.id} className="text-xs leading-snug">
-                <span className="mr-1.5 font-mono text-[10px] text-muted">
-                  {new Date(a.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-                {/* Orange = the agent speaking; everything else is people. */}
-                <span className={a.who === "Agent" ? "text-agent" : "text-ink"}>
-                  {(a.kind === "steer" || a.kind === "prompt") && <b className="font-medium">{a.who}: </b>}
-                  {a.text}
-                </span>
-              </li>
+        {/* ── 5. Activity / Decisions tabs ───────────────────────────────── */}
+        <section>
+          <div role="tablist" className="mb-3 flex gap-1 rounded-lg bg-paper/60 p-1">
+            {(["activity", "decisions"] as const).map((t) => (
+              <button
+                key={t}
+                role="tab"
+                aria-selected={tab === t}
+                onClick={() => setTab(t)}
+                className={`flex-1 rounded-md py-1.5 text-xs capitalize transition-colors ${
+                  tab === t ? "bg-raised text-ink shadow-sm" : "text-muted hover:text-ink"
+                }`}
+              >
+                {t}
+              </button>
             ))}
-          </ul>
+          </div>
+
+          {tab === "activity" ? (
+            <ActivityFeed activity={activity} />
+          ) : (
+            <DecisionLog
+              trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
+            />
+          )}
         </section>
       </div>
     </aside>
   );
 }
 
+// ── Activity: a quiet timeline. One avatar per line: orange star = the
+// agent, wine initial = a person. Long lines are cut to 2 rows; click to
+// read the rest.
+function ActivityFeed({ activity }: { activity: Agent["activity"] }) {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  if (activity.length === 0) {
+    return <p className="py-6 text-center text-xs text-muted">Nothing yet. Frame an idea to get started.</p>;
+  }
+  return (
+    <ol className="space-y-3">
+      {[...activity].reverse().map((a) => {
+        const isAgent = a.who === "Agent";
+        const isOpen = open.has(a.id);
+        return (
+          <li key={a.id} className="flex gap-2.5">
+            {isAgent ? <AgentAvatar small /> : <PersonAvatar name={a.who} />}
+            <button
+              onClick={() =>
+                setOpen((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(a.id)) next.delete(a.id);
+                  else next.add(a.id);
+                  return next;
+                })
+              }
+              className="min-w-0 flex-1 text-left"
+            >
+              <span className="flex items-baseline justify-between gap-2">
+                <span className={`truncate text-xs font-medium ${isAgent ? "text-agent" : "text-ink"}`}>{a.who}</span>
+                <time className="shrink-0 font-mono text-[10px] text-muted">
+                  {new Date(a.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </time>
+              </span>
+              <span
+                className={`mt-0.5 block text-xs leading-relaxed ${a.kind === "error" ? "text-wine-light" : "text-muted"} ${
+                  isOpen ? "" : "line-clamp-2"
+                }`}
+              >
+                {a.text}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function StatusLine({ run }: { run: Agent["run"] }) {
   const text: Record<Agent["run"]["status"], string> = {
-    idle: "Idle",
-    working: `Working · started by ${run.startedBy}`,
-    paused: `Paused · started by ${run.startedBy}`,
-    done: `Done · ${run.startedBy}${run.provider ? ` using ${run.provider}` : ""}`,
+    idle: "Ready",
+    working: `Designing · ${run.startedBy}`,
+    paused: `Paused · ${run.startedBy}`,
+    done: `Done${run.provider ? ` · ${run.provider}` : ""}`,
     error: "Last run failed",
   };
   const agentActive = run.status === "working" || run.status === "paused";
   return (
-    <p className={`font-mono text-[10px] uppercase tracking-widest ${agentActive ? "text-agent" : "text-muted"}`}>
-      {agentActive && <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-agent align-middle" />}
+    <p className={`mt-1 font-mono text-[10px] uppercase tracking-widest ${agentActive ? "text-agent" : "text-muted"}`}>
       {text[run.status]}
     </p>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">{children}</h3>;
+// The agent's avatar: an orange star (orange = the agent only).
+function AgentAvatar({ small, active }: { small?: boolean; active?: boolean }) {
+  const size = small ? "h-6 w-6" : "h-8 w-8";
+  return (
+    <span
+      className={`relative flex ${size} shrink-0 items-center justify-center rounded-full bg-agent/15 text-agent ring-1 ring-agent/30`}
+      aria-hidden
+    >
+      <svg width={small ? 11 : 14} height={small ? 11 : 14} viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0l1.9 6.1L16 8l-6.1 1.9L8 16l-1.9-6.1L0 8l6.1-1.9z" />
+      </svg>
+      {active && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 animate-pulse rounded-full bg-agent" />}
+    </span>
+  );
 }
 
-function SmallButton({
+// A person's avatar: their initial on wine.
+function PersonAvatar({ name }: { name: string }) {
+  return (
+    <span
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-medium uppercase text-ink"
+      aria-hidden
+    >
+      {name.trim().charAt(0) || "?"}
+    </span>
+  );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <h3 className="font-mono text-[10px] uppercase tracking-widest text-muted">{children}</h3>;
+}
+
+function QuietButton({
   children,
   onClick,
   disabled,
+  title,
+  full,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  title?: string;
+  full?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="rounded-md border border-line bg-raised px-2 py-1.5 text-xs text-ink transition-colors hover:border-accent-bright disabled:cursor-not-allowed disabled:opacity-40"
+      title={title}
+      className={`flex items-center justify-center gap-1.5 rounded-lg border border-line bg-raised/40 px-2.5 py-2 text-xs text-ink transition-colors hover:border-accent-bright/70 hover:bg-raised disabled:cursor-not-allowed disabled:opacity-40 ${
+        full ? "w-full" : ""
+      }`}
     >
       {children}
     </button>
+  );
+}
+
+// Small line icons (inline so there's nothing extra to install).
+function NotesIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2" />
+      <path d="M5 6h6M5 8.5h6M5 11h3" strokeLinecap="round" />
+    </svg>
+  );
+}
+function SparkIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path d="M8 2v3M8 11v3M2 8h3M11 8h3M4 4l2 2M10 10l2 2M12 4l-2 2M6 10l-2 2" strokeLinecap="round" />
+    </svg>
+  );
+}
+function UndoIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path d="M5 4L2 7l3 3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 7h7.5a4 4 0 010 8H7" strokeLinecap="round" />
+    </svg>
   );
 }

@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRoom } from "@liveblocks/react/suspense";
+import type { JsonObject } from "@liveblocks/client";
 import { getYjsProviderForRoom } from "@liveblocks/yjs";
 import { YKeyValue } from "y-utility/y-keyvalue";
 import * as Y from "yjs";
@@ -79,6 +80,8 @@ export function useYjsStore({
 
   // ── 3. Connect the two, once the room has finished loading ────────────────
   useEffect(() => {
+    // Back to "loading" when the room changes, before the new room syncs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStoreWithStatus({ status: "loading" });
     const unsubs: (() => void)[] = [];
 
@@ -133,7 +136,7 @@ export function useYjsStore({
               Object.values(changes.added).forEach((record) => {
                 yStore.set(record.id, record);
               });
-              Object.values(changes.updated).forEach(([_, record]) => {
+              Object.values(changes.updated).forEach(([, record]) => {
                 yStore.set(record.id, record);
               });
               Object.values(changes.removed).forEach((record) => {
@@ -195,7 +198,7 @@ export function useYjsStore({
       // Liveblocks gives this connection a unique yjs client id; tldraw
       // needs presence records with a matching unique id.
       const self = room.getSelf();
-      const yClientId = (self?.presence as any)?.__yjs_clientid;
+      const yClientId = (self?.presence as { __yjs_clientid?: string } | undefined)?.__yjs_clientid;
       const presenceId = InstancePresenceRecordType.createId(yClientId);
 
       // presenceDerivation computes our current cursor state from the store.
@@ -207,7 +210,7 @@ export function useYjsStore({
       // Publish our presence to everyone (awareness = live, not saved).
       yProvider.awareness.setLocalStateField(
         "presence",
-        (presenceDerivation.get() ?? null) as any
+        (presenceDerivation.get() ?? null) as unknown as JsonObject
       );
 
       // Keep publishing whenever our cursor/selection changes.
@@ -217,7 +220,7 @@ export function useYjsStore({
           requestAnimationFrame(() => {
             yProvider.awareness.setLocalStateField(
               "presence",
-              presence as any
+              presence as unknown as JsonObject
             );
           });
         })

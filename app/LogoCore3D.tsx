@@ -51,6 +51,8 @@ export function LogoCore3D({
     try {
       renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     } catch {
+      // No WebGL on this device: fall back to the flat logo (runs once).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNo3d(true);
       return;
     }

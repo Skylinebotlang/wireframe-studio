@@ -14,14 +14,14 @@
 //              activity feed (see lib/agent-room.ts).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { LiveList, LiveMap, LiveObject } from "@liveblocks/client";
+import type { JsonObject, LiveList, LiveMap, LiveObject } from "@liveblocks/client";
 import type { ActivityItem, AgentRunState, AgentUndo, DesignRecord } from "./lib/agent-room-types";
 
 declare global {
   interface Liveblocks {
     Presence: {
       // tldraw stores its full presence record here (via the bridge).
-      presence: any;
+      presence: JsonObject | null;
     };
 
     UserMeta: {

@@ -29,7 +29,7 @@ assert.strictEqual(new Set(boxes.slice(0, 3).map((b) => b.y)).size, 1);
 assert.ok(boxes[3].y > boxes[0].y && boxes[3].w === inner);
 
 // Tab bar: split on "|", pinned to the bottom, even if listed first.
-let { boxes: tb, height } = layoutScreen([C("tabbar", "Home | Search | Profile"), C("header", "Hi")]);
+const { boxes: tb, height } = layoutScreen([C("tabbar", "Home | Search | Profile"), C("header", "Hi")]);
 const tabs = tb.filter((b) => b.c.type === "tabbar");
 assert.deepStrictEqual(tabs.map((t) => t.label), ["Home", "Search", "Profile"]);
 assert.strictEqual(height, PHONE_MIN_H);

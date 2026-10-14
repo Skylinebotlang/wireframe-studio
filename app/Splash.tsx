@@ -35,6 +35,8 @@ export function Splash() {
   // Already seen in this tab? Hide before the first paint (no flash).
   useLayoutEffect(() => {
     try {
+      // Read before first paint; sessionStorage doesn't exist on the server.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (sessionStorage.getItem(SEEN_KEY)) setState("gone");
     } catch {
       /* storage blocked: just show the splash */

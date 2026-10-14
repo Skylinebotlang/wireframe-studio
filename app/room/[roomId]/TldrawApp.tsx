@@ -56,6 +56,7 @@ const dark = DefaultColorThemePalette.darkMode;
 dark.solid = "#191a2f"; // the "semi" fill (cards, lists) is based on this
 dark.grey.solid = "#4a4866"; // outlines + solid fills (headers, buttons)
 dark.grey.fill = "#4a4866";
+dark.grey.semi = "#2b2a42"; // solid-fill boxes (headers, buttons) use this in dark mode
 for (const c of Object.values(dark)) {
   // Every color's phone-frame background + title tab.
   if (typeof c === "object" && "frame" in c) {

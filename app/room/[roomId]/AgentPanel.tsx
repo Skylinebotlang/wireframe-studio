@@ -35,6 +35,7 @@ export function AgentPanel({
   onIdea,
   onResume,
   onUndo,
+  onRetry,
   onMakeReal,
   pickedDesign,
 }: {
@@ -45,6 +46,7 @@ export function AgentPanel({
   onIdea: (idea: string) => void;
   onResume: () => void;
   onUndo: () => void;
+  onRetry?: () => void; // set when this person started the run that failed
   onMakeReal: (instruction: string) => void;
   pickedDesign: string | null; // name of the one design selected (Regenerate), or null
 }) {
@@ -148,7 +150,17 @@ export function AgentPanel({
             </SmallButton>
           )}
           {message && <p className="text-xs text-accent-bright">{message}</p>}
-          {run.status === "error" && run.error && <p className="text-xs text-accent-bright">⚠ {run.error}</p>}
+          {run.status === "error" && run.error && (
+            <div className="space-y-1.5">
+              <p className="text-xs text-accent-bright">⚠ {run.error}</p>
+              {onRetry && (
+                <>
+                  <SmallButton onClick={onRetry}>Retry</SmallButton>
+                  <p className="font-mono text-[11px] text-muted">Tip: switch AI in &quot;Your AI key&quot; first if one keeps failing.</p>
+                </>
+              )}
+            </div>
+          )}
         </section>
 
         {/* ── Make it real: wireframes → real designs (stage 2) ─────────────── */}

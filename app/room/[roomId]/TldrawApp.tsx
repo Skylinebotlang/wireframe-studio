@@ -102,7 +102,11 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
 
   // ── "Send to agent": collect every note on the board ─────────────────────
   // Reads our Prompt notes and tldraw's plain sticky notes (press N).
+  // What this person last asked for, so "Retry" can ask again.
+  const [lastAsk, setLastAsk] = useState<{ idea: string } | "notes" | null>(null);
+
   const handleSend = useCallback(async () => {
+    setLastAsk("notes");
     if (!editor) return;
     setMessage("");
 
@@ -131,6 +135,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
 
   // ── "Frame your idea": run the agent on the typed idea alone ─────────────
   const handleIdea = useCallback(async (idea: string) => {
+    setLastAsk({ idea });
     if (!editor) return;
     setMessage("");
     // Send the screens already drawn, so the agent can add, update or ask.
@@ -222,6 +227,9 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         message={message}
         onSend={handleSend}
         onIdea={handleIdea}
+        // Retry the failed run with whatever AI key is set NOW (switch keys
+        // in "Your AI key" first if one provider is down).
+        onRetry={lastAsk ? () => (lastAsk === "notes" ? handleSend() : handleIdea(lastAsk.idea)) : undefined}
         onResume={() => agent.resume(draw)}
         onUndo={handleUndo}
         onMakeReal={handleMakeReal}

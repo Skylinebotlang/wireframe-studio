@@ -37,7 +37,7 @@ import { NextResponse } from "next/server";
 import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/agent-schema";
 import { askBrain } from "@/lib/agent-brains";
 import { scanPartial } from "@/lib/stream-scan";
-import { claimAgentRun } from "@/lib/rate-limit";
+import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
 import { getSignedInUser, type SignedInUser } from "@/lib/auth-server";
 import { addDecisions, decisionsForPrompt } from "@/lib/decisions-db";
 import { boardsConfigured } from "@/lib/boards-db";
@@ -189,16 +189,22 @@ export async function POST(request: Request) {
   };
 
   const log = (result: AgentResult) => recordMerges(roomId, me, result);
-  if (wantsStream) return streamAgent(provider, key, promptText, runInfo, log);
+  // A failed AI call doesn't count against the room's limits (see Retry).
+  const refund = () => refundAgentRun(roomId, !usedOwnKey);
+  if (wantsStream) return streamAgent(provider, key, promptText, runInfo, log, refund);
 
   // ── 4. Ask the AI ─────────────────────────────────────────────────────────
   const reply = await askBrain(provider, key, promptText);
-  if ("error" in reply) return friendlyError(reply.error, reply.status);
+  if ("error" in reply) {
+    await refund();
+    return friendlyError(reply.error, reply.status);
+  }
 
   // ── 5. Validate the answer before it can reach the canvas ─────────────────
   const checked = validateAgentResult(reply.data);
   if (!checked.ok) {
     console.error("Agent: invalid answer:", checked.error);
+    await refund();
     return friendlyError(
       `The agent's answer wasn't in the right format (${checked.error}). Please try again.`,
       502
@@ -217,7 +223,8 @@ function streamAgent(
   key: string,
   promptText: string,
   runInfo: AgentRunInfo,
-  log: (result: AgentResult) => Promise<void>
+  log: (result: AgentResult) => Promise<void>,
+  refund: () => Promise<void>
 ) {
   const encoder = new TextEncoder();
   const body = new ReadableStream({
@@ -250,6 +257,7 @@ function streamAgent(
 
       const reply = await askBrain(provider, key, promptText, onText);
       if ("error" in reply) {
+        await refund();
         send({ type: "error", error: reply.error });
       } else {
         const checked = validateAgentResult(reply.data);
@@ -259,6 +267,7 @@ function streamAgent(
         }
         else {
           console.error("Agent: invalid answer:", checked.error);
+          await refund();
           send({ type: "error", error: `The agent's answer wasn't in the right format (${checked.error}). Please try again.` });
         }
       }

@@ -92,3 +92,22 @@ export async function claimAgentRun(roomId: string, usesBuiltInKey: boolean, coo
   }
   return null;
 }
+
+/**
+ * The AI failed (busy, bad key, broken answer): give the run back, so the
+ * Retry button works right away and failures don't eat the daily limit.
+ * Best effort: if this fails, the next run just waits the normal 10s.
+ */
+export async function refundAgentRun(roomId: string, usesBuiltInKey: boolean) {
+  const secret = process.env.LIVEBLOCKS_SECRET_KEY;
+  if (!secret) return;
+  try {
+    const liveblocks = new Liveblocks({ secret });
+    const runs = Number((await liveblocks.getRoom(roomId)).metadata.agentRuns) || 0;
+    await liveblocks.updateRoom(roomId, {
+      metadata: { agentLastRunAt: "0", agentRuns: String(usesBuiltInKey ? Math.max(0, runs - 1) : runs) },
+    });
+  } catch (err) {
+    console.error("Rate limit: couldn't refund a failed run:", err);
+  }
+}

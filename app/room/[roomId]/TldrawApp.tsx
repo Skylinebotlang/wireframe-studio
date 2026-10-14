@@ -119,6 +119,9 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   // The editor instance, once tldraw has mounted.
   const [editor, setEditor] = useState<Editor | null>(null);
 
+  // True while the board has nothing on it (shows the "what to do first" hint).
+  const isEmpty = useValue("board is empty", () => !!editor && editor.getCurrentPageShapeIds().size === 0, [editor]);
+
   // The shared agent: run status, plan, activity feed and actions.
   const agent = useAgentPanel(identity.name);
 
@@ -240,6 +243,29 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
           }}
           autoFocus
         />
+
+        {/* Empty board: tell people what to do first. Disappears as soon as
+            anything is on the canvas. Clicks pass through to the canvas. */}
+        {isEmpty && agent.run.status !== "working" && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+            <div className="glass pop-in max-w-sm rounded-2xl px-6 py-5 text-center">
+              <p className="font-heading text-lg text-ink">Start your board</p>
+              <ol className="mt-3 space-y-2 text-left text-sm text-muted">
+                <li>
+                  <span className="mr-2 font-mono text-wine-light">1</span>
+                  Drop a <span className="text-ink">prompt note</span> (first button in the toolbar below) with what
+                  you want. Teammates add theirs too.
+                </li>
+                <li>
+                  <span className="mr-2 font-mono text-wine-light">2</span>
+                  Press <span className="text-ink">Use canvas notes</span> in the panel on the right, and the agent
+                  merges every note into wireframes.
+                </li>
+              </ol>
+              <p className="mt-3 text-xs text-muted">Or just describe a screen in the panel →</p>
+            </div>
+          </div>
+        )}
 
         {/* Orange scanning laser + status pill while the agent works. */}
         {agent.run.status === "working" && (

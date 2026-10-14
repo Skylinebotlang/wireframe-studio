@@ -281,6 +281,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
 
       {/* ── The agent panel (right) ───────────────────────────────────────── */}
       <AgentPanel
+        myName={identity.name}
         agent={agent}
         editor={editor}
         message={message}

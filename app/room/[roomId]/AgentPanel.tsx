@@ -22,7 +22,7 @@ import { useState } from "react";
 import type { Editor } from "tldraw";
 import type { useAgentPanel } from "@/lib/agent-room";
 import { AiKeyButton } from "../../AiKeyButton";
-import { DecisionLog } from "./DecisionLog";
+import { DecisionLog, dayLabel } from "./DecisionLog";
 
 type Agent = ReturnType<typeof useAgentPanel>;
 
@@ -37,6 +37,7 @@ export function AgentPanel({
   onRetry,
   onMakeReal,
   pickedDesign,
+  myName,
 }: {
   agent: Agent;
   editor: Editor | null;
@@ -48,6 +49,7 @@ export function AgentPanel({
   onRetry?: () => void; // set when this person started the run that failed
   onMakeReal: (instruction: string) => void;
   pickedDesign: string | null; // name of the one design selected (Regenerate), or null
+  myName: string; // this person's display name (their own lines say "You")
 }) {
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
@@ -290,7 +292,7 @@ export function AgentPanel({
           </div>
 
           {tab === "activity" ? (
-            <ActivityFeed activity={activity} />
+            <ActivityFeed activity={activity} myName={myName} />
           ) : (
             <DecisionLog
               trigger={activity.filter((a) => a.kind === "result" || a.kind === "pick").at(-1)?.id ?? ""}
@@ -302,51 +304,128 @@ export function AgentPanel({
   );
 }
 
-// ── Activity: a quiet timeline. One avatar per line: orange star = the
-// agent, wine initial = a person. Long lines are cut to 2 rows; click to
-// read the rest.
-function ActivityFeed({ activity }: { activity: Agent["activity"] }) {
+// ── Activity: what people asked for, what the agent made, and housekeeping,
+// each with its own weight so the feed is easy to scan when you join late:
+//   - People's ideas and picks: a bubble with the words they wrote.
+//   - The agent's results (and errors): a line with the orange star.
+//   - Housekeeping (started, paused, took over, undo): one small grey line.
+// Grouped by day (Today / Yesterday / date). Filter: All, Ideas, Mine.
+const IDEA_KINDS = new Set(["prompt", "steer", "pick", "question"]);
+const AGENT_KINDS = new Set(["result", "error", "design"]);
+type Filter = "all" | "ideas" | "mine";
+
+function ActivityFeed({ activity, myName }: { activity: Agent["activity"]; myName: string }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<Filter>("all");
   if (activity.length === 0) {
     return <p className="py-6 text-center text-xs text-muted">Nothing yet. Frame an idea to get started.</p>;
   }
+  const shown = [...activity].reverse().filter((a) =>
+    filter === "ideas" ? IDEA_KINDS.has(a.kind) : filter === "mine" ? a.who === myName : true
+  );
+  const toggle = (id: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   return (
-    <ol className="space-y-3">
-      {[...activity].reverse().map((a) => {
-        const isAgent = a.who === "Agent";
-        const isOpen = open.has(a.id);
-        return (
-          <li key={a.id} className="flex gap-2.5">
-            {isAgent ? <AgentAvatar small /> : <PersonAvatar name={a.who} />}
-            <button
-              onClick={() =>
-                setOpen((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(a.id)) next.delete(a.id);
-                  else next.add(a.id);
-                  return next;
-                })
-              }
-              className="min-w-0 flex-1 text-left"
-            >
-              <span className="flex items-baseline justify-between gap-2">
-                <span className={`truncate text-xs font-medium ${isAgent ? "text-agent" : "text-ink"}`}>{a.who}</span>
-                <time className="shrink-0 font-mono text-[10px] text-muted">
-                  {new Date(a.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </time>
-              </span>
-              <span
-                className={`mt-0.5 block text-xs leading-relaxed ${a.kind === "error" ? "text-wine-light" : "text-muted"} ${
-                  isOpen ? "" : "line-clamp-2"
-                }`}
-              >
-                {a.text}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
+    <div>
+      <div className="mb-3 flex gap-1.5">
+        {(["all", "ideas", "mine"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
+            className={`rounded-full border px-2.5 py-0.5 text-[11px] capitalize transition-colors ${
+              filter === f ? "border-accent-bright/50 bg-accent/40 text-ink" : "border-line text-muted hover:text-ink"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+      {shown.length === 0 && (
+        <p className="py-6 text-center text-xs text-muted">
+          {filter === "mine" ? "You haven't done anything on this board yet." : "No ideas written yet."}
+        </p>
+      )}
+      <ol className="space-y-2.5">
+        {shown.map((a, i, all) => {
+          const day = dayLabel(a.at);
+          const divider = i === 0 || dayLabel(all[i - 1].at) !== day;
+          const mine = a.who === myName;
+          const name = mine ? "You" : a.who;
+          const time = new Date(a.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          const clamp = open.has(a.id) ? "" : "line-clamp-3";
+          let row: React.ReactNode;
+
+          if (IDEA_KINDS.has(a.kind)) {
+            // A person's own words: the thing you most want to find again.
+            const isAgent = a.who === "Agent"; // the agent's questions
+            row = (
+              <div className="flex gap-2.5">
+                {isAgent ? <AgentAvatar small /> : <PersonAvatar name={a.who} />}
+                <button onClick={() => toggle(a.id)} className="min-w-0 flex-1 text-left">
+                  <span className="flex items-baseline gap-2 text-[11px]">
+                    <span className={`font-medium ${isAgent ? "text-agent" : "text-ink"}`}>{name}</span>
+                    <span className="text-muted">
+                      {a.kind === "pick" ? "picked a version" : a.kind === "question" ? "asked" : "wrote"}
+                    </span>
+                    <time className="ml-auto shrink-0 font-mono text-[10px] text-muted">{time}</time>
+                  </span>
+                  <span
+                    className={`mt-1 block rounded-lg rounded-tl-sm border px-2.5 py-1.5 text-xs leading-relaxed text-ink ${clamp} ${
+                      isAgent ? "border-agent/25 bg-agent/5" : mine ? "border-accent-bright/30 bg-accent/25" : "border-line bg-raised/60"
+                    }`}
+                  >
+                    {a.text}
+                  </span>
+                </button>
+              </div>
+            );
+          } else if (AGENT_KINDS.has(a.kind)) {
+            row = (
+              <div className="flex gap-2.5">
+                <AgentAvatar small />
+                <button onClick={() => toggle(a.id)} className="min-w-0 flex-1 text-left">
+                  <span className="flex items-baseline gap-2 text-[11px]">
+                    <span className="font-medium text-agent">{a.who === "Agent" ? "Agent" : name}</span>
+                    <time className="ml-auto shrink-0 font-mono text-[10px] text-muted">{time}</time>
+                  </span>
+                  <span className={`mt-0.5 block text-xs leading-relaxed ${a.kind === "error" ? "text-wine-light" : "text-ink/85"} ${clamp}`}>
+                    {a.text}
+                  </span>
+                </button>
+              </div>
+            );
+          } else {
+            // Housekeeping: small and quiet, lined up with the text above.
+            row = (
+              <p className="flex items-baseline gap-2 pl-[34px] text-[11px] leading-snug text-muted/80">
+                <span className="min-w-0 flex-1">{mine && a.text.startsWith(myName + " ") ? "You" + a.text.slice(myName.length) : a.text}</span>
+                <time className="shrink-0 font-mono text-[10px]">{time}</time>
+              </p>
+            );
+          }
+
+          return (
+            <li key={a.id}>
+              {divider && (
+                <div className="mb-2.5 mt-1 flex items-center gap-2 text-[10px] text-muted">
+                  <span className="h-px flex-1 bg-line" />
+                  {day}
+                  <span className="h-px flex-1 bg-line" />
+                </div>
+              )}
+              {row}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 

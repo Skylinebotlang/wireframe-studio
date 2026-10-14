@@ -45,49 +45,78 @@ export function DecisionLog({ trigger }: { trigger: string }) {
     };
   }, [boardId, trigger]);
 
-  // Each decision is a card: who decided (badge) + when, the clash in quiet
-  // text, the outcome in bright text, and the screens it touched as chips.
+  // Each decision leads with WHAT was decided (bright), then who and when,
+  // then the clash it settled (quiet, 2 lines, click for more) and the
+  // screens it touched. Grouped by day so a late joiner sees the history.
   return (
     <div>
       {error && <p className="text-xs text-wine-light">{error}</p>}
-      {decisions === null && !error && <p className="py-6 text-center text-xs text-muted">Loading…</p>}
+      {decisions === null && !error && (
+        <div className="space-y-2" aria-label="Loading decisions">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-20 animate-pulse rounded-xl border border-line bg-raised/40" />
+          ))}
+        </div>
+      )}
       {decisions?.length === 0 && (
         <p className="py-6 text-center text-xs leading-relaxed text-muted">
           No decisions yet. When teammates&apos; notes clash, how it was settled shows up here.
         </p>
       )}
       <ol className="space-y-2">
-        {decisions?.map((d) => {
+        {decisions?.map((d, i, all) => {
           const byAgent = d.decidedBy === "Agent" && d.kind === "merge";
+          const day = dayLabel(Date.parse(d.createdAt));
+          const divider = i === 0 || dayLabel(Date.parse(all[i - 1].createdAt)) !== day;
           return (
-            <li key={d.id} className="rounded-xl border border-line bg-raised/60 p-3 text-xs">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span
-                  className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-                    byAgent ? "bg-agent/15 text-agent" : "bg-accent/50 text-ink"
-                  }`}
-                >
-                  {byAgent ? "Agent merged" : `${d.decidedBy} chose`}
-                </span>
-                <time className="font-mono text-[10px] text-muted">
-                  {new Date(d.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </time>
-              </div>
-              <p className="leading-relaxed text-muted">{d.summary}</p>
-              <p className="mt-1.5 border-l-2 border-accent-bright/60 pl-2 leading-relaxed text-ink">{d.decision}</p>
-              {d.screens.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {d.screens.map((s) => (
-                    <span key={s} className="rounded-md bg-paper/70 px-1.5 py-0.5 font-mono text-[10px] text-muted">
-                      {s}
-                    </span>
-                  ))}
+            <li key={d.id}>
+              {divider && (
+                <div className="mb-2 mt-1 flex items-center gap-2 text-[10px] text-muted">
+                  <span className="h-px flex-1 bg-line" />
+                  {day}
+                  <span className="h-px flex-1 bg-line" />
                 </div>
               )}
+              <details className="group rounded-xl border border-line bg-raised/60 p-3 text-xs">
+                <summary className="cursor-pointer list-none">
+                  <p className="leading-relaxed text-ink">{d.decision}</p>
+                  <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted">
+                    <span className={byAgent ? "text-agent" : "text-wine-light"}>
+                      {byAgent ? "Agent merged" : `${d.decidedBy} chose`}
+                    </span>
+                    <span aria-hidden>·</span>
+                    <time>{new Date(d.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
+                    <span className="ml-auto text-[10px] group-open:hidden">Why</span>
+                  </p>
+                </summary>
+                <p className="mt-2 border-t border-line pt-2 leading-relaxed text-muted">
+                  <span className="text-ink/70">The clash: </span>
+                  {d.summary}
+                </p>
+                {d.screens.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {d.screens.map((s) => (
+                      <span key={s} className="rounded-md bg-paper/70 px-1.5 py-0.5 font-mono text-[10px] text-muted">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </details>
             </li>
           );
         })}
       </ol>
     </div>
   );
+}
+
+/** "Today", "Yesterday", or a short date like "Oct 12", for feed dividers. */
+export function dayLabel(ms: number) {
+  const d = new Date(ms);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }

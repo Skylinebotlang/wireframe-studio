@@ -220,6 +220,55 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
     visor.add(e);
   }
 
+  // ── Inside the visor: an orange tunnel, speed streaks and a flash ──────
+  // As the camera dives in, rings rush past, lines streak by, and an orange
+  // flash marks the moment we break through into the canvas.
+  const tunnel = new THREE.Group();
+  scene.add(tunnel);
+  const RINGS = 18;
+  const ringMats: THREE.LineBasicMaterial[] = [];
+  for (let i = 0; i < RINGS; i++) {
+    const mat = new THREE.LineBasicMaterial({ color: lin(i % 3 ? AI : WINE), transparent: true, opacity: 0, fog: false });
+    ringMats.push(mat);
+    const grow = 1 + i * 0.12;
+    const ring = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: 64 }, (_, k) => {
+          const a = (k / 64) * Math.PI * 2;
+          return new THREE.Vector3(Math.cos(a) * 2.3 * grow, Math.sin(a) * 1.45 * grow, 0);
+        })
+      ),
+      mat
+    );
+    ring.position.set(VISOR.x, VISOR.y, VISOR.z - 1 - i * 1.4);
+    ring.rotation.z = i * 0.05;
+    tunnel.add(ring);
+  }
+  const STREAKS = small ? 140 : 320;
+  const streakPos = new Float32Array(STREAKS * 6);
+  for (let i = 0; i < STREAKS; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const rad = 0.6 + Math.random() * 3.2;
+    const z = VISOR.z - Math.random() * 26;
+    const len = 1 + Math.random() * 3;
+    const x = VISOR.x + Math.cos(a) * rad * 1.4;
+    const y = VISOR.y + Math.sin(a) * rad;
+    streakPos.set([x, y, z, x, y, z - len], i * 6);
+  }
+  const streakGeo = new THREE.BufferGeometry();
+  streakGeo.setAttribute("position", new THREE.BufferAttribute(streakPos, 3));
+  const streakMat = new THREE.LineBasicMaterial({ color: lin(INK), transparent: true, opacity: 0, fog: false });
+  tunnel.add(new THREE.LineSegments(streakGeo, streakMat));
+  // The flash: a screen-sized orange veil fixed in front of the camera.
+  scene.add(camera);
+  const flash = new THREE.Mesh(
+    new THREE.PlaneGeometry(4, 4),
+    new THREE.MeshBasicMaterial({ color: lin(AI), transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false, blending: THREE.AdditiveBlending })
+  );
+  flash.position.z = -0.5;
+  flash.renderOrder = 10;
+  camera.add(flash);
+
   // ── The three frames (problem → fix) ────────────────────────────────────
   type Box = { mesh: THREE.Mesh; from: THREE.Vector3; fromS: THREE.Vector2; to: THREE.Vector3; toS: THREE.Vector2; scatter: THREE.Vector3 };
   const frames: { group: THREE.Group; line: THREE.LineLoop; start: THREE.Vector3; cursor: THREE.Mesh; tag: THREE.Mesh }[] = [];
@@ -347,7 +396,7 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
   scene.add(halo);
   const tags = ["Gemini", "Claude", "OpenAI", "Free built-in"].map((t, i) => {
     const m = label(t, { color: "#F8F4F5", border: i === 3 ? "#FF6B2C" : "#3A3856", w: 420 });
-    m.scale.setScalar(0.7);
+    m.scale.setScalar(small ? 0.55 : 0.8);
     scene.add(m);
     return m;
   });
@@ -405,11 +454,12 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
     camT.set(...KEYS[i].t).lerp(b.set(...KEYS[i + 1].t), f);
     // The dive: from the hero, swing through the visor on the way down.
     if (uu < 1) {
-      const d = smooth(range(uu, 0.05, 0.55));
-      const out = smooth(range(uu, 0.55, 1));
-      const into = tmp.copy(VISOR).add(a.set(0, 0, 0.6));
-      camP.set(...KEYS[0].p).lerp(into, d).lerp(a.set(...KEYS[1].p), out);
-      camT.set(...KEYS[0].t).lerp(b.copy(VISOR).add(tmp.set(0, 0, -6)), d).lerp(a.set(...KEYS[1].t), out);
+      const d = smooth(range(uu, 0.05, 0.4));
+      const deep = range(uu, 0.4, 0.62); // racing down the tunnel
+      const out = smooth(range(uu, 0.62, 1));
+      const dz = 0.6 - deep * 24; // how far down the tunnel
+      camP.set(...KEYS[0].p).lerp(tmp.copy(VISOR).add(a.set(0, 0, dz)), d).lerp(a.set(...KEYS[1].p), out);
+      camT.set(...KEYS[0].t).lerp(tmp.copy(VISOR).add(b.set(0, 0, dz - 8)), d).lerp(a.set(...KEYS[1].t), out);
     }
   }
 
@@ -439,7 +489,18 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
     visor.visible = vis > 0;
     (visorDisk.material as THREE.MeshBasicMaterial).opacity = vis;
     (visorRim.material as THREE.LineBasicMaterial).opacity = vis;
-    eyeMat.opacity = vis * (1 - range(u, 0.28, 0.4)); // eyes close as we dive in
+    eyeMat.opacity = vis * (1 - range(u, 0.1, 0.2)); // eyes close as we dive in
+
+    // Tunnel: rings and streaks only while diving; flash at the break-through.
+    const inTunnel = range(u, 0.3, 0.42) * (1 - range(u, 0.6, 0.7));
+    tunnel.visible = inTunnel > 0;
+    ringMats.forEach((m, i) => (m.opacity = inTunnel * (0.9 - i * 0.035)));
+    streakMat.opacity = inTunnel * 0.7;
+    if (!reduced) tunnel.rotation.z = 0; // rings spin on their own below
+    tunnel.children.forEach((c, i) => {
+      if (i < RINGS && !reduced) c.rotation.z = i * 0.05 + t * (i % 2 ? 0.3 : -0.3);
+    });
+    (flash.material as THREE.MeshBasicMaterial).opacity = reduced ? 0 : Math.sin(Math.PI * range(u, 0.56, 0.68)) * 0.32;
 
     // Problem → fix: frames slide together, boxes scatter, then rebuild as one.
     const pull = smooth(range(u, 1.25, 1.55));
@@ -524,13 +585,14 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
     });
 
     // Try: the AI choices orbit the core.
-    const tryOn = u > 3.3 && u < 4.9;
+    const tryOn = u > 3.4 && u < 4.95;
     core.visible = halo.visible = tryOn;
     halo.lookAt(camera.position);
     if (!reduced) core.scale.setScalar(1 + Math.sin(t * 2) * 0.04);
     tags.forEach((m, i) => {
       const ang = (reduced ? 0 : t * 0.35) + (i / tags.length) * Math.PI * 2;
-      m.position.set(TRY_AT.x + Math.cos(ang) * 4.2, TRY_AT.y + Math.sin(ang * 1.0) * 1.6, TRY_AT.z + Math.sin(ang) * 2.4);
+      const R = small ? 2.6 : 5.2;
+      m.position.set(TRY_AT.x + Math.cos(ang) * R, TRY_AT.y + Math.sin(ang) * R * 0.38, TRY_AT.z + Math.sin(ang) * 2.6);
       m.lookAt(camera.position);
       m.visible = tryOn;
     });

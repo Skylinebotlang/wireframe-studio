@@ -16,6 +16,9 @@
 //   4. Try it       the clickable demo + bring your own AI (TryChapter)
 //   5. Join         Start the chat + footer (FinalChapter)
 //
+// Behind it all: one 3D canvas world the camera flies through as you
+// scroll (World + world3d): dive into the visor, frames merge, the board,
+// floating activity cards, orbiting AI choices, everything into the logo.
 // After the hero, the character shrinks into the top bar as the AI status.
 // Colors: wine = people, ORANGE = the AI only.
 // The old landing page files (Splash, HeroIntro, Chapters, ...) are no longer
@@ -31,6 +34,7 @@ import { FinalChapter, Footer } from "./launch/FinalChapter";
 import { CharacterDock } from "./launch/CharacterDock";
 import { LaunchLoader } from "./launch/LaunchLoader";
 import { Splash } from "./Splash";
+import { World } from "./launch/World";
 import { ChapterPills, LaunchScroll } from "./launch/LaunchScroll";
 import "./launch/launch.css";
 
@@ -40,6 +44,8 @@ export default function LandingPage() {
       <a href="#main" className="ls-skip">
         Skip to content
       </a>
+      {/* One 3D canvas world behind everything; scrolling flies through it. */}
+      <World />
       <LaunchNav />
       <main id="main" className="dots">
         <Hero />

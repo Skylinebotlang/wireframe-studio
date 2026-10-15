@@ -1360,3 +1360,25 @@ html.ls-ready .ls-pills {
   .ls-live-grid { grid-template-columns: 1fr; }
   .ls-live-canvas { height: 260px; }
 }
+
+/* ── The 3D canvas world behind the page (app/launch/World.tsx) ───────── */
+.ls-world {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.ls-has-world .ls-world { opacity: 1; }
+.ls main, .ls .ls-footer { position: relative; z-index: 1; }
+/* The world draws the dotted canvas itself now. */
+.ls-has-world .ls main.dots,
+.ls-has-world .ls .ls-final.dots { background: transparent; }
+/* These scenes are told by the world in 3D instead. */
+.ls-has-world .ls-setups,
+.ls-has-world .ls-live-grid { visibility: hidden; }
+/* Give the 3D scenes room and keep text readable over them. */
+.ls-has-world .ls-problem,
+.ls-has-world .ls-live { min-height: 100vh; }
+.ls-has-world .ls-chapter-text { position: relative; text-shadow: 0 2px 24px #090719, 0 0 2px #090719; }

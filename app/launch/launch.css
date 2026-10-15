@@ -1,0 +1,1324 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   LAUNCH SITE STYLES — everything on the landing page (app/page.tsx).
+   Every class starts with "ls-" so nothing clashes with the app's styles.
+
+   Colors: ONLY the palette.
+     navies  #090719 / #131224 / #191A2F
+     text    #F8F4F5 (dimmed and hairline versions are mixed from it)
+     wine    #681E2E = people (cursors, notes, buttons)
+     orange  #FF6B2C = the AI ONLY (its cursor, its edges while drawing, status)
+   Wine is too dark for text on navy, so wine is used for fills with
+   soft-white text on top (11.7 : 1 contrast).
+
+   Fonts (loaded in app/layout.tsx): Inter Tight for big type, IBM Plex Sans
+   for reading, IBM Plex Mono for the product's own labels (cursor names,
+   prompts, status). Bulzing is not used here (licence).
+   Animations (GSAP) only touch transform, opacity and clip-path.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.ls {
+  --n0: #090719;
+  --n1: #131224;
+  --n2: #191a2f;
+  --ink: #f8f4f5;
+  --wine: #681e2e;
+  --ai: #ff6b2c;
+  --dim: color-mix(in srgb, var(--ink) 68%, var(--n0)); /* 8 : 1 on navy */
+  --hair: color-mix(in srgb, var(--ink) 11%, transparent);
+  --hair2: color-mix(in srgb, var(--ink) 22%, transparent);
+  --wire: color-mix(in srgb, var(--ink) 5%, var(--n1));
+  --f-display: var(--font-inter-tight), "Inter Tight", system-ui, sans-serif;
+  --f-body: var(--font-ibm-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: var(--font-ibm-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
+  --gutter: clamp(16px, 4vw, 56px);
+
+  background: var(--n0);
+  color: var(--ink);
+  font-family: var(--f-body);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+html.ls-lock {
+  overflow: hidden;
+}
+.ls *,
+.ls *::before,
+.ls *::after {
+  box-sizing: border-box;
+}
+.ls :focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.ls-mono {
+  font-family: var(--f-mono);
+  letter-spacing: 0;
+}
+
+/* Dotted canvas: the product's own background. */
+.dots {
+  background-color: var(--n0);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--ink) 9%, transparent) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+.ls-skip {
+  position: fixed;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--n0);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.ls-skip:focus {
+  top: 12px;
+}
+
+/* ── Type ──────────────────────────────────────────────────────────────── */
+.ls-h1 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(40px, 5.7vw, 86px);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  margin: 0;
+}
+.ls-h2 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(32px, 3.7vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  margin: 0;
+  max-width: 18ch;
+}
+.ls-h3 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(22px, 2vw, 28px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.ls-body {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--dim);
+  max-width: 54ch;
+  margin: 16px 0 0;
+}
+
+/* ── Buttons and links ─────────────────────────────────────────────────── */
+.ls-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  background: var(--wine);
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, var(--wine));
+  border-radius: 8px;
+  padding: 16px 24px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ls-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--wine) 90%, transparent);
+}
+.ls-btn:active {
+  transform: translateY(0);
+}
+.ls-btn--sm {
+  font-size: 14px;
+  padding: 10px 14px;
+}
+.ls-btn--ghost {
+  background: transparent;
+  border-color: var(--hair2);
+}
+.ls-textlink {
+  color: var(--ink);
+  font-size: 16px;
+  text-decoration: underline;
+  text-decoration-color: var(--hair2);
+  text-underline-offset: 5px;
+}
+.ls-textlink:hover {
+  text-decoration-color: var(--ink);
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────── */
+.ls-nav {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  height: 64px;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: color-mix(in srgb, var(--n0) 90%, transparent);
+  border-bottom: 1px solid var(--hair);
+  opacity: 0; /* the loader fades it in */
+}
+.ls-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+.ls-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.ls-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ls-status-spot {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+}
+.ls-status-text {
+  font-size: 12px;
+  color: var(--dim);
+  width: 25ch; /* fixed, so the spot never moves when the status changes */
+  white-space: nowrap;
+}
+.ls-status-state {
+  color: var(--ai);
+}
+.ls-navlink {
+  color: var(--ink);
+  font-size: 15px;
+  text-decoration: none;
+}
+.ls-navlink:hover {
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+/* ── Start the chat dialog ─────────────────────────────────────────────── */
+.ls-dialog {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  width: min(480px, calc(100% - 32px));
+  max-width: none;
+  color: var(--ink);
+  font-family: var(--f-body);
+}
+.ls-dialog::backdrop {
+  background: color-mix(in srgb, #090719 82%, transparent);
+}
+.ls-dialog-card {
+  background: #131224;
+  border: 1px solid color-mix(in srgb, #f8f4f5 22%, transparent);
+  border-radius: 14px;
+  padding: 24px;
+}
+.ls-dialog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.ls-dialog-title {
+  font-family: var(--font-inter-tight), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0;
+}
+.ls-dialog-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #f8f4f5 22%, transparent);
+  background: transparent;
+  color: #f8f4f5;
+  cursor: pointer;
+}
+.ls-dialog-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+.ls-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #f8f4f5 22%, transparent);
+  color: #f8f4f5;
+  text-decoration: none;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ls-opt:hover {
+  transform: translateY(-2px);
+}
+.ls-opt--new {
+  background: #681e2e;
+  border-color: #681e2e;
+}
+.ls-opt-k {
+  font-family: var(--font-ibm-plex-mono), monospace;
+  font-size: 12px;
+  color: color-mix(in srgb, #f8f4f5 75%, transparent);
+}
+.ls-opt-t {
+  font-family: var(--font-inter-tight), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+/* ── Cursors (same look as in the app) ─────────────────────────────────── */
+.ls-cur {
+  position: absolute;
+  display: inline-flex;
+  align-items: flex-start;
+  pointer-events: none;
+  z-index: 3;
+  will-change: transform;
+}
+.ls-cur-arrow path {
+  fill: var(--wine);
+  stroke: var(--ink);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.ls-cur-tag {
+  margin: 14px 0 0 -2px;
+  background: var(--wine);
+  color: var(--ink);
+  font-size: 11.5px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.ls-cur--ai .ls-cur-arrow path {
+  fill: var(--ai);
+  stroke: var(--n0);
+}
+.ls-cur--ai .ls-cur-tag {
+  background: var(--ai);
+  color: var(--n0);
+  font-weight: 500;
+}
+
+/* ── Wireframe boxes (the product's grey boxes) ────────────────────────── */
+.ls-box {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hair2);
+  background: var(--wire);
+  border-radius: 4px;
+  font-style: normal;
+}
+.ls-box span {
+  font-size: 11px;
+  color: var(--ink);
+}
+.ls-box--bar {
+  background: color-mix(in srgb, var(--ink) 8%, var(--n1));
+  border-color: transparent;
+}
+.ls-box--img {
+  background-color: var(--wire);
+  background-image:
+    linear-gradient(to top right, transparent calc(50% - 0.6px), var(--hair2) 50%, transparent calc(50% + 0.6px)),
+    linear-gradient(to bottom right, transparent calc(50% - 0.6px), var(--hair2) 50%, transparent calc(50% + 0.6px));
+}
+.ls-box--btn {
+  background: var(--n2);
+  border-color: color-mix(in srgb, var(--ink) 40%, transparent);
+  border-radius: 6px;
+}
+.ls-box--tab {
+  border-radius: 999px;
+}
+.ls-box--line {
+  border: 0;
+  background: color-mix(in srgb, var(--ink) 16%, var(--n1));
+  border-radius: 3px;
+}
+.ls-box-ai {
+  position: absolute;
+  inset: -1px;
+  border: 1.5px solid var(--ai);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Frames ────────────────────────────────────────────────────────────── */
+.ls-frame {
+  position: absolute;
+  background: var(--n1);
+  border: 1px solid var(--hair2);
+  border-radius: 10px;
+}
+.ls-frame-name {
+  position: absolute;
+  left: 0;
+  top: -24px;
+  font-size: 12px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.ls-frame-ai {
+  position: absolute;
+  inset: -1px;
+  border: 1.5px solid var(--ai);
+  border-radius: 10px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ai) 14%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+.ls-hero {
+  position: relative;
+  min-height: 100svh;
+  padding: 84px var(--gutter) 76px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.ls-hero-top {
+  display: grid;
+  grid-template-columns: minmax(0, 25%) minmax(0, 1fr);
+  gap: 24px;
+  align-items: end;
+  height: clamp(300px, calc(100svh - 500px), 540px);
+}
+.ls-spot-hero {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 0.92;
+  justify-self: start;
+}
+.ls-stage {
+  position: relative;
+  height: 100%;
+  --fw: min(13vw, 190px);
+  --mw: min(19vw, 270px);
+}
+.ls-frame--person,
+.ls-frame--merged {
+  left: 50%;
+  top: 46%;
+  translate: -50% -50%;
+  aspect-ratio: 4 / 5;
+}
+.ls-frame--person {
+  width: var(--fw);
+  visibility: hidden; /* finished state: merged into one */
+}
+.ls-frame--merged {
+  width: var(--mw);
+  z-index: 1;
+}
+.ls-clash {
+  position: absolute;
+  right: 0;
+  bottom: -28px;
+  font-size: 11.5px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--n2);
+  border: 1px dashed color-mix(in srgb, var(--ink) 50%, transparent);
+  visibility: hidden;
+  white-space: nowrap;
+}
+.ls-frame--person [data-clash] {
+  border-style: dashed;
+}
+.ls-decision {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 12px);
+  width: max(100%, 300px);
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ai);
+}
+/* Where the cursors rest once the screens have merged. */
+.ls-cur--r1 {
+  left: calc(50% - var(--mw) / 2 - 78px);
+  top: 18%;
+}
+.ls-cur--r2 {
+  left: calc(50% + var(--mw) / 2 + 20px);
+  top: 38%;
+}
+.ls-cur--r3 {
+  left: calc(50% - var(--mw) / 2 - 64px);
+  top: 64%;
+}
+.ls-cur--rest-ai {
+  left: calc(50% + var(--mw) / 2 - 36px);
+  top: calc(46% + var(--mw) * 0.625 - 46px);
+}
+
+.ls-hero-copy {
+  position: relative;
+  margin-top: 40px;
+}
+.ls-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.ls-line-in {
+  display: block;
+}
+.ls-line--2 {
+  text-align: right;
+}
+.ls-hero-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 32px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+.ls-sub {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(20px, 1.8vw, 24px);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.ls-lede {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--dim);
+  max-width: 50ch;
+  margin: 10px 0 0;
+}
+.ls-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.ls-scrollhint {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 16px;
+  text-decoration: none;
+}
+.ls-scrollhint span {
+  text-decoration: underline;
+  text-decoration-color: var(--hair2);
+  text-underline-offset: 5px;
+}
+.ls-scrollhint:hover span {
+  text-decoration-color: var(--ink);
+}
+
+/* ── Chapters (shared) ─────────────────────────────────────────────────── */
+.ls-chapter {
+  position: relative;
+  scroll-margin-top: 64px;
+  padding: clamp(96px, 14vh, 150px) var(--gutter);
+}
+
+/* The problem */
+.ls-problem {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.ls-setups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 56px;
+}
+.ls-setup-wrap {
+  position: relative;
+  padding: 0 clamp(14px, 2.2vw, 32px);
+}
+.ls-setup-wrap:first-child {
+  padding-left: 0;
+}
+.ls-setup-wrap:last-child {
+  padding-right: 0;
+}
+.ls-wall {
+  position: absolute;
+  left: 0;
+  top: -12%;
+  height: 124%;
+  width: 1px;
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  transform-origin: 50% 100%;
+}
+.ls-setup {
+  background: var(--n1);
+  border: 1px solid var(--hair2);
+  border-radius: 12px;
+  overflow: hidden;
+  padding-bottom: 16px;
+}
+.ls-setup-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--hair);
+  font-size: 12px;
+  color: var(--dim);
+}
+.ls-dotrow {
+  display: inline-flex;
+  gap: 5px;
+}
+.ls-dotrow i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hair2);
+}
+.ls-setup-ask {
+  margin: 0;
+  padding: 16px 14px 14px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.ls-setup-who {
+  display: inline-block;
+  margin-bottom: 8px;
+  margin-right: 8px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  background: var(--wine);
+  color: var(--ink);
+}
+.ls-setup-who--ai {
+  background: var(--n0);
+  color: var(--dim);
+  border: 1px solid var(--hair2);
+}
+.ls-setup-ai {
+  margin: 0 14px;
+  padding: 12px;
+  background: var(--n2);
+  border-radius: 8px;
+}
+.ls-skel {
+  display: block;
+  height: 8px;
+  width: 92%;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  margin-top: 8px;
+}
+.ls-skel--short {
+  width: 58%;
+}
+.ls-thumb {
+  display: grid;
+  gap: 5px;
+  height: 92px;
+  margin-top: 12px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--hair2);
+  background: var(--n1);
+}
+.ls-thumb i {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.ls-thumb--1 {
+  grid-template-rows: 1fr 1fr 22px;
+}
+.ls-thumb--1 i:nth-child(1) {
+  grid-row: span 2;
+}
+.ls-thumb--1 i:nth-child(2),
+.ls-thumb--1 i:nth-child(3) {
+  display: none;
+}
+.ls-thumb--1 i:nth-child(4) {
+  background: color-mix(in srgb, var(--ink) 26%, transparent);
+}
+.ls-thumb--2 {
+  grid-template-columns: 1fr 1fr;
+}
+.ls-thumb--3 {
+  grid-template-rows: 14px 1fr 1fr 1fr;
+}
+.ls-thumb--3 i:first-child {
+  border-radius: 999px;
+  width: 60%;
+}
+.ls-problem-end {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(22px, 2.3vw, 32px);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin: 64px 0 0 auto;
+  max-width: 24ch;
+  text-align: right;
+}
+
+/* How it works */
+.ls-how {
+  padding: 0;
+}
+.ls-how-pin {
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+  padding: 96px var(--gutter) 80px;
+}
+.ls-steps {
+  list-style: none;
+  margin: 32px 0 0;
+  padding: 0;
+}
+.ls-step {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 4px;
+  padding: 14px 0;
+  border-top: 1px solid var(--hair);
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+.ls-step.is-done {
+  opacity: 0.75;
+}
+.ls-step.is-active {
+  opacity: 1;
+}
+.ls-step-n {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  border: 1px solid var(--hair2);
+}
+.ls-step.is-active .ls-step-n {
+  background: var(--wine);
+  border-color: var(--wine);
+}
+.ls-step-t {
+  display: block;
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  line-height: 26px;
+}
+.ls-step-d {
+  display: block;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--dim);
+  margin-top: 4px;
+}
+.ls-room {
+  position: relative;
+  border: 1px solid var(--hair2);
+  border-radius: 14px;
+  overflow: hidden;
+  height: min(68vh, 580px);
+}
+.ls-room-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--n1);
+  border-bottom: 1px solid var(--hair);
+}
+.ls-room-name {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.ls-avatars {
+  display: flex;
+}
+.ls-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--wine);
+  color: var(--ink);
+  border: 2px solid var(--n1);
+  font-size: 12px;
+  margin-left: -6px;
+}
+.ls-room-board {
+  position: relative;
+  height: calc(100% - 53px);
+}
+.ls-notes {
+  position: absolute;
+  left: 4%;
+  top: 9%;
+  width: 28%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ls-note {
+  background: var(--n2);
+  border: 1px solid var(--hair2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ls-note-who {
+  display: block;
+  background: var(--wine);
+  color: var(--ink);
+  font-size: 11.5px;
+  padding: 4px 8px;
+}
+.ls-note-text {
+  display: block;
+  padding: 8px 10px 10px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.ls-room-frame {
+  position: absolute;
+  left: 38%;
+  top: 12%;
+  width: 29%;
+  aspect-ratio: 4 / 5;
+  background: var(--n1);
+  border: 1px solid var(--hair2);
+  border-radius: 10px;
+}
+.ls-feed {
+  position: absolute;
+  right: 3%;
+  top: 9%;
+  width: 26%;
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--n1);
+  border: 1px solid var(--hair2);
+  border-radius: 10px;
+}
+.ls-feed-head {
+  font-size: 12px;
+  color: var(--dim);
+  padding-bottom: 6px;
+}
+.ls-feed-row {
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 7px 0;
+  border-top: 1px solid var(--hair);
+  color: var(--dim);
+}
+.ls-feed-who {
+  color: var(--ink);
+  font-size: 12px;
+}
+.ls-feed-who.is-ai {
+  color: var(--ai);
+}
+.ls-room-c1 {
+  left: 16%;
+  top: 66%;
+}
+.ls-room-c2 {
+  left: 30%;
+  top: 84%;
+}
+.ls-room-c3 {
+  left: 78%;
+  top: 72%;
+}
+.ls-room-c4 {
+  left: 58%;
+  top: 56%;
+}
+.ls-how-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 24px var(--gutter) 96px;
+}
+
+/* Try it */
+.ls-demo {
+  margin-top: 40px;
+  border: 1px solid var(--hair2);
+  border-radius: 14px;
+  overflow: hidden;
+  height: min(74vh, 680px);
+  background: var(--n0);
+}
+.ls-demo-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.ls-demo-poster {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  cursor: pointer;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 28px;
+  font: inherit;
+}
+.ls-demo-poster-frame {
+  display: flex;
+  gap: 12px;
+}
+.ls-demo-poster-frame i {
+  width: 72px;
+  aspect-ratio: 4 / 5;
+  border-radius: 8px;
+  border: 1px solid var(--hair2);
+  background: var(--n1);
+}
+.ls-demo-poster-frame i:nth-child(2) {
+  translate: 0 -10px;
+}
+.ls-demo-poster:hover .ls-btn {
+  transform: translateY(-2px);
+}
+.ls-byo {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(24px, 4vw, 64px);
+  margin-top: 88px;
+  align-items: start;
+}
+.ls-providers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.ls-providers li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--hair2);
+  border-radius: 10px;
+  background: var(--n1);
+}
+.ls-providers li:first-child {
+  border-color: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+.ls-prov-name {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.ls-prov-k {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* Join */
+.ls-final {
+  min-height: 86svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-top: 1px solid var(--hair);
+}
+.ls-final-title {
+  max-width: 14ch;
+}
+.ls-final-body {
+  margin-top: 20px;
+}
+.ls-final-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-top: 44px;
+  flex-wrap: wrap;
+}
+.ls-final-c1 {
+  left: -14px;
+  top: -46px;
+}
+.ls-final-c2 {
+  left: 120px;
+  top: 58px;
+}
+.ls-final-c3 {
+  left: 170px;
+  top: -52px;
+}
+.ls-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 28px var(--gutter) 88px;
+  border-top: 1px solid var(--hair);
+}
+.ls-footer-links {
+  display: flex;
+  gap: 24px;
+}
+.ls-footer-links a {
+  color: var(--dim);
+  text-decoration: none;
+  font-size: 15px;
+}
+.ls-footer-links a:hover {
+  color: var(--ink);
+}
+.ls-footer-c {
+  font-size: 12px;
+  color: var(--dim);
+  margin: 0;
+}
+
+/* ── Chapter pills ─────────────────────────────────────────────────────── */
+.ls-pills {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  translate: -50% 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--n1) 94%, transparent);
+  border: 1px solid var(--hair2);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+html.ls-ready .ls-pills {
+  opacity: 1;
+}
+.ls-pills ul {
+  display: flex;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ls-pill {
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ls-pill:hover {
+  color: var(--ink);
+}
+.ls-pill[aria-current="true"] {
+  background: var(--n2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--hair2);
+}
+.ls-pill--skip {
+  color: var(--ink);
+  margin-left: 4px;
+  border-left: 1px solid var(--hair2);
+  border-radius: 0 999px 999px 0;
+  padding-left: 14px;
+}
+
+/* ── The character's layer and the loader ──────────────────────────────── */
+.ls-dock {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  transform-origin: 0 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.ls-dock--static {
+  position: absolute;
+  z-index: 2;
+}
+.ls-dock-in,
+.ls-dock-canvas {
+  width: 100%;
+  height: 100%;
+}
+.ls-dock-canvas canvas {
+  display: block;
+}
+.ls-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+.ls-loader-meta {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + min(200px, 30vw));
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.ls-loader-label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
+  display: flex;
+  gap: 10px;
+}
+.ls-loader-pct {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  min-width: 4ch;
+  text-align: right;
+}
+.ls-loader-track {
+  width: 180px;
+  height: 1px;
+  background: var(--hair2);
+}
+.ls-loader-track i {
+  display: block;
+  height: 100%;
+  background: var(--ai);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+/* ── Laptop widths ─────────────────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  .ls-status-text {
+    display: none;
+  }
+}
+
+/* ── Tablets and phones ────────────────────────────────────────────────── */
+@media (max-width: 899px) {
+  .ls-hero {
+    padding-top: 84px;
+    justify-content: flex-start;
+  }
+  .ls-hero-top {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .ls-stage {
+    order: 1;
+    height: clamp(300px, 92vw, 420px);
+    --fw: 27vw;
+    --mw: 46vw;
+  }
+  .ls-spot-hero {
+    order: 2;
+    width: 150px;
+    justify-self: end;
+    margin-top: -40px;
+  }
+  .ls-cur--r1 {
+    left: 2%;
+    top: 12%;
+  }
+  .ls-cur--r2 {
+    left: calc(50% + var(--mw) / 2 - 64px);
+    top: -2px;
+  }
+  .ls-cur--r3 {
+    left: 2%;
+    top: 62%;
+  }
+  .ls-cur--rest-ai {
+    left: calc(50% + var(--mw) / 2 - 30px);
+  }
+  .ls-decision {
+    width: 100%;
+  }
+  .ls-frame-name {
+    font-size: 11px;
+  }
+  .ls-hero-copy {
+    margin-top: 8px;
+  }
+  .ls-line--2 {
+    text-align: left;
+  }
+  .ls-hero-foot {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ls-actions {
+    flex-wrap: wrap;
+  }
+  .ls-setups {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 36px;
+  }
+  .ls-setup-wrap {
+    padding: 0;
+  }
+  .ls-wall {
+    display: none;
+  }
+  .ls-problem-end {
+    text-align: left;
+    margin-left: 0;
+  }
+  .ls-how-pin {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding-top: 96px;
+  }
+  .ls-room {
+    height: auto;
+  }
+  .ls-room-board {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 16px;
+  }
+  .ls-notes,
+  .ls-room-frame,
+  .ls-feed {
+    position: relative;
+    inset: auto;
+    width: 100%;
+  }
+  .ls-notes {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .ls-note {
+    flex: 1 1 140px;
+  }
+  .ls-room-frame {
+    width: min(70%, 260px);
+    margin: 20px auto 0;
+  }
+  .ls-room .ls-cur {
+    display: none;
+  }
+  .ls-byo {
+    grid-template-columns: 1fr;
+  }
+  .ls-demo {
+    height: 560px;
+  }
+  .ls-pills ul {
+    display: none;
+  }
+  .ls-pills {
+    left: auto;
+    right: 16px;
+    translate: 0 0;
+  }
+  .ls-pill--skip {
+    border: 0;
+    border-radius: 999px;
+    margin: 0;
+    padding-left: 12px;
+  }
+  .ls-final-c2,
+  .ls-final-c3 {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .ls-navlink,
+  .ls-brand span {
+    display: none;
+  }
+  .ls-nav-right {
+    gap: 12px;
+  }
+  .ls-providers {
+    grid-template-columns: 1fr;
+  }
+  .ls-dialog-opts {
+    grid-template-columns: 1fr;
+  }
+  .ls-body {
+    font-size: 16px;
+  }
+}
+
+/* ── Reduced motion: a still, finished page ────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ls-btn,
+  .ls-opt,
+  .ls-step,
+  .ls-pills {
+    transition: none;
+  }
+  .ls-btn:hover,
+  .ls-opt:hover {
+    transform: none;
+  }
+}

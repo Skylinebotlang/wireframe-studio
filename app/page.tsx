@@ -1,62 +1,54 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// LANDING PAGE — the front door at "/". "Bold cyberpunk editorial" look.
-// Styles live in app/landing.css.
+// LANDING PAGE (launch site v2) — the front door at "/".
+// Built with the /launch-site brief: docs/launch-site-v2/BRIEF.md.
+// All parts live in app/launch/, all styles in app/launch/launch.css.
 //
-//   0. Splash         drag the 3D logo to enter; letting go lifts it away
-//                     and starts the hero story (app/Splash.tsx).
-//   The page scrolls SIDEWAYS with parallax (app/Chapters.tsx):
-//   1. Hero           the first 8 seconds: three teams building alone, then
-//                     their frames merge into one and the AI (orange)
-//                     assembles the shared screen; headline, message,
-//                     "Start the chat" (app/HeroIntro.tsx).
-//   2. Chapters       six pinned, scroll-driven screens: problem, how it
-//                     works, live together, AI teammate, your own AI,
-//                     start the chat; pills + "Skip the intro" at the
-//                     bottom (app/Chapters.tsx, app/SmoothScroll.tsx).
-//   3. Footer         links + a giant outlined wordmark.
+//   0. Loader       the 3D AI character draws itself in orange while the site
+//                   loads, turns solid, waves, and glides into the hero
+//                   (LaunchLoader + CharacterDock + agent3d).
+//   1. Hero         the first 8 seconds: three people build three screens
+//                   that don't match; the AI merges them into one.
+//                   "Everybody has the context, not just the AI." (Hero)
+//   2. The problem  three setups, no shared picture (ProblemChapter)
+//   3. How it works five steps on a live canvas (HowChapter)
+//   4. Try it       the clickable demo + bring your own AI (TryChapter)
+//   5. Join         Start the chat + footer (FinalChapter)
 //
-// "Start the chat" opens the Sign in / Sign up choice (app/StartChat.tsx).
+// After the hero, the character shrinks into the top bar as the AI status.
 // Colors: wine = people, ORANGE = the AI only.
+// The old landing page files (Splash, HeroIntro, Chapters, ...) are no longer
+// used by this page but are kept until you decide what to do with them.
 // ─────────────────────────────────────────────────────────────────────────────
-
-import Link from "next/link";
-import { Splash } from "./Splash";
-import { HeroIntro } from "./HeroIntro";
-import { FluidCursor } from "./FluidCursor";
-import { Chapters } from "./Chapters";
-import { SmoothScroll } from "./SmoothScroll";
-import { LiveCursors } from "./LiveCursors";
-import "./landing.css";
+import { LaunchNav } from "./launch/LaunchNav";
+import { Hero } from "./launch/Hero";
+import { ProblemChapter } from "./launch/ProblemChapter";
+import { HowChapter } from "./launch/HowChapter";
+import { TryChapter } from "./launch/TryChapter";
+import { FinalChapter, Footer } from "./launch/FinalChapter";
+import { CharacterDock } from "./launch/CharacterDock";
+import { LaunchLoader } from "./launch/LaunchLoader";
+import { ChapterPills, LaunchScroll } from "./launch/LaunchScroll";
+import "./launch/launch.css";
 
 export default function LandingPage() {
   return (
-    <main className="lp dot-grid select-none">
-      {/* Interactive splash: drag the 3D logo to enter (app/Splash.tsx). */}
-      <Splash />
-      {/* Smooth, weighted scrolling synced with the animations. */}
-      <SmoothScroll />
-      {/* Wine "ink" trail behind the mouse; above the page, below panels. */}
-      <FluidCursor />
-      {/* Priya, Leo and the Agent travel with you, building each page. */}
-      <LiveCursors />
-
-      {/* ── The whole page slides sideways (app/Chapters.tsx):
-             hero (app/HeroIntro.tsx) → 6 chapters → footer ───────────── */}
-      <Chapters
-        hero={<HeroIntro />}
-        footer={
-          <footer className="lp-footer">
-            <div className="lp-links lp-mono">
-              <Link href="/signup">Start the chat</Link>
-              <Link href="/login">Sign in</Link>
-              <span>© {new Date().getFullYear()}</span>
-            </div>
-            <div className="lp-big lp-head" aria-hidden>
-              Wireframe Studio
-            </div>
-          </footer>
-        }
-      />
-    </main>
+    <div className="ls">
+      <a href="#main" className="ls-skip">
+        Skip to content
+      </a>
+      <LaunchNav />
+      <main id="main" className="dots">
+        <Hero />
+        <ProblemChapter />
+        <HowChapter />
+        <TryChapter />
+        <FinalChapter />
+      </main>
+      <Footer />
+      <ChapterPills />
+      <CharacterDock />
+      <LaunchLoader />
+      <LaunchScroll />
+    </div>
   );
 }

@@ -6,6 +6,7 @@
 //   const team = useBoardTeam(roomId);
 //   team.me        → "owner" | "editor" | "contributor" | "viewer" | null (still loading)
 //   team.members   → [{ userId, name, role }]
+//   team.online    → ids of the people who have this board open right now
 //   team.setRole(userId, role) → change someone's role (the owner only; "owner"
 //                                 hands the board over);
 //                                 returns an error message or null
@@ -16,12 +17,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from "react";
+import { shallow, useOthers, useSelf } from "@liveblocks/react/suspense";
 import { authHeader } from "./auth";
 import type { Member, Role } from "./boards-db";
 
 export function useBoardTeam(roomId: string) {
   const [me, setMe] = useState<Role | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  // My account id, as the server put it in my Liveblocks pass.
+  const myId = useSelf((self) => self.id);
+  // Who's here right now (one entry per open window; ids repeat for 2 tabs).
+  const others = useOthers((list) => list.map((o) => o.id), shallow);
+  const online = [myId, ...others];
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/boards/members?boardId=${encodeURIComponent(roomId)}`, {
@@ -55,5 +62,5 @@ export function useBoardTeam(roomId: string) {
     [roomId, load]
   );
 
-  return { me, members, setRole };
+  return { me, members, online, setRole };
 }

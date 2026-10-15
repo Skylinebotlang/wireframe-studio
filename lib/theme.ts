@@ -21,6 +21,7 @@ export const THEME = {
   line: "#2B2A42", // hairline borders
   wine: "#681E2E", // the "people" accent
   agent: "#FF6B2C", // the agent accent (do NOT use for humans)
+  online: "#34D399", // green dot: a teammate has the board open right now
   dots: "#F8F4F517", // canvas dotted background (faint soft white)
 } as const;
 

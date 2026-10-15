@@ -3,9 +3,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOM BAR — what the top bar shows inside a board:
 //   • the board's name and YOUR role on it (Owner / Editor / Viewer)
-//   • Team  → everyone who has opened the board, with their role. The owner
-//             (one per board) gets a dropdown to change roles or hand the
-//             board over; everyone else just sees them.
+//   • Team  → everyone who has opened the board, with their role and a dot:
+//             green = has the board open right now, grey = not here. The
+//             owner (one per board) gets a dropdown to change roles or hand
+//             the board over; everyone else just sees them.
 //   • Share → copy the board's link (new people join as viewers)
 // Decisions show as the "Clashes in the last run" card in the agent panel.
 // Roles are decided and enforced on the server (lib/boards-db.ts).
@@ -86,36 +87,47 @@ function TeamPopup({ team, myId, colorOf, onClose }: { team: Team; myId: string;
     <div ref={box} className="glass pop-in absolute right-0 top-10 z-[1000] w-72 rounded-xl p-3 text-sm">
       <p className="font-mono text-[10px] uppercase tracking-widest text-muted">People on this board</p>
       <ul className="mt-2 max-h-72 space-y-1 overflow-y-auto">
-        {team.members.map((m) => (
-          <li key={m.userId} className="flex items-center gap-2 rounded-md px-1.5 py-1.5">
-            <span
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium uppercase text-paper"
-              style={{ backgroundColor: colorOf(m.name) }}
-              aria-hidden
-            >
-              {m.name.charAt(0)}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-ink">
-              {m.name}
-              {m.userId === myId && <span className="text-muted"> (you)</span>}
-            </span>
-            {owner && m.role !== "owner" ? (
-              <select
-                aria-label={`Role for ${m.name}`}
-                value={m.role}
-                onChange={(e) => change(m.userId, m.name, e.target.value as Role)}
-                className="rounded-md border border-line bg-raised px-1.5 py-1 text-xs text-ink"
-              >
-                <option value="editor">{LABEL.editor}</option>
-                <option value="contributor">{LABEL.contributor}</option>
-                <option value="viewer">{LABEL.viewer}</option>
-                <option value="owner">Make owner…</option>
-              </select>
-            ) : (
-              <span className="text-xs text-muted">{LABEL[m.role]}</span>
-            )}
-          </li>
-        ))}
+        {team.members.map((m) => {
+          const here = team.online.includes(m.userId);
+          return (
+            <li key={m.userId} className="flex items-center gap-2 rounded-md px-1.5 py-1.5">
+              <span className="relative shrink-0">
+                <span
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-medium uppercase text-paper"
+                  style={{ backgroundColor: colorOf(m.name) }}
+                  aria-hidden
+                >
+                  {m.name.charAt(0)}
+                </span>
+                {/* Green = has the board open right now; grey = not here. */}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-surface ${here ? "bg-online" : "bg-muted/60"}`}
+                  title={here ? "Online" : "Offline"}
+                />
+                <span className="sr-only">{here ? "Online" : "Offline"}</span>
+              </span>
+              <span className="min-w-0 flex-1 truncate text-ink">
+                {m.name}
+                {m.userId === myId && <span className="text-muted"> (you)</span>}
+              </span>
+              {owner && m.role !== "owner" ? (
+                <select
+                  aria-label={`Role for ${m.name}`}
+                  value={m.role}
+                  onChange={(e) => change(m.userId, m.name, e.target.value as Role)}
+                  className="rounded-md border border-line bg-raised px-1.5 py-1 text-xs text-ink"
+                >
+                  <option value="editor">{LABEL.editor}</option>
+                  <option value="contributor">{LABEL.contributor}</option>
+                  <option value="viewer">{LABEL.viewer}</option>
+                  <option value="owner">Make owner…</option>
+                </select>
+              ) : (
+                <span className="text-xs text-muted">{LABEL[m.role]}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {error && <p className="mt-2 text-xs text-wine-light">{error}</p>}
       <p className="mt-3 border-t border-line pt-2 text-xs leading-relaxed text-muted">

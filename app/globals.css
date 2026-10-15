@@ -28,6 +28,7 @@
   --agent: #ff6b2c; /* orange = the agent ONLY (not in the palette on purpose) */
   --rose: #e0607e; /* bright wine tint: a person's cursor (PEOPLE_COLORS[0]) */
   --wine-light: #d98a99; /* lighter wine tint: another person's cursor */
+  --online: #34d399; /* green dot: a teammate has the board open right now */
 }
 
 @theme inline {
@@ -41,6 +42,7 @@
   --color-accent-bright: var(--accent-bright);
   --color-agent: var(--agent);
   --color-wine-light: var(--wine-light);
+  --color-online: var(--online);
 
   /* Fonts — wired to the next/font variables from app/layout.tsx */
   --font-heading: var(--font-bulzing), sans-serif;

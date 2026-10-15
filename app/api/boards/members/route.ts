@@ -3,8 +3,9 @@
 //
 //   GET   ?boardId=…                  → { me: role, members: [{ userId, name, role }] }
 //                                       anyone who has opened the board
-//   PATCH { boardId, userId, role }   → { ok }  change someone's role (owners only;
-//                                       the last owner can't step down)
+//   PATCH { boardId, userId, role }   → { ok }  change someone's role (the owner only).
+//                                       role "owner" hands the board over: one
+//                                       owner per board, the old owner becomes editor
 //
 // Roles: owner / editor / viewer (lib/boards-db.ts). SIGN-IN REQUIRED, and
 // "you" is always the account in the sign-in token.

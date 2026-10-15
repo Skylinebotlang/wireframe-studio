@@ -46,3 +46,74 @@ alter table public.board_visits add column user_name text check (char_length(use
 alter table public.board_visits add column role text not null default 'viewer' check (role in ('owner','editor','viewer'));
 update public.board_visits set role = 'editor';
 update public.board_visits v set role = 'owner' from public.boards b where b.id = v.board_id and b.created_by = v.user_id;
+
+-- ── ONE OWNER PER BOARD (2026-10-15) ────────────────────────────────────────
+-- Boards could end up with several owners: the role dropdown let an owner
+-- make others owner, and two people opening a board at the same moment could
+-- both be made owner. From now on the database allows exactly one owner per
+-- board; handing it over is one atomic step (the old owner becomes editor).
+--
+-- 1. Clean up: keep ONE owner per board. Preference: a real (signed-in)
+--    account over an old "user-…" browser identity, then the board's creator,
+--    then whoever has been away longest (opened it earliest). The others
+--    become editors.
+with ranked as (
+  select v.board_id, v.user_id,
+    row_number() over (
+      partition by v.board_id
+      order by (v.user_id like 'user-%') asc, (v.user_id = b.created_by) desc, v.last_opened_at asc, v.user_id asc
+    ) as n
+  from public.board_visits v join public.boards b on b.id = v.board_id
+  where v.role = 'owner'
+)
+update public.board_visits v set role = 'editor'
+from ranked r
+where r.board_id = v.board_id and r.user_id = v.user_id and r.n > 1;
+
+-- 2. The rule itself: at most one 'owner' row per board.
+create unique index board_visits_one_owner on public.board_visits (board_id) where role = 'owner';
+
+-- 3. Hand the board to another member: the current owner becomes editor.
+--    Returns false (and changes nothing) if p_from isn't the owner or p_to
+--    hasn't opened the board.
+create function public.transfer_board_owner(p_board text, p_from text, p_to text)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from board_visits where board_id = p_board and user_id = p_to) then
+    return false;
+  end if;
+  update board_visits set role = 'editor' where board_id = p_board and user_id = p_from and role = 'owner';
+  if not found then return false; end if;
+  update board_visits set role = 'owner' where board_id = p_board and user_id = p_to;
+  return true;
+end;
+$$;
+
+-- 4. Owner for a board that has no real owner yet (new board, or an old
+--    board owned only by a "user-…" browser identity). If two people try at
+--    the same moment, the unique index lets exactly one win; the other
+--    stays as they were and gets false.
+create function public.claim_board_owner(p_board text, p_user text)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+begin
+  if exists (select 1 from board_visits where board_id = p_board and role = 'owner' and user_id not like 'user-%') then
+    return false;
+  end if;
+  update board_visits set role = 'editor' where board_id = p_board and role = 'owner'; -- an old identity steps aside
+  update board_visits set role = 'owner' where board_id = p_board and user_id = p_user;
+  return found;
+exception when unique_violation then
+  return false;
+end;
+$$;
+
+revoke all on function public.transfer_board_owner(text, text, text) from public, anon, authenticated;
+revoke all on function public.claim_board_owner(text, text) from public, anon, authenticated;
+grant execute on function public.transfer_board_owner(text, text, text) to service_role;
+grant execute on function public.claim_board_owner(text, text) to service_role;

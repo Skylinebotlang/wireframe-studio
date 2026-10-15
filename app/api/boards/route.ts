@@ -5,7 +5,7 @@
 //   POST   { name }              → { board }  make a new board
 //   PUT    { boardId }           → { ok }     "I opened this board"
 //   PATCH  { boardId, name }     → { ok }     rename a board
-//   DELETE { boardId }           → { ok }     delete a board (its creator only):
+//   DELETE { boardId }           → { ok }     delete a board (its owner only):
 //                                  the list entry, its decision log AND the
 //                                  drawings in Liveblocks. Can't be undone.
 //
@@ -76,7 +76,7 @@ export async function DELETE(request: Request) {
   if (!ID.test(body?.boardId ?? "")) return friendlyError("Invalid board.", 400);
   return run(async () => {
     if (!(await deleteBoard(me.id, body.boardId))) {
-      return friendlyError("Only the person who made this board can delete it.", 403);
+      return friendlyError("Only the board's owner can delete it.", 403);
     }
     // The drawings too, so the old link opens an empty board. Best effort:
     // the list entry is already gone either way.

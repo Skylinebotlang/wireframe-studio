@@ -103,15 +103,21 @@ export async function visitBoard(userId: string, boardId: string, name?: string,
   });
   // A new visitor's role defaults to viewer (database default, never
   // overwritten on later visits). The person who just created it is owner.
-  if (created?.length) return setRoleRow(boardId, userId, "owner");
   // Boards made before real sign-in belong to an old browser identity
-  // ("user-…") that nobody can sign in as any more. If a board has no owner
+  // ("user-…") that nobody can sign in as any more: if a board has no owner
   // with a real account, the first signed-in person to open it takes over.
-  if (!isLegacyId(userId)) {
-    const owners: { user_id: string }[] = await rest(
-      `board_visits?board_id=eq.${encodeURIComponent(boardId)}&role=eq.owner&select=user_id`
-    );
-    if (!owners.some((o) => !isLegacyId(o.user_id))) await setRoleRow(boardId, userId, "owner");
+  // Both go through claim_board_owner, which the database makes all-or-
+  // nothing: a board has exactly ONE owner, even if two people arrive at once.
+  if (created?.length || !isLegacyId(userId)) await claimOwner(boardId, userId);
+}
+
+// Become owner if the board has no real owner yet. Never blocks opening the
+// board: if it fails, the person just keeps their role.
+async function claimOwner(boardId: string, userId: string) {
+  try {
+    await rest("rpc/claim_board_owner", { method: "POST", body: JSON.stringify({ p_board: boardId, p_user: userId }) });
+  } catch (err) {
+    console.error("Boards: couldn't check the board's owner:", err);
   }
 }
 
@@ -119,6 +125,8 @@ export async function visitBoard(userId: string, boardId: string, name?: string,
 const isLegacyId = (id: string) => id.startsWith("user-");
 
 // ── Roles: Owner / Editor / Viewer, one per person per board ─────────────────
+// Exactly ONE owner per board (the database enforces it: supabase/boards.sql).
+// Making someone else owner hands the board over: you become an editor.
 
 export type Role = "owner" | "editor" | "viewer";
 export const ROLES: Role[] = ["owner", "editor", "viewer"];
@@ -163,16 +171,23 @@ export async function listMembers(boardId: string): Promise<Member[]> {
 }
 
 /**
- * An owner changes someone's role. Returns an error message, or null.
- * The last owner can't step down (the board would have nobody in charge).
+ * The owner changes someone's role. Returns an error message, or null.
+ *   • role "owner" → hand the board over: they become owner, you become editor
+ *   • the owner can't demote themselves (hand the board over instead)
  */
 export async function changeRole(byUserId: string, boardId: string, userId: string, role: Role): Promise<string | null> {
-  if ((await getRole(byUserId, boardId)) !== "owner") return "Only an owner can change roles.";
+  if ((await getRole(byUserId, boardId)) !== "owner") return "Only the owner can change roles.";
+  if (userId === byUserId) {
+    return role === "owner" ? null : "You're the owner. To step down, make someone else the owner.";
+  }
   const target = await getRole(userId, boardId);
   if (!target) return "That person hasn't opened this board.";
-  if (target === "owner" && role !== "owner") {
-    const owners = (await listMembers(boardId)).filter((m) => m.role === "owner");
-    if (owners.length <= 1) return "A board needs at least one owner. Make someone else owner first.";
+  if (role === "owner") {
+    const ok = await rest("rpc/transfer_board_owner", {
+      method: "POST",
+      body: JSON.stringify({ p_board: boardId, p_from: byUserId, p_to: userId }),
+    });
+    return ok === true ? null : "Couldn't hand over the board. Please try again.";
   }
   await setRoleRow(boardId, userId, role);
   return null;
@@ -199,7 +214,7 @@ export async function renameBoard(userId: string, boardId: string, name: string)
 }
 
 /**
- * Delete a board from the list: only an owner may. Its visits and
+ * Delete a board from the list: only the owner may. Its visits and
  * decision log go with it (database cascade). Returns false if not allowed.
  * (The drawings in Liveblocks are deleted by the caller.)
  */

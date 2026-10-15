@@ -6,7 +6,8 @@
 //   const team = useBoardTeam(roomId);
 //   team.me        → "owner" | "editor" | "viewer" | null (still loading)
 //   team.members   → [{ userId, name, role }]
-//   team.setRole(userId, role) → change someone's role (owners only);
+//   team.setRole(userId, role) → change someone's role (the owner only; "owner"
+//                                 hands the board over);
 //                                 returns an error message or null
 //
 // The server decides and enforces roles (/api/boards/members,

@@ -3,8 +3,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOM BAR — what the top bar shows inside a board:
 //   • the board's name and YOUR role on it (Owner / Editor / Viewer)
-//   • Team  → everyone who has opened the board, with their role. Owners get
-//             a dropdown to change roles; everyone else just sees them.
+//   • Team  → everyone who has opened the board, with their role. The owner
+//             (one per board) gets a dropdown to change roles or hand the
+//             board over; everyone else just sees them.
 //   • Share → copy the board's link (new people join as viewers)
 // Decisions show as the "Clashes in the last run" card in the agent panel.
 // Roles are decided and enforced on the server (lib/boards-db.ts).
@@ -73,8 +74,10 @@ function TeamPopup({ team, myId, colorOf, onClose }: { team: Team; myId: string;
     };
   }, [onClose]);
 
-  async function change(userId: string, role: Role) {
+  async function change(userId: string, name: string, role: Role) {
     setError("");
+    // One owner per board: making someone owner hands the board over.
+    if (role === "owner" && !window.confirm(`Make ${name} the owner of this board? You'll become an editor.`)) return;
     const problem = await team.setRole(userId, role);
     if (problem) setError(problem);
   }
@@ -96,18 +99,16 @@ function TeamPopup({ team, myId, colorOf, onClose }: { team: Team; myId: string;
               {m.name}
               {m.userId === myId && <span className="text-muted"> (you)</span>}
             </span>
-            {owner ? (
+            {owner && m.role !== "owner" ? (
               <select
                 aria-label={`Role for ${m.name}`}
                 value={m.role}
-                onChange={(e) => change(m.userId, e.target.value as Role)}
+                onChange={(e) => change(m.userId, m.name, e.target.value as Role)}
                 className="rounded-md border border-line bg-raised px-1.5 py-1 text-xs text-ink"
               >
-                {(Object.keys(LABEL) as Role[]).map((r) => (
-                  <option key={r} value={r}>
-                    {LABEL[r]}
-                  </option>
-                ))}
+                <option value="editor">{LABEL.editor}</option>
+                <option value="viewer">{LABEL.viewer}</option>
+                <option value="owner">Make owner…</option>
               </select>
             ) : (
               <span className="text-xs text-muted">{LABEL[m.role]}</span>
@@ -118,7 +119,9 @@ function TeamPopup({ team, myId, colorOf, onClose }: { team: Team; myId: string;
       {error && <p className="mt-2 text-xs text-wine-light">{error}</p>}
       <p className="mt-3 border-t border-line pt-2 text-xs leading-relaxed text-muted">
         New people who open the link join as viewers.
-        {owner ? " Changes apply next time they open the board." : " Only owners can change roles."}
+        {owner
+          ? " A board has one owner; making someone else owner hands it over. Changes apply next time they open the board."
+          : " Only the owner can change roles."}
       </p>
     </div>
   );

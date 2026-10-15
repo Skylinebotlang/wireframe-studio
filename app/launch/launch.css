@@ -228,11 +228,12 @@ html.ls-lock {
   font-family: var(--f-body);
 }
 .ls-dialog::backdrop {
+  /* ::backdrop does not inherit the .ls tokens, so this one stays a raw value (= --n0). */
   background: color-mix(in srgb, #090719 82%, transparent);
 }
 .ls-dialog-card {
-  background: #131224;
-  border: 1px solid color-mix(in srgb, #f8f4f5 22%, transparent);
+  background: var(--n1);
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
   border-radius: 14px;
   padding: 24px;
 }
@@ -256,9 +257,9 @@ html.ls-lock {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, #f8f4f5 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
   background: transparent;
-  color: #f8f4f5;
+  color: var(--ink);
   cursor: pointer;
 }
 .ls-dialog-opts {
@@ -273,8 +274,8 @@ html.ls-lock {
   gap: 8px;
   padding: 18px 16px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, #f8f4f5 22%, transparent);
-  color: #f8f4f5;
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  color: var(--ink);
   text-decoration: none;
   transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -282,13 +283,13 @@ html.ls-lock {
   transform: translateY(-2px);
 }
 .ls-opt--new {
-  background: #681e2e;
-  border-color: #681e2e;
+  background: var(--wine);
+  border-color: var(--wine);
 }
 .ls-opt-k {
   font-family: var(--font-ibm-plex-mono), monospace;
   font-size: 12px;
-  color: color-mix(in srgb, #f8f4f5 75%, transparent);
+  color: color-mix(in srgb, var(--ink) 75%, transparent);
 }
 .ls-opt-t {
   font-family: var(--font-inter-tight), system-ui, sans-serif;
@@ -1025,6 +1026,8 @@ html.ls-lock {
   color: var(--dim);
   text-decoration: none;
   font-size: 15px;
+  display: inline-block;
+  padding: 12px 0; /* 44px tall tap target */
 }
 .ls-footer-links a:hover {
   color: var(--ink);
@@ -1381,8 +1384,19 @@ html.ls-ready .ls-pills {
 /* Give the 3D scenes room and keep text readable over them. */
 .ls-has-world .ls-problem,
 .ls-has-world .ls-live { min-height: 100vh; }
-.ls-has-world .ls-chapter-text { position: relative; text-shadow: 0 2px 24px #090719, 0 0 2px #090719; }
+/* Keep text readable over the 3D: a soft navy halo behind every heading and paragraph. */
+.ls-has-world .ls-chapter-text,
+.ls-has-world .ls-h1,
+.ls-has-world .ls-h2,
+.ls-has-world .ls-h3,
+.ls-has-world .ls-body { text-shadow: 0 2px 24px var(--n0), 0 0 2px var(--n0); }
 /* Try it: the closed demo poster lets the orbiting AI choices show through. */
 .ls-has-world .ls-demo { background: transparent; }
 .ls-has-world .ls-demo-poster { background: transparent; }
 .ls-has-world .ls-demo-poster-frame { visibility: hidden; }
+
+/* Phones: the hero's orange "Agent" tag sits LEFT of its cursor so it never
+   runs off the right edge. */
+@media (max-width: 640px) {
+  .ls-hero .ls-cur--ai .ls-cur-tag { position: absolute; right: 100%; top: 0; margin: 14px 4px 0 0; }
+}

@@ -7,12 +7,14 @@
 //     smoothly with the scroll, so the camera flies from one to the next.
 //   • Pinned sections are measured by their pin spacer, so the long pinned
 //     scenes (problem, how) give the camera more road.
+//   • The stop is worked out on scroll only (no loop of its own).
 //   • The 3D code loads only after the loader is done, so the first seconds
 //     stay fast. If WebGL is missing, the page simply keeps its dotted look.
 // ─────────────────────────────────────────────────────────────────────────────
 "use client";
 
 import { useEffect, useRef } from "react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { onLoaded, prefersReducedMotion } from "./bus";
 
 const STOPS = ["top", "problem", "how", "live", "try", "start"];
@@ -48,26 +50,27 @@ export function World() {
           return t;
         };
         let t = tops();
-        const onResize = () => (t = tops());
-        addEventListener("resize", onResize);
-        const re = setInterval(onResize, 1500); // pins settle after load
-
-        let raf = 0;
-        const tick = () => {
+        // Only on scroll, and when the pins are re-measured (ScrollTrigger
+        // "refresh" also fires on resize), never on a timer.
+        const onScroll = () => {
           const y = scrollY;
           let u = 0;
           for (let i = 0; i < t.length - 1; i++) {
             if (y >= t[i]) u = i + Math.min(1, (y - t[i]) / Math.max(1, t[i + 1] - t[i]));
           }
           world!.setStop(u);
-          raf = requestAnimationFrame(tick);
         };
-        raf = requestAnimationFrame(tick);
+        const onRefresh = () => {
+          t = tops();
+          onScroll();
+        };
+        addEventListener("scroll", onScroll, { passive: true });
+        ScrollTrigger.addEventListener("refresh", onRefresh);
+        onRefresh();
 
         dispose = () => {
-          cancelAnimationFrame(raf);
-          clearInterval(re);
-          removeEventListener("resize", onResize);
+          removeEventListener("scroll", onScroll);
+          ScrollTrigger.removeEventListener("refresh", onRefresh);
           world!.dispose();
           document.documentElement.classList.remove("ls-has-world");
         };

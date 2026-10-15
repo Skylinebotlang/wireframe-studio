@@ -284,9 +284,14 @@ export function createAgent(host: HTMLElement, opts: { reduced: boolean }): Agen
   const ease = (x: number) => 1 - Math.pow(1 - x, 3);
   let raf = 0;
 
+  // Phones run two 3D views (this robot + the world), so the robot draws at
+  // half rate there.
+  const halfRate = window.innerWidth < 720;
+  let skip = 0;
   function frame() {
     raf = requestAnimationFrame(frame);
     if (!running) return;
+    if (halfRate && skip++ % 2) return;
     const t = now();
     const dt = Math.min(Math.max(t - last, 0), 0.05);
     last = t;

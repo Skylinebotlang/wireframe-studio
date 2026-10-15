@@ -463,10 +463,21 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
     }
   }
 
+  // Resting: when the scroll has settled and the mouse is still, only the
+  // gentle ambient drift remains, so draw every 3rd frame instead of all.
+  let lastPointer = 0;
+  const onStir = () => (lastPointer = performance.now());
+  addEventListener("pointermove", onStir, { passive: true });
+  let tick = 0;
+  let boardDirty = true;
+
   function frame() {
     raf = requestAnimationFrame(frame);
     if (!running) return;
-    const t = (performance.now() - t0) / 1000;
+    const nowMs = performance.now();
+    const settled = Math.abs(target - u) < 0.0008 && nowMs - lastPointer > 1200;
+    if (settled && tick++ % 3) return;
+    const t = (nowMs - t0) / 1000;
     u = reduced ? target : u + (target - u) * 0.08;
 
     cameraAt(u);
@@ -500,7 +511,7 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
     tunnel.children.forEach((c, i) => {
       if (i < RINGS && !reduced) c.rotation.z = i * 0.05 + t * (i % 2 ? 0.3 : -0.3);
     });
-    (flash.material as THREE.MeshBasicMaterial).opacity = reduced ? 0 : Math.sin(Math.PI * range(u, 0.56, 0.68)) * 0.32;
+    (flash.material as THREE.MeshBasicMaterial).opacity = reduced ? 0 : Math.sin(Math.PI * range(u, 0.57, 0.65)) * 0.22;
 
     // Problem → fix: frames slide together, boxes scatter, then rebuild as one.
     const pull = smooth(range(u, 1.25, 1.55));
@@ -541,7 +552,10 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
     // Board: rises in on "how", then streams into the logo at the end.
     const boardIn = smooth(range(u, 1.7, 2.2));
     const stream = smooth(range(u, 4.6, 5.3));
-    for (let i = 0; i < boardPos.length; i++) {
+    // The board only changes while it rises in and while it streams into the
+    // logo; in between, the last positions are reused.
+    const boardLive = (u > 1.6 && u < 2.8) || u > 4.4;
+    if (boardLive || boardDirty) for (let i = 0; i < boardPos.length; i++) {
       const p = boardPos[i];
       const delay = (i % 17) / 17;
       const k = smooth(clamp01(stream * 1.6 - delay * 0.6));
@@ -555,8 +569,11 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
       dummy.updateMatrix();
       boardEdge.setMatrixAt(i, dummy.matrix);
     }
-    boardFill.instanceMatrix.needsUpdate = true;
-    boardEdge.instanceMatrix.needsUpdate = true;
+    if (boardLive || boardDirty) {
+      boardFill.instanceMatrix.needsUpdate = true;
+      boardEdge.instanceMatrix.needsUpdate = true;
+    }
+    boardDirty = boardLive;
     // The merged frame lies down onto the board as the camera pulls up.
     const lay = smooth(range(u, 1.9, 2.3)) * (1 - stream);
     merged.rotation.x = -Math.PI / 2 * lay;
@@ -618,6 +635,7 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
       cancelAnimationFrame(raf);
       ro.disconnect();
       removeEventListener("pointermove", onMouse);
+      removeEventListener("pointermove", onStir);
       document.removeEventListener("visibilitychange", onVis);
       scene.traverse((o) => {
         const m = o as THREE.Mesh;

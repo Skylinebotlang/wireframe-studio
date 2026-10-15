@@ -13,25 +13,33 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export function StartChatButton({ size = "lg", className = "" }: { size?: "lg" | "sm"; className?: string }) {
   const dlg = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  // The dialog is only put on the page while it is open, so its heading
+  // doesn't come before the page's own headings for screen readers.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (open) dlg.current?.showModal();
+  }, [open]);
 
   return (
     <>
       <button
         type="button"
         className={`ls-btn ${size === "sm" ? "ls-btn--sm" : ""} ${className}`}
-        onClick={() => dlg.current?.showModal()}
+        onClick={() => setOpen(true)}
         aria-haspopup="dialog"
       >
         Start the chat
       </button>
 
+      {open && (
       <dialog
         ref={dlg}
+        onClose={() => setOpen(false)}
         className="ls-dialog"
         aria-labelledby={titleId}
         onClick={(e) => e.target === dlg.current && dlg.current?.close()}
@@ -59,6 +67,7 @@ export function StartChatButton({ size = "lg", className = "" }: { size?: "lg" |
           </div>
         </div>
       </dialog>
+      )}
     </>
   );
 }

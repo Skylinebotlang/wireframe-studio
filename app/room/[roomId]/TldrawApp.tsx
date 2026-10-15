@@ -41,6 +41,7 @@ import { AgentPanel } from "./AgentPanel";
 import { RoomBar } from "./RoomBar";
 import { useParams } from "next/navigation";
 import { useBoardTeam } from "@/lib/board-role";
+import { canUseAI } from "@/lib/roles";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
 import { drawWireframes, fitBoardLabels, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
 import { useAgentPanel, useTeamColors } from "@/lib/agent-room";
@@ -149,6 +150,9 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   const { roomId } = useParams<{ roomId: string }>();
   const team = useBoardTeam(roomId);
   const viewer = team.me === "viewer";
+  // Owner / editor run the AI; contributors draw but don't (lib/roles.ts).
+  // While the role is still loading, show the buttons (the server checks anyway).
+  const aiAllowed = team.me === null || canUseAI(team.me);
   // Viewers can look but not change the canvas. (Liveblocks also refuses
   // their changes on the server; this just stops the tools from pretending.)
   useEffect(() => {
@@ -330,6 +334,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         myName={identity.name}
         colorOf={colorOf}
         readOnly={viewer}
+        canRunAgent={aiAllowed}
         agent={agent}
         editor={editor}
         message={message}

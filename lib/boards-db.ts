@@ -6,6 +6,9 @@
 // to our own /api/boards route. Tables: supabase/boards.sql.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { canEdit, canUseAI, ROLES, type Role } from "./roles";
+export { canEdit, canUseAI, ROLES, type Role };
+
 export type Board = {
   id: string; // the Liveblocks room id, used in /room/<id>
   name: string;
@@ -127,9 +130,8 @@ const isLegacyId = (id: string) => id.startsWith("user-");
 // ── Roles: Owner / Editor / Viewer, one per person per board ─────────────────
 // Exactly ONE owner per board (the database enforces it: supabase/boards.sql).
 // Making someone else owner hands the board over: you become an editor.
+// What each role may do: lib/roles.ts.
 
-export type Role = "owner" | "editor" | "viewer";
-export const ROLES: Role[] = ["owner", "editor", "viewer"];
 export type Member = { userId: string; name: string; role: Role };
 
 /** This person's role on a board, or null if they've never opened it. */
@@ -140,19 +142,27 @@ export async function getRole(userId: string, boardId: string): Promise<Role | n
   return rows[0]?.role ?? null;
 }
 
-/** May this person change the board (draw, run the agent)? */
-export const canEdit = (role: Role | null) => role === "owner" || role === "editor";
+/**
+ * For the decision route (clash picks): null if this person may change the
+ * board (owner / editor / contributor), else a friendly message.
+ * No database set up → allowed (nothing to check).
+ */
+export function editorCheck(userId: string, boardId: string) {
+  return roleCheck(userId, boardId, canEdit, "You're a viewer on this board. Ask the owner to make you a contributor or editor.");
+}
 
 /**
- * For the AI and decision routes: null if this person may change the board,
- * else a friendly message. No database set up → allowed (nothing to check).
+ * For the AI routes (agent, Make it real): null if this person may use the
+ * AI (owner / editor), else a friendly message.
  */
-export async function editorCheck(userId: string, boardId: string): Promise<string | null> {
+export function aiCheck(userId: string, boardId: string) {
+  return roleCheck(userId, boardId, canUseAI, "Only editors and the owner can run the agent on this board. Ask the owner to make you an editor.");
+}
+
+async function roleCheck(userId: string, boardId: string, allowed: (r: Role | null) => boolean, no: string): Promise<string | null> {
   if (!boardsConfigured()) return null;
   try {
-    return canEdit(await getRole(userId, boardId))
-      ? null
-      : "You're a viewer on this board. Ask an owner to make you an editor.";
+    return allowed(await getRole(userId, boardId)) ? null : no;
   } catch (err) {
     console.error("Role check failed:", err);
     return "Couldn't check your access to this board. Please try again.";

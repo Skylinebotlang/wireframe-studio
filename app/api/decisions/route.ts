@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const chosen = typeof body?.chosenAuthor === "string" ? body.chosenAuthor.trim().slice(0, 80) : "";
   const byName = typeof body?.byName === "string" && body.byName.trim() ? body.byName.trim() : me.name;
   if (!ID.test(boardId) || !summary || !chosen) return friendlyError("Missing the clash or the chosen version.", 400);
-  // Viewers can't pick a clash winner (roles: lib/boards-db.ts).
+  // Viewers can't pick a clash winner; contributors can (roles: lib/roles.ts).
   const notAllowed = await editorCheck(me.id, boardId);
   if (notAllowed) return friendlyError(notAllowed, 403);
   return run(async () => {

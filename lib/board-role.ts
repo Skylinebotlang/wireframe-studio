@@ -4,7 +4,7 @@
 // BOARD ROLE (browser side) — my role on this board and the member list.
 //
 //   const team = useBoardTeam(roomId);
-//   team.me        → "owner" | "editor" | "viewer" | null (still loading)
+//   team.me        → "owner" | "editor" | "contributor" | "viewer" | null (still loading)
 //   team.members   → [{ userId, name, role }]
 //   team.setRole(userId, role) → change someone's role (the owner only; "owner"
 //                                 hands the board over);

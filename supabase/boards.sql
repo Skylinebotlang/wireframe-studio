@@ -117,3 +117,22 @@ revoke all on function public.transfer_board_owner(text, text, text) from public
 revoke all on function public.claim_board_owner(text, text) from public, anon, authenticated;
 grant execute on function public.transfer_board_owner(text, text, text) to service_role;
 grant execute on function public.claim_board_owner(text, text) to service_role;
+
+-- ── CONTRIBUTOR ROLE (2026-10-16) ───────────────────────────────────────────
+-- A fourth role between editor and viewer: contributors draw, add notes and
+-- pick clash winners, but can't run the AI (agent, Make it real), so the
+-- AI limits stay with the people driving the design. Nothing else changes:
+-- existing roles stay as they are, and new visitors still join as viewers.
+-- (Drops the old role check by looking it up, whatever its name.)
+do $$
+declare c text;
+begin
+  for c in
+    select conname from pg_constraint
+    where conrelid = 'public.board_visits'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%role%'
+  loop
+    execute format('alter table public.board_visits drop constraint %I', c);
+  end loop;
+end $$;
+alter table public.board_visits add constraint board_visits_role_check
+  check (role in ('owner', 'editor', 'contributor', 'viewer'));

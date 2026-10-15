@@ -39,6 +39,7 @@ export function AgentPanel({
   myName,
   colorOf,
   readOnly,
+  canRunAgent,
 }: {
   agent: Agent;
   editor: Editor | null;
@@ -54,6 +55,7 @@ export function AgentPanel({
   myName: string; // this person's display name (their own lines say "You")
   colorOf: (name: string) => string; // a teammate's cursor color (lib/agent-room useTeamColors)
   readOnly: boolean; // this person is a Viewer: they watch, they can't run the agent
+  canRunAgent: boolean; // owner / editor (lib/roles.ts): contributors draw but don't run the AI
 }) {
   const { run, activity } = agent;
   const [idea, setIdea] = useState("");
@@ -99,11 +101,17 @@ export function AgentPanel({
       {/* pb-16: room at the bottom so the "Powered by Liveblocks" badge
           (bottom-right, free plan) never covers the last lines. */}
       <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-16">
-        {/* ── 2. Composer (Viewers get a note instead) ───────────────────── */}
+        {/* ── 2. Composer (Viewers and Contributors get a note instead) ──── */}
         {readOnly ? (
           <p className="rounded-xl border border-line bg-raised/60 p-3 text-xs leading-relaxed text-muted">
             You&apos;re a <span className="text-ink">viewer</span> on this board: you can watch everything live, but
-            not draw or run the agent. Ask an owner (Team, top right) to make you an editor.
+            not draw or run the agent. Ask the owner (Team, top right) to make you a contributor or editor.
+          </p>
+        ) : !canRunAgent ? (
+          <p className="rounded-xl border border-line bg-raised/60 p-3 text-xs leading-relaxed text-muted">
+            You&apos;re a <span className="text-ink">contributor</span> on this board: draw, add prompt notes and pick
+            clash winners. An editor or the owner runs the agent; ask the owner (Team, top right) if you need to run it
+            yourself.
           </p>
         ) : (
         <section>
@@ -214,7 +222,7 @@ export function AgentPanel({
                     </li>
                   ))}
                 </ol>
-                {!readOnly && (
+                {canRunAgent && !readOnly && (
                   <div className="grid grid-cols-2 gap-2">
                     {paused ? (
                       <QuietButton onClick={onResume}>Resume</QuietButton>
@@ -226,7 +234,7 @@ export function AgentPanel({
                 )}
               </>
             )}
-            {agent.undo && !working && !paused && !readOnly && (
+            {agent.undo && !working && !paused && canRunAgent && !readOnly && (
               <QuietButton onClick={onUndo} full>
                 <UndoIcon /> Undo last run · {agent.undo.screens} screen{agent.undo.screens === 1 ? "" : "s"} by {agent.undo.by}
               </QuietButton>

@@ -35,7 +35,7 @@ import { askBrain, pickBrain, type BrainJob } from "@/lib/agent-brains";
 import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
 import { claimUserRun, refundUserRun } from "@/lib/user-limit";
 import { getSignedInUser } from "@/lib/auth-server";
-import { editorCheck } from "@/lib/boards-db";
+import { aiCheck } from "@/lib/boards-db";
 import { patternsPrompt } from "@/lib/ui-patterns";
 import { PROVIDERS } from "@/lib/ai-providers";
 import {
@@ -100,8 +100,8 @@ export async function POST(request: Request) {
   if (typeof roomId !== "string" || !ROOM_ID_PATTERN.test(roomId)) {
     return friendlyError("Missing or invalid room. Reload the page and try again.", 400);
   }
-  // Viewers can't make designs (roles: lib/boards-db.ts).
-  const notAllowed = await editorCheck(me.id, roomId);
+  // Only editors and the owner make designs (roles: lib/roles.ts).
+  const notAllowed = await aiCheck(me.id, roomId);
   if (notAllowed) return friendlyError(notAllowed, 403);
   const idea = text(body.idea, MAX_IDEA_CHARS);
   const resolution = text(body.resolution, MAX_RESOLUTION_CHARS);

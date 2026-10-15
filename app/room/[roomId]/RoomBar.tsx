@@ -15,10 +15,10 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { TopBar, BarButton } from "../../TopBar";
 import type { useBoardTeam } from "@/lib/board-role";
-import type { Role } from "@/lib/boards-db";
+import type { Role } from "@/lib/roles";
 
 type Team = ReturnType<typeof useBoardTeam>;
-const LABEL: Record<Role, string> = { owner: "Owner", editor: "Editor", viewer: "Viewer" };
+const LABEL: Record<Role, string> = { owner: "Owner", editor: "Editor", contributor: "Contributor", viewer: "Viewer" };
 
 export function RoomBar({ team, myId, colorOf }: { team: Team; myId: string; colorOf: (name: string) => string }) {
   const { roomId } = useParams<{ roomId: string }>();
@@ -107,6 +107,7 @@ function TeamPopup({ team, myId, colorOf, onClose }: { team: Team; myId: string;
                 className="rounded-md border border-line bg-raised px-1.5 py-1 text-xs text-ink"
               >
                 <option value="editor">{LABEL.editor}</option>
+                <option value="contributor">{LABEL.contributor}</option>
                 <option value="viewer">{LABEL.viewer}</option>
                 <option value="owner">Make owner…</option>
               </select>
@@ -118,6 +119,7 @@ function TeamPopup({ team, myId, colorOf, onClose }: { team: Team; myId: string;
       </ul>
       {error && <p className="mt-2 text-xs text-wine-light">{error}</p>}
       <p className="mt-3 border-t border-line pt-2 text-xs leading-relaxed text-muted">
+        Editors draw and run the AI. Contributors draw and add notes, but don&apos;t run the AI. Viewers watch.
         New people who open the link join as viewers.
         {owner
           ? " A board has one owner; making someone else owner hands it over. Changes apply next time they open the board."

@@ -41,7 +41,7 @@ import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
 import { claimUserRun, refundUserRun } from "@/lib/user-limit";
 import { getSignedInUser, type SignedInUser } from "@/lib/auth-server";
 import { addDecisions, decisionsForPrompt } from "@/lib/decisions-db";
-import { boardsConfigured, editorCheck } from "@/lib/boards-db";
+import { boardsConfigured, aiCheck } from "@/lib/boards-db";
 import type { AgentResult } from "@/lib/agent-schema";
 import {
   parseUserKey,
@@ -96,8 +96,8 @@ export async function POST(request: Request) {
   if (typeof roomId !== "string" || !ROOM_ID_PATTERN.test(roomId)) {
     return friendlyError("Missing or invalid room. Reload the page and try again.", 400);
   }
-  // Viewers can't run the agent (roles: lib/boards-db.ts).
-  const notAllowed = await editorCheck(me.id, roomId);
+  // Only editors and the owner run the agent (roles: lib/roles.ts).
+  const notAllowed = await aiCheck(me.id, roomId);
   if (notAllowed) return friendlyError(notAllowed, 403);
   if (idea.length > MAX_IDEA_CHARS) {
     return friendlyError(`Your idea is too long (max ${MAX_IDEA_CHARS} characters).`, 400);

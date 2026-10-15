@@ -1,8 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // BOARD MEMBERS ENDPOINT — /api/boards/members
 //
-//   GET   ?boardId=…                  → { me: role, members: [{ userId, name, role }] }
-//                                       anyone who has opened the board
+//   GET   ?boardId=…                  → { me: role, members: [{ userId, name, role, lastOpenedAt }],
+//                                       defaultRole }  anyone who has opened the board
+//   PATCH { boardId, defaultRole }    → { ok }  what new people join as: editor /
+//                                       contributor / viewer (the owner only)
 //   PATCH { boardId, userId, role }   → { ok }  change someone's role (the owner only).
 //                                       role "owner" hands the board over: one
 //                                       owner per board, the old owner becomes editor
@@ -18,7 +20,19 @@
 
 import { NextResponse } from "next/server";
 import { Liveblocks } from "@liveblocks/node";
-import { boardsConfigured, canEdit, changeRole, getRole, listMembers, ROLES, type Role } from "@/lib/boards-db";
+import {
+  boardsConfigured,
+  canEdit,
+  changeRole,
+  getDefaultRole,
+  getRole,
+  JOIN_ROLES,
+  listMembers,
+  ROLES,
+  setDefaultRole,
+  type JoinRole,
+  type Role,
+} from "@/lib/boards-db";
 import { getSignedInUser } from "@/lib/auth-server";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -31,7 +45,8 @@ export async function GET(request: Request) {
   return run(async () => {
     const role = await getRole(me.id, boardId);
     if (!role) return error("Open this board first.", 403);
-    return NextResponse.json({ me: role, members: await listMembers(boardId) });
+    const [members, defaultRole] = await Promise.all([listMembers(boardId), getDefaultRole(boardId)]);
+    return NextResponse.json({ me: role, members, defaultRole });
   });
 }
 
@@ -39,6 +54,15 @@ export async function PATCH(request: Request) {
   const me = await getSignedInUser(request);
   if (!me) return error("Please sign in first.", 401);
   const body = await request.json().catch(() => null);
+  // What new people join as.
+  if (body?.defaultRole !== undefined) {
+    const joinAs = body.defaultRole as JoinRole;
+    if (!ID.test(body?.boardId ?? "") || !JOIN_ROLES.includes(joinAs)) return error("Invalid request.", 400);
+    return run(async () => {
+      const problem = await setDefaultRole(me.id, body.boardId, joinAs);
+      return problem ? error(problem, 403) : NextResponse.json({ ok: true });
+    });
+  }
   const role = body?.role as Role;
   if (!ID.test(body?.boardId ?? "") || typeof body?.userId !== "string" || !ROLES.includes(role)) {
     return error("Invalid request.", 400);

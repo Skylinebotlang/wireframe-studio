@@ -211,6 +211,29 @@ async function setRoleRow(boardId: string, userId: string, role: Role) {
   });
 }
 
+// ── What new people join as (the owner picks; supabase/boards.sql) ─────────
+
+export type JoinRole = Exclude<Role, "owner">;
+export const JOIN_ROLES: JoinRole[] = ["editor", "contributor", "viewer"];
+
+/** The role new people get on their first visit. "viewer" if it can't be read. */
+export async function getDefaultRole(boardId: string): Promise<JoinRole> {
+  try {
+    const rows: { default_role: JoinRole }[] = await rest(`boards?id=eq.${encodeURIComponent(boardId)}&select=default_role`);
+    return JOIN_ROLES.includes(rows[0]?.default_role) ? rows[0].default_role : "viewer";
+  } catch (err) {
+    console.error("Boards: couldn't read the default role:", err);
+    return "viewer"; // e.g. the default_role column isn't added yet
+  }
+}
+
+/** The owner changes what new people join as. Returns an error message, or null. */
+export async function setDefaultRole(byUserId: string, boardId: string, role: JoinRole): Promise<string | null> {
+  if ((await getRole(byUserId, boardId)) !== "owner") return "Only the owner can change this.";
+  await rest(`boards?id=eq.${encodeURIComponent(boardId)}`, { method: "PATCH", body: JSON.stringify({ default_role: role }) });
+  return null;
+}
+
 /** Rename a board. Only people who have opened it may rename it. */
 export async function renameBoard(userId: string, boardId: string, name: string): Promise<boolean> {
   const visits = await rest(

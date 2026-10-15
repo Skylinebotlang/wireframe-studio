@@ -136,3 +136,29 @@ begin
 end $$;
 alter table public.board_visits add constraint board_visits_role_check
   check (role in ('owner', 'editor', 'contributor', 'viewer'));
+
+-- ── DEFAULT ROLE FOR NEW PEOPLE (2026-10-16) ────────────────────────────────
+-- The owner picks what new people join as: viewer (the default, as before),
+-- contributor or editor. Only someone's FIRST visit uses it: people already
+-- on the board keep their role, and the board's creator still becomes owner
+-- (claim_board_owner runs right after their first visit).
+alter table public.boards add column default_role text not null default 'viewer'
+  check (default_role in ('editor', 'contributor', 'viewer'));
+
+-- A new visit row gets the board's default role. (Later visits update the
+-- same row with ON CONFLICT … DO UPDATE, which doesn't touch the role.)
+create function public.board_visit_default_role()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.role := coalesce((select default_role from boards where id = new.board_id), 'viewer');
+  return new;
+end;
+$$;
+
+create trigger board_visits_default_role
+  before insert on public.board_visits
+  for each row when (new.role = 'viewer')
+  execute function public.board_visit_default_role();

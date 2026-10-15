@@ -9,7 +9,8 @@
 //             hands the board over ("Make owner…"); everyone else just sees
 //             the roles. Changes show at once ("Saving…" → "Saved"), and
 //             reach the other person live (lib/board-role.ts).
-//   • Share → copy the board's link (new people join as viewers)
+//             The owner also picks what new people join as (footer).
+//   • Share → copy the board's link
 // Decisions show as the "Clashes in the last run" card in the agent panel.
 // Roles are decided and enforced on the server (lib/roles.ts, lib/boards-db.ts).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -129,6 +130,31 @@ function TeamPopup({
     menuFor?.button.focus();
   }, [hideMenu, menuFor]);
 
+  // "New people join as": the owner's menu in the footer, shown at once
+  // while it saves (like a role change).
+  const joinMenu = useClosable();
+  const { hide: hideJoinMenu } = joinMenu;
+  const [joinButton, setJoinButton] = useState<HTMLButtonElement | null>(null);
+  const [joinPending, setJoinPending] = useState<Exclude<Role, "owner"> | null>(null);
+  const [joinNote, setJoinNote] = useState<RowState>({});
+  const closeJoinMenu = useCallback(() => {
+    hideJoinMenu();
+    joinButton?.focus();
+  }, [hideJoinMenu, joinButton]);
+  const joinAs = joinPending ?? team.defaultRole;
+  const joinOpen = joinMenu.open && !joinMenu.leaving;
+
+  async function changeJoinRole(role: Exclude<Role, "owner">) {
+    if (role === team.defaultRole) return;
+    setJoinPending(role);
+    setJoinNote({ note: "saving" });
+    const problem = await team.setDefaultRole(role);
+    setJoinPending(null);
+    if (problem) return setJoinNote({ note: "error", text: problem });
+    setJoinNote({ note: "saved", text: `Saved · new people join as ${LABEL[role]}` });
+    setTimeout(() => setJoinNote((n) => (n.note === "saved" ? {} : n)), SAVED_MS);
+  }
+
   // Focus moves into the popup when it opens.
   useEffect(() => {
     box.current?.focus();
@@ -223,7 +249,13 @@ function TeamPopup({
 
       {/* The people. Scrolls when the team is long (the role menu closes then,
           since it's placed against the screen). */}
-      <div className="max-h-[calc(100vh-260px)] overflow-y-auto" onScroll={() => menu.open && closeMenu()}>
+      <div
+        className="max-h-[calc(100vh-260px)] overflow-y-auto"
+        onScroll={() => {
+          if (menu.open) closeMenu();
+          if (joinMenu.open) closeJoinMenu();
+        }}
+      >
         {here.length > 0 && <GroupLabel>Online · {here.length}</GroupLabel>}
         {here.length > 0 && <ul>{here.map((m) => row(m, true))}</ul>}
         {away.length > 0 && <GroupLabel second={here.length > 0}>Offline · {away.length}</GroupLabel>}
@@ -234,9 +266,40 @@ function TeamPopup({
           then the invite link. */}
       <div className="mt-2 flex flex-col gap-3 border-t border-line px-4 pb-4 pt-3.5">
         {owner ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[13px] text-muted">New people join as</span>
-            <span className="flex h-8 items-center rounded-lg border border-line px-2.5 text-[13px] text-ink">Viewer</span>
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[13px] text-muted">New people join as</span>
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={joinOpen}
+                aria-label={`New people join as ${LABEL[joinAs]}`}
+                onClick={(e) => {
+                  if (joinOpen) return closeJoinMenu();
+                  setJoinButton(e.currentTarget);
+                  joinMenu.show();
+                }}
+                className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg border bg-transparent px-2.5 text-[13px] text-ink transition-colors ${
+                  joinOpen ? "border-accent-bright" : "border-line hover:border-accent-bright/60"
+                } ${FOCUS}`}
+              >
+                {LABEL[joinAs]}
+                <ChevronIcon up={joinOpen} />
+              </button>
+            </div>
+            {joinNote.note && (
+              <p className="mt-1.5 text-right text-xs" aria-live="polite">
+                {joinNote.note === "saving" ? (
+                  <span className="text-muted">Saving…</span>
+                ) : joinNote.note === "saved" ? (
+                  <span className="inline-flex items-center gap-1 text-online">
+                    <CheckIcon /> {joinNote.text}
+                  </span>
+                ) : (
+                  <span className="text-rose">{joinNote.text}</span>
+                )}
+              </p>
+            )}
           </div>
         ) : (
           <p className="flex items-center gap-2 text-[13px] text-muted">
@@ -253,6 +316,21 @@ function TeamPopup({
           <LinkIcon /> {copied ? "Link copied" : "Copy invite link"}
         </button>
       </div>
+
+      {joinMenu.open && joinButton && (
+        <RoleMenu
+          anchor={joinButton}
+          label="New people join as"
+          current={joinAs}
+          leaving={joinMenu.leaving}
+          withOwner={false}
+          onClose={closeJoinMenu}
+          onPick={(role) => {
+            closeJoinMenu();
+            changeJoinRole(role as Exclude<Role, "owner">);
+          }}
+        />
+      )}
 
       {menu.open && menuFor && (
         <RoleMenu
@@ -373,12 +451,16 @@ function MemberRow({
 
 function RoleMenu({
   anchor,
+  label = "Change role",
   current,
   leaving,
+  withOwner = true,
   onClose,
   onPick,
 }: {
   anchor: HTMLElement;
+  label?: string;
+  withOwner?: boolean; // the "Make owner…" item (not for "New people join as")
   current: Exclude<Role, "owner">;
   leaving: boolean;
   onClose: () => void;
@@ -422,7 +504,7 @@ function RoleMenu({
     <div
       ref={box}
       role="menu"
-      aria-label="Change role"
+      aria-label={label}
       onKeyDown={onKeyDown}
       className={`fixed z-[1100] w-[264px] rounded-[10px] border border-line bg-surface p-1.5 shadow-[0_20px_52px_rgba(0,0,0,0.6)] ${leaving ? "team-out" : "team-in"}`}
     >
@@ -446,13 +528,17 @@ function RoleMenu({
           </button>
         );
       })}
-      <div role="separator" className="my-1.5 h-px bg-line" />
-      <button type="button" role="menuitem" tabIndex={-1} onClick={() => onPick("owner")} className={item}>
-        <span className="mt-0.5 flex w-4 shrink-0 justify-center text-muted">
-          <LockIcon />
-        </span>
-        <span className="text-sm font-medium text-ink">Make owner…</span>
-      </button>
+      {withOwner && (
+        <>
+          <div role="separator" className="my-1.5 h-px bg-line" />
+          <button type="button" role="menuitem" tabIndex={-1} onClick={() => onPick("owner")} className={item}>
+            <span className="mt-0.5 flex w-4 shrink-0 justify-center text-muted">
+              <LockIcon />
+            </span>
+            <span className="text-sm font-medium text-ink">Make owner…</span>
+          </button>
+        </>
+      )}
     </div>
   );
 }

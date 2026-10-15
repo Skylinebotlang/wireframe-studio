@@ -7,6 +7,8 @@
 //   team.me        → "owner" | "editor" | "contributor" | "viewer" | null (still loading)
 //   team.members   → [{ userId, name, role }]
 //   team.online    → ids of the people who have this board open right now
+//   team.defaultRole → what new people join as (editor / contributor / viewer)
+//   team.setDefaultRole(role) → change it (the owner only); error message or null
 //   team.notice    → "You're now a Contributor" for a few seconds after
 //                    the owner changes MY role (else "")
 //   team.setRole(userId, role) → change someone's role (the owner only; "owner"
@@ -24,7 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { shallow, useClient, useEventListener, useOthers, useSelf } from "@liveblocks/react/suspense";
 import { authHeader } from "./auth";
-import type { Member } from "./boards-db";
+import type { JoinRole, Member } from "./boards-db";
 import type { Role } from "./roles";
 
 const LABEL: Record<Role, string> = { owner: "Owner", editor: "Editor", contributor: "Contributor", viewer: "Viewer" };
@@ -34,6 +36,7 @@ export function useBoardTeam(roomId: string) {
   const [me, setMe] = useState<Role | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [notice, setNotice] = useState("");
+  const [defaultRole, setDefault] = useState<JoinRole>("viewer");
   const client = useClient();
   // My account id, as the server put it in my Liveblocks pass.
   const myId = useSelf((self) => self.id);
@@ -57,6 +60,7 @@ export function useBoardTeam(roomId: string) {
       shown.current = data.me;
       setMe(data.me);
       setMembers(data.members);
+      if (data.defaultRole) setDefault(data.defaultRole);
     }
   }, [roomId]);
 
@@ -96,5 +100,20 @@ export function useBoardTeam(roomId: string) {
     [roomId, load]
   );
 
-  return { me, members, online, notice, setRole };
+  const setDefaultRole = useCallback(
+    async (role: JoinRole): Promise<string | null> => {
+      const res = await fetch("/api/boards/members", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify({ boardId: roomId, defaultRole: role }),
+      }).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      if (!res?.ok) return data?.error ?? "Couldn't change it. Please try again.";
+      await load();
+      return null;
+    },
+    [roomId, load]
+  );
+
+  return { me, members, online, notice, defaultRole, setRole, setDefaultRole };
 }

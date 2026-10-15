@@ -55,7 +55,12 @@ declare global {
     // `provider` is the AI's display name ("Gemini" | "Claude" | "OpenAI")
     // for "Run by papi using Claude". NEVER put an API key in any event,
     // presence or storage: everything here is visible to the whole room.
-    RoomEvent: { type: "agent-status"; busy: boolean; by: string; provider?: string };
+    // "team-changed" (sent by the server, /api/boards/members): someone's
+    // role on this board changed, so every window reloads the Team list
+    // and that person reconnects with their new access (lib/board-role.ts).
+    RoomEvent:
+      | { type: "agent-status"; busy: boolean; by: string; provider?: string }
+      | { type: "team-changed"; userId: string };
 
     // Room IDs are free-form strings like "demo" or "design-sprint-12".
     RoomMetadata: Record<string, never>;

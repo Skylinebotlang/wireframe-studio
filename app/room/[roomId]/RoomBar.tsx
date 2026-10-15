@@ -6,7 +6,8 @@
 //   • Team  → everyone who has opened the board, with their role and a dot:
 //             green = has the board open right now, grey = not here. The
 //             owner (one per board) gets a dropdown to change roles or hand
-//             the board over; everyone else just sees them.
+//             the board over; everyone else just sees them. Role changes
+//             apply live (lib/board-role.ts).
 //   • Share → copy the board's link (new people join as viewers)
 // Decisions show as the "Clashes in the last run" card in the agent panel.
 // Roles are decided and enforced on the server (lib/boards-db.ts).
@@ -46,6 +47,12 @@ export function RoomBar({ team, myId, colorOf }: { team: Team; myId: string; col
       {team.me && (
         <span className="shrink-0 rounded-full border border-accent-bright/60 px-2 py-0.5 text-[11px] text-wine-light">
           {LABEL[team.me]}
+        </span>
+      )}
+      {/* The owner just changed my role: say so for a few seconds. */}
+      {team.notice && (
+        <span role="status" className="pop-in shrink-0 text-[11px] text-wine-light">
+          {team.notice}
         </span>
       )}
       <span className="flex-1" />
@@ -134,7 +141,7 @@ function TeamPopup({ team, myId, colorOf, onClose }: { team: Team; myId: string;
         Editors draw and run the AI. Contributors draw and add notes, but don&apos;t run the AI. Viewers watch.
         New people who open the link join as viewers.
         {owner
-          ? " A board has one owner; making someone else owner hands it over. Changes apply next time they open the board."
+          ? " A board has one owner; making someone else owner hands it over. Changes apply straight away."
           : " Only the owner can change roles."}
       </p>
     </div>

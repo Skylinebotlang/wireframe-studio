@@ -132,7 +132,8 @@ const isLegacyId = (id: string) => id.startsWith("user-");
 // Making someone else owner hands the board over: you become an editor.
 // What each role may do: lib/roles.ts.
 
-export type Member = { userId: string; name: string; role: Role };
+// lastOpenedAt: when they last opened this board (ISO time), for "Last seen…".
+export type Member = { userId: string; name: string; role: Role; lastOpenedAt: string };
 
 /** This person's role on a board, or null if they've never opened it. */
 export async function getRole(userId: string, boardId: string): Promise<Role | null> {
@@ -171,12 +172,12 @@ async function roleCheck(userId: string, boardId: string, allowed: (r: Role | nu
 
 /** Everyone who has opened a board, owners first. */
 export async function listMembers(boardId: string): Promise<Member[]> {
-  const rows: { user_id: string; user_name: string | null; role: Role }[] = await rest(
-    `board_visits?board_id=eq.${encodeURIComponent(boardId)}&select=user_id,user_name,role&order=last_opened_at.desc&limit=200`
+  const rows: { user_id: string; user_name: string | null; role: Role; last_opened_at: string }[] = await rest(
+    `board_visits?board_id=eq.${encodeURIComponent(boardId)}&select=user_id,user_name,role,last_opened_at&order=last_opened_at.desc&limit=200`
   );
   return rows
     .filter((r) => !isLegacyId(r.user_id)) // old browser identities can't sign in: not real members
-    .map((r) => ({ userId: r.user_id, name: r.user_name || "Someone", role: r.role }))
+    .map((r) => ({ userId: r.user_id, name: r.user_name || "Someone", role: r.role, lastOpenedAt: r.last_opened_at }))
     .sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role));
 }
 

@@ -46,25 +46,32 @@ export function BarButton({
   onClick,
   active,
   strong,
+  ref,
+  popup,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   active?: boolean;
   strong?: boolean; // the one filled button (Share)
+  ref?: React.Ref<HTMLButtonElement>; // e.g. to move focus back here when a popup closes
+  popup?: "dialog" | "menu"; // it opens a popup: say so to screen readers (and whether it's open)
 }) {
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
-      aria-pressed={active}
+      aria-pressed={popup ? undefined : active}
+      aria-haspopup={popup}
+      aria-expanded={popup ? !!active : undefined}
       title={label}
-      className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors ${
+      className={`flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-bright ${
         strong
-          ? "bg-accent text-ink hover:brightness-125"
+          ? "border-transparent bg-accent text-ink hover:brightness-125"
           : active
-            ? "bg-raised text-ink"
-            : "text-muted hover:bg-raised hover:text-ink"
+            ? "border-accent-bright bg-raised text-ink"
+            : "border-transparent text-muted hover:bg-raised hover:text-ink"
       }`}
     >
       {icon}

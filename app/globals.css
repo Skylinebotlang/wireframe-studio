@@ -29,6 +29,7 @@
   --rose: #e0607e; /* bright wine tint: a person's cursor (PEOPLE_COLORS[0]) */
   --wine-light: #d98a99; /* lighter wine tint: another person's cursor */
   --online: #34d399; /* green dot: a teammate has the board open right now */
+  --offline: #5d5a6b; /* grey dot: a teammate who isn't on the board now */
 }
 
 @theme inline {
@@ -43,6 +44,8 @@
   --color-agent: var(--agent);
   --color-wine-light: var(--wine-light);
   --color-online: var(--online);
+  --color-offline: var(--offline);
+  --color-rose: var(--rose);
 
   /* Fonts — wired to the next/font variables from app/layout.tsx */
   --font-heading: var(--font-bulzing), sans-serif;
@@ -315,6 +318,41 @@ body {
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--agent) 10%, transparent);
   }
 }
+/* Team popup and its menus (app/room/[roomId]/RoomBar.tsx): a quick fade +
+   grow from the button that opened them. "backwards" so no transform stays
+   behind once it's open (menus inside are positioned against the screen). */
+.team-in {
+  animation: team-in 160ms ease-out backwards;
+}
+.team-out {
+  animation: team-out 140ms ease-in forwards;
+}
+@keyframes team-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes team-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Fade only, no growing. */
+  @keyframes team-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes team-out {
+    to {
+      opacity: 0;
+    }
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

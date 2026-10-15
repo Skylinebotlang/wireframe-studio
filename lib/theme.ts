@@ -22,6 +22,7 @@ export const THEME = {
   wine: "#681E2E", // the "people" accent
   agent: "#FF6B2C", // the agent accent (do NOT use for humans)
   online: "#34D399", // green dot: a teammate has the board open right now
+  offline: "#5D5A6B", // grey dot: a teammate who isn't on the board now
   dots: "#F8F4F517", // canvas dotted background (faint soft white)
 } as const;
 

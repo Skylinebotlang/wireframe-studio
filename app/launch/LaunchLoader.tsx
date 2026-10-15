@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // LOADER — the very first thing you see.
 //
+//   • Starts right after the drag splash (app/Splash.tsx) is let go.
 //   • Deep navy screen. The AI character stands in the middle and its orange
 //     outline draws in from the bottom up. How far it has drawn = how much of
 //     the site has really loaded (fonts, logo, the 3D character, the page).
@@ -71,7 +72,7 @@ export function LaunchLoader() {
     }
 
     // ── Smoothed progress ───────────────────────────────────────────────────
-    const start = performance.now();
+    let start = performance.now();
     let shown = 0;
     let finished = false;
     let raf = 0;
@@ -99,7 +100,15 @@ export function LaunchLoader() {
       }
       raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
+    // Wait for the drag splash (app/Splash.tsx) to be gone before drawing,
+    // so the visitor actually sees the robot draw itself in.
+    const begin = () => {
+      start = performance.now();
+      raf = requestAnimationFrame(tick);
+    };
+    const w = window as Window & { __wfsLoaded?: boolean };
+    if (w.__wfsLoaded) begin();
+    else addEventListener("wfs:loaded", begin, { once: true });
 
     // ── Hand-off into the hero ──────────────────────────────────────────────
     let tl: gsap.core.Timeline | null = null;
@@ -130,6 +139,7 @@ export function LaunchLoader() {
       tl?.kill();
       removeEventListener(AGENT_READY_EVENT, onAgent);
       removeEventListener("load", onPage);
+      removeEventListener("wfs:loaded", begin);
       html.classList.remove("ls-lock");
     };
   }, []);

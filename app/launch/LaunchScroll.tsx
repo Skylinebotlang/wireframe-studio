@@ -64,6 +64,7 @@ const CHAPTERS = [
   { id: "top", label: "Start", status: "watching" },
   { id: "problem", label: "The problem", status: "listening" },
   { id: "how", label: "How it works", status: "drawing" },
+  { id: "live", label: "Live", status: "drawing live" },
   { id: "try", label: "Try it", status: "waiting for you" },
   { id: "start", label: "Join", status: "ready when you are" },
 ];

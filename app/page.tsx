@@ -3,7 +3,8 @@
 // Built with the /launch-site brief: docs/launch-site-v2/BRIEF.md.
 // All parts live in app/launch/, all styles in app/launch/launch.css.
 //
-//   0. Loader       the 3D AI character draws itself in orange while the site
+//   0. Splash       drag the 3D logo to enter (app/Splash.tsx).
+//      Loader       then the 3D AI character draws itself in orange while the site
 //                   loads, turns solid, waves, and glides into the hero
 //                   (LaunchLoader + CharacterDock + agent3d).
 //   1. Hero         the first 8 seconds: three people build three screens
@@ -11,6 +12,7 @@
 //                   "Everybody has the context, not just the AI." (Hero)
 //   2. The problem  three setups, no shared picture (ProblemChapter)
 //   3. How it works five steps on a live canvas (HowChapter)
+//   3b. Live together  named cursors + the activity feed (LiveChapter)
 //   4. Try it       the clickable demo + bring your own AI (TryChapter)
 //   5. Join         Start the chat + footer (FinalChapter)
 //
@@ -23,10 +25,12 @@ import { LaunchNav } from "./launch/LaunchNav";
 import { Hero } from "./launch/Hero";
 import { ProblemChapter } from "./launch/ProblemChapter";
 import { HowChapter } from "./launch/HowChapter";
+import { LiveChapter } from "./launch/LiveChapter";
 import { TryChapter } from "./launch/TryChapter";
 import { FinalChapter, Footer } from "./launch/FinalChapter";
 import { CharacterDock } from "./launch/CharacterDock";
 import { LaunchLoader } from "./launch/LaunchLoader";
+import { Splash } from "./Splash";
 import { ChapterPills, LaunchScroll } from "./launch/LaunchScroll";
 import "./launch/launch.css";
 
@@ -41,6 +45,7 @@ export default function LandingPage() {
         <Hero />
         <ProblemChapter />
         <HowChapter />
+        <LiveChapter />
         <TryChapter />
         <FinalChapter />
       </main>
@@ -48,6 +53,8 @@ export default function LandingPage() {
       <ChapterPills />
       <CharacterDock />
       <LaunchLoader />
+      {/* Drag the 3D logo to enter; the loader starts when you let go. */}
+      <Splash />
       <LaunchScroll />
     </div>
   );

@@ -3,12 +3,11 @@
 // robot, built entirely in code with Three.js (no model file to download).
 //
 // What it looks like:
-//   • A rounded navy head with a dark face screen and two soft-white eyes,
-//     an antenna topped with the orange triangle from our logo, a small body
-//     with the same orange triangle as its "core", two floating hands, and a
-//     pen in the right hand.
-//   • Thin ORANGE edges trace every part: it is the AI, and in Wireframe
-//     Studio orange always means the AI. (Orange is never used for people.)
+//   • A round ORANGE head with a dark visor and two soft-white eyes, an
+//     antenna with an orange status light, an orange pebble body, two
+//     floating hands, and a pen in the right hand.
+//   • It is the AI, and in Wireframe Studio orange always means the AI.
+//     (Orange is never used for people.)
 //
 // What it does:
 //   • While the site loads, its orange outline draws in from the bottom up,
@@ -27,56 +26,11 @@ import type { AgentCommand } from "./bus";
 
 const NAVY_0 = 0x090719;
 const NAVY_1 = 0x131224;
-const NAVY_2 = 0x191a2f;
 const INK = 0xf8f4f5;
 const AI = 0xff6b2c;
 
 // Colors are written in sRGB (like CSS); Three.js lights in linear space.
 const lin = (hex: number) => new THREE.Color(hex).convertSRGBToLinear();
-
-// A rounded rectangle outline (used for the head, body, face and eyes).
-function roundedRect(w: number, h: number, r: number) {
-  const s = new THREE.Shape();
-  const x = -w / 2;
-  const y = -h / 2;
-  s.moveTo(x + r, y);
-  s.lineTo(x + w - r, y);
-  s.quadraticCurveTo(x + w, y, x + w, y + r);
-  s.lineTo(x + w, y + h - r);
-  s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  s.lineTo(x + r, y + h);
-  s.quadraticCurveTo(x, y + h, x, y + h - r);
-  s.lineTo(x, y + r);
-  s.quadraticCurveTo(x, y, x + r, y);
-  return s;
-}
-
-// A soft-edged box: a rounded rectangle pushed out into 3D with bevelled edges.
-function roundedBox(w: number, h: number, d: number, r: number, bevel = 0.08) {
-  const geo = new THREE.ExtrudeGeometry(roundedRect(w - bevel * 2, h - bevel * 2, Math.max(0.01, r - bevel)), {
-    depth: d - bevel * 2,
-    bevelEnabled: true,
-    bevelThickness: bevel,
-    bevelSize: bevel,
-    bevelSegments: 4,
-    curveSegments: 10,
-  });
-  geo.center();
-  return geo;
-}
-
-// The orange triangle from the logo, as a thin solid.
-function triangle(size: number, depth: number) {
-  const s = new THREE.Shape();
-  const h = (size * Math.sqrt(3)) / 2;
-  s.moveTo(0, (h * 2) / 3);
-  s.lineTo(size / 2, -h / 3);
-  s.lineTo(-size / 2, -h / 3);
-  s.closePath();
-  const geo = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false });
-  geo.center();
-  return geo;
-}
 
 export type AgentHandle = {
   command: (cmd: AgentCommand) => void;
@@ -133,10 +87,9 @@ export function createAgent(host: HTMLElement, opts: { reduced: boolean }): Agen
     solids.push(m);
     return m;
   };
-  const bodyMat = solid(NAVY_2);
   const faceMat = solid(NAVY_0, { roughness: 0.2, metalness: 0.4 });
   const eyeMat = solid(INK, { emissive: lin(INK), emissiveIntensity: 0.55, roughness: 0.3 });
-  const coreMat = solid(AI, { emissive: lin(AI), emissiveIntensity: 0.9, roughness: 0.35 });
+  const coreMat = solid(AI, { emissive: lin(AI), emissiveIntensity: 0.25, roughness: 0.45 });
   const penMat = solid(INK, { roughness: 0.5 });
   const handMat = solid(NAVY_1);
 
@@ -155,79 +108,69 @@ export function createAgent(host: HTMLElement, opts: { reduced: boolean }): Agen
     return g;
   }
 
-  // A rounded-rectangle line loop at depth z (front or back of a part).
-  function outline(w: number, h: number, r: number, z: number) {
-    const pts = roundedRect(w, h, r).getPoints(10);
-    return new THREE.LineLoop(
-      new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, z))),
-      edgeMat
-    );
-  }
-
-  // ── Build the figure ───────────────────────────────────────────────────────
+  // ── Build the figure: a small round ORANGE robot (papi's pick) ──────────
+  // A rounded orange head with a dark visor and two soft-white eyes, an
+  // antenna with an orange status light, a pebble-shaped orange body, two
+  // floating hands, and a pen in the right hand.
   const root = new THREE.Group(); // floats up and down
   scene.add(root);
 
+  // An ellipse line loop (the orange "wireframe" outline while drawing in).
+  function ring(rx: number, ry: number, z: number, y = 0) {
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i < 48; i++) {
+      const a = (i / 48) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a) * rx, y + Math.sin(a) * ry, z));
+    }
+    return new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), edgeMat);
+  }
+  // A squashed sphere with its orange outline rings.
+  function blob(r: number, sx: number, sy: number, sz: number, mat: THREE.Material) {
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 40, 30), mat);
+    m.scale.set(sx, sy, sz);
+    g.add(m, ring(r * sx, r * sy, 0), ring(r * sx * 0.82, r * sy * 0.82, r * sz * 0.57));
+    return g;
+  }
+
   // Head
   const head = new THREE.Group();
-  head.position.set(0, 0.62, 0);
+  head.position.set(0, 0.5, 0);
   root.add(head);
-  head.add(part(roundedBox(1.72, 1.26, 1.0, 0.34, 0.1), bodyMat));
-
-  // Orange outline of the head, front and back (the "wireframe" look).
-  head.add(outline(1.72, 1.26, 0.34, 0.5), outline(1.72, 1.26, 0.34, -0.5));
-
-  const face = new THREE.Mesh(new THREE.ShapeGeometry(roundedRect(1.4, 0.92, 0.26), 8), faceMat);
-  face.position.z = 0.505;
+  head.add(blob(0.78, 1.2, 0.95, 1, coreMat));
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 40, 30), faceMat);
+  face.scale.set(0.95, 0.6, 0.55);
+  face.position.z = 0.42;
   head.add(face);
-  // Orange rim around the face screen (always on: the AI's signature).
-  const facePts = roundedRect(1.4, 0.92, 0.26).getPoints(12);
-  const faceRim = new THREE.LineLoop(
-    new THREE.BufferGeometry().setFromPoints(facePts.map((p) => new THREE.Vector3(p.x, p.y, 0.51))),
-    edgeMat
-  );
-  head.add(faceRim);
+  head.add(ring(0.7, 0.44, 0.86)); // visor rim
 
   // Eyes: soft-white pills that slide toward what the agent is looking at.
   const eyes = new THREE.Group();
-  eyes.position.set(0, 0.04, 0.53);
+  eyes.position.set(0, 0.02, 0.84);
   head.add(eyes);
-  const eyeGeo = roundedBox(0.2, 0.34, 0.06, 0.1, 0.02);
+  const eyeGeo = new THREE.SphereGeometry(0.1, 16, 12);
   const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
   const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-  eyeL.position.x = -0.27;
-  eyeR.position.x = 0.27;
+  eyeL.position.x = -0.25;
+  eyeR.position.x = 0.25;
   eyes.add(eyeL, eyeR);
 
-  // Ears
-  const earGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.12, 24);
-  for (const side of [-1, 1]) {
-    const ear = part(earGeo, handMat, true, 40);
-    ear.rotation.z = Math.PI / 2;
-    ear.position.set(side * 0.9, 0, 0);
-    head.add(ear);
-  }
-
-  // Antenna with the logo's orange triangle on top
-  const stalk = part(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 10), penMat, false);
-  stalk.position.set(0, 0.78, 0);
+  // Antenna with the orange status light on top
+  const stalk = part(new THREE.CylinderGeometry(0.025, 0.025, 0.36, 10), faceMat, false);
+  stalk.position.set(0, 0.88, 0);
   head.add(stalk);
-  const tip = part(triangle(0.26, 0.06), coreMat);
-  tip.position.set(0, 1.02, 0);
+  const tip = part(new THREE.SphereGeometry(0.09, 16, 12), coreMat);
+  tip.position.set(0, 1.1, 0);
   head.add(tip);
 
-  // Body with the orange triangle "core"
+  // Body: an orange pebble
   const body = new THREE.Group();
-  body.position.set(0, -0.58, 0);
+  body.position.set(0, -0.62, 0);
   root.add(body);
-  body.add(part(roundedBox(1.06, 0.82, 0.76, 0.3, 0.08), bodyMat));
-  body.add(outline(1.06, 0.82, 0.3, 0.38), outline(1.06, 0.82, 0.3, -0.38));
-  const core = part(triangle(0.3, 0.05), coreMat);
-  core.position.set(0, 0.02, 0.4);
-  body.add(core);
+  body.add(blob(0.56, 1, 0.8, 0.85, coreMat));
 
   // Hands (floating, like a cursor's companion) and the pen
-  const handGeo = new THREE.SphereGeometry(0.15, 24, 16);
+  const handGeo = new THREE.SphereGeometry(0.13, 24, 16);
   const handL = part(handGeo, handMat, false);
   const handR = new THREE.Group();
   handR.add(part(handGeo, handMat, false));
@@ -241,14 +184,14 @@ export function createAgent(host: HTMLElement, opts: { reduced: boolean }): Agen
   pen.rotation.set(0.2, 0, -0.7);
   handR.add(pen);
   root.add(handL, handR);
-  const HAND_L = new THREE.Vector3(-0.86, -0.56, 0.2);
-  const HAND_R = new THREE.Vector3(0.86, -0.56, 0.2);
+  const HAND_L = new THREE.Vector3(-0.8, -0.6, 0.25);
+  const HAND_R = new THREE.Vector3(0.8, -0.6, 0.25);
   handL.position.copy(HAND_L);
   handR.position.copy(HAND_R);
 
-  // Heights used by the "draw in" clip (bottom of the hands → top of the antenna).
+  // Heights used by the "draw in" clip (bottom of the body → top of the antenna).
   const Y_MIN = -1.15;
-  const Y_MAX = 1.85;
+  const Y_MAX = 1.75;
 
   // ── State ──────────────────────────────────────────────────────────────────
   let progress = 0; // shown (smoothed) draw-in progress

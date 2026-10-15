@@ -62,6 +62,8 @@ export async function listBoards(userId: string): Promise<Board[]> {
     ? await rest(
         `board_visits?board_id=in.(${ids.map((id) => `"${id}"`).join(",")})` +
           `&user_id=neq.${encodeURIComponent(userId)}&select=board_id,user_id,user_name&order=last_opened_at.desc&limit=1000`
+      ).then((rows: { board_id: string; user_id: string; user_name: string | null }[]) =>
+        rows.filter((p) => !isLegacyId(p.user_id))
       )
     : [];
   return rows.map((r) => ({
@@ -101,8 +103,20 @@ export async function visitBoard(userId: string, boardId: string, name?: string,
   });
   // A new visitor's role defaults to viewer (database default, never
   // overwritten on later visits). The person who just created it is owner.
-  if (created?.length) await setRoleRow(boardId, userId, "owner");
+  if (created?.length) return setRoleRow(boardId, userId, "owner");
+  // Boards made before real sign-in belong to an old browser identity
+  // ("user-…") that nobody can sign in as any more. If a board has no owner
+  // with a real account, the first signed-in person to open it takes over.
+  if (!isLegacyId(userId)) {
+    const owners: { user_id: string }[] = await rest(
+      `board_visits?board_id=eq.${encodeURIComponent(boardId)}&role=eq.owner&select=user_id`
+    );
+    if (!owners.some((o) => !isLegacyId(o.user_id))) await setRoleRow(boardId, userId, "owner");
+  }
 }
+
+/** Old pre-sign-in browser identities (lib/user.ts) look like "user-<uuid>". */
+const isLegacyId = (id: string) => id.startsWith("user-");
 
 // ── Roles: Owner / Editor / Viewer, one per person per board ─────────────────
 
@@ -143,6 +157,7 @@ export async function listMembers(boardId: string): Promise<Member[]> {
     `board_visits?board_id=eq.${encodeURIComponent(boardId)}&select=user_id,user_name,role&order=last_opened_at.desc&limit=200`
   );
   return rows
+    .filter((r) => !isLegacyId(r.user_id)) // old browser identities can't sign in: not real members
     .map((r) => ({ userId: r.user_id, name: r.user_name || "Someone", role: r.role }))
     .sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role));
 }

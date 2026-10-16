@@ -19,10 +19,11 @@ import { prefersReducedMotion } from "./bus";
 gsap.registerPlugin(ScrollTrigger);
 
 const FEED = [
-  { who: "Priya", what: "added a note: “summary on top”" },
-  { who: "Leo", what: "moved the hero image" },
+  // Only kinds of lines the real activity feed records (lib/agent-room-types.ts).
+  { who: "Priya", what: "asked: “summary on top”" },
   { who: "Agent", what: "drew 2 screens", ai: true },
-  { who: "Sam", what: "renamed the button “Start”" },
+  { who: "Leo", what: "picked his version of the cards" },
+  { who: "Sam", what: "paused the agent" },
 ];
 
 export function LiveChapter() {
@@ -63,7 +64,7 @@ export function LiveChapter() {
         <h2 id="ls-live-title" className="ls-h2">
           See who’s building what, as it happens.
         </h2>
-        <p className="ls-body">Live cursors with names. A feed of every change, by person and by AI.</p>
+        <p className="ls-body">Live cursors with names. A feed of every idea, every AI run, and every pause, pick or undo.</p>
       </div>
 
       <div className="ls-live-grid">

@@ -6,7 +6,6 @@
 // No fake numbers, no logos: just the ask.
 // ─────────────────────────────────────────────────────────────────────────────
 import Image from "next/image";
-import Link from "next/link";
 import { Cursor } from "./Cursor";
 import { StartChatButton } from "./StartChatButton";
 
@@ -22,9 +21,6 @@ export function FinalChapter() {
         <Cursor name="Leo" className="ls-cur--person ls-final-c2" />
         <Cursor name="Agent" ai className="ls-final-c3" />
         <StartChatButton />
-        <Link href="/login" className="ls-textlink">
-          I already have an account
-        </Link>
       </div>
     </section>
   );
@@ -39,8 +35,6 @@ export function Footer() {
       </div>
       <nav className="ls-footer-links" aria-label="Footer">
         <a href="#try">Try the demo</a>
-        <Link href="/signup">Sign up</Link>
-        <Link href="/login">Sign in</Link>
       </nav>
       <p className="ls-mono ls-footer-c">© {new Date().getFullYear()} Wireframe Studio</p>
     </footer>

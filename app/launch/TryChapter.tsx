@@ -65,7 +65,7 @@ export function TryChapter() {
         <div>
           <h3 className="ls-h3">Bring your own AI</h3>
           <p className="ls-body">
-            Start with the free built-in AI. Or plug in your own key. Your key stays in your browser.
+            Start with the free built-in AI. Or plug in your own key. It is saved only in this browser.
           </p>
         </div>
         <ul className="ls-providers">

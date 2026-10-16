@@ -39,9 +39,8 @@ const NOTES = [
 ];
 
 const FEED = [
-  { who: "Priya", what: "added a note" },
-  { who: "Leo", what: "added a note" },
-  { who: "Sam", what: "added a note" },
+  // Only kinds of lines the real activity feed records (lib/agent-room-types.ts).
+  { who: "Priya", what: "sent the 3 notes to the agent" },
   { who: "Agent", what: "merged 3 notes into one checkout", ai: true },
   { who: "Agent", what: "drew Checkout", ai: true },
 ];

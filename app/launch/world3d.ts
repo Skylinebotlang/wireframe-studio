@@ -360,14 +360,15 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
 
   // ── Live: activity cards floating in depth ──────────────────────────────
   const FEED: [string, string, string][] = [
-    ["Priya", "added a note: “summary on top”", "#E0607E"],
-    ["Leo", "moved the hero image", "#E0607E"],
+    // Only kinds of lines the real activity feed records (lib/agent-room-types.ts).
+    ["Priya", "asked: “summary on top”", "#E0607E"],
     ["Agent", "drew 2 screens", "#FF6B2C"],
-    ["Sam", "renamed the button “Start”", "#E0607E"],
-    ["Agent", "merged 3 requests into one", "#FF6B2C"],
     ["Leo", "picked his version of the cards", "#E0607E"],
-    ["Priya", "joined the room", "#E0607E"],
-    ["Agent", "explained why: “one-step pay wins”", "#FF6B2C"],
+    ["Agent", "asked the room: “one page or two?”", "#FF6B2C"],
+    ["Sam", "paused the agent", "#E0607E"],
+    ["Priya", "took over", "#E0607E"],
+    ["Sam", "undid the last run", "#E0607E"],
+    ["Agent", "merged 3 ideas into one checkout", "#FF6B2C"],
   ];
   const cards = FEED.map(([who, what, c], i) => {
     const m = label(what, { who, whoColor: c, color: "#C9C4CF", border: c === "#FF6B2C" ? "#FF6B2C" : "#3A3856", w: 900 });

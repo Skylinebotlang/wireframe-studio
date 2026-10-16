@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // TOP BAR — logo + name on the left; on the right, the AI's status (the 3D
-// character shrinks into the round spot here after the hero), Sign in, and
-// a small "Start the chat".
+// character shrinks into the round spot here after the hero) and a small
+// "Start the chat" (it offers Sign in or Sign up, so no separate links).
 //
 // The status line changes with the chapter you're reading, like the agent
 // status in the app: "drawing", "listening", "waiting for you"...
@@ -39,9 +39,6 @@ export function LaunchNav() {
             Agent <span className="ls-status-state">{status}</span>
           </span>
         </div>
-        <Link href="/login" className="ls-navlink">
-          Sign in
-        </Link>
         <StartChatButton size="sm" />
       </div>
     </header>

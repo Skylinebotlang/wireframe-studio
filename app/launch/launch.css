@@ -129,14 +129,35 @@ html.ls-lock {
   padding: 16px 24px;
   cursor: pointer;
   white-space: nowrap;
-  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* A soft light that follows the pointer (position set by app/Haptics.tsx). */
+.ls-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--ink) 22%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.ls-btn:hover::before { opacity: 1; }
 .ls-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--wine) 90%, transparent);
+  border-color: color-mix(in srgb, var(--ink) 34%, var(--wine));
+  box-shadow: 0 10px 28px -10px color-mix(in srgb, var(--wine) 95%, transparent);
 }
+/* Pressed: sinks a little, quickly, like a real key. */
 .ls-btn:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.97);
+  transition-duration: 0.08s;
+  box-shadow: 0 2px 8px -4px color-mix(in srgb, var(--wine) 90%, transparent);
 }
 .ls-btn--sm {
   font-size: 14px;
@@ -155,6 +176,59 @@ html.ls-lock {
 }
 .ls-textlink:hover {
   text-decoration-color: var(--ink);
+}
+
+/* ── Micro-interactions (pressing and hovering) ─────────────────────────
+   Every pressable thing answers the touch: a quick 0.97 squeeze on press
+   (150 ms, like Vercel's Geist buttons), a lift or brighten on hover. */
+.ls-pill,
+.ls-opt,
+.ls-dialog-close,
+.ls-demo-poster,
+.ls-scrollhint,
+.ls-footer-links a,
+.ls-brand {
+  transition:
+    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ls-pill:active,
+.ls-opt:active,
+.ls-dialog-close:active,
+.ls-scrollhint:active,
+.ls-footer-links a:active,
+.ls-brand:active { transform: scale(0.96); transition-duration: 0.08s; }
+.ls-pill:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.ls-opt:hover { border-color: color-mix(in srgb, var(--ink) 45%, transparent); }
+.ls-dialog-close:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.ls-dialog-close:hover svg { transform: rotate(90deg); }
+.ls-dialog-close svg { transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+/* The scroll hint's arrow nudges down on hover: "this way". */
+.ls-scrollhint svg { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+.ls-scrollhint:hover svg { transform: translateY(4px); }
+/* Demo poster: the three frames lean together on hover, like they're about to merge. */
+.ls-demo-poster-frame i { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+.ls-demo-poster:hover .ls-demo-poster-frame i:first-child { transform: translateX(8px) rotate(2deg); }
+.ls-demo-poster:hover .ls-demo-poster-frame i:last-child { transform: translateX(-8px) rotate(-2deg); }
+.ls-demo-poster:active .ls-btn { transform: scale(0.97); }
+/* Provider rows light up as you point at them. */
+.ls-providers li { transition: border-color 0.15s ease, transform 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+.ls-providers li:hover { border-color: color-mix(in srgb, var(--ink) 34%, transparent); transform: translateY(-1px); }
+/* Dialog: opens with a short rise instead of popping in. */
+.ls-dialog[open] .ls-dialog-card { animation: ls-dialog-in 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes ls-dialog-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-btn, .ls-btn::before, .ls-pill, .ls-opt, .ls-dialog-close, .ls-dialog-close svg, .ls-scrollhint svg,
+  .ls-demo-poster-frame i, .ls-providers li, .ls-footer-links a, .ls-brand { transition: none; }
+  .ls-btn:hover, .ls-btn:active, .ls-pill:active, .ls-opt:active, .ls-opt:hover, .ls-providers li:hover,
+  .ls-scrollhint:hover svg, .ls-dialog-close:hover svg,
+  .ls-demo-poster:hover .ls-demo-poster-frame i { transform: none; }
+  .ls-btn::before { display: none; }
+  .ls-dialog[open] .ls-dialog-card { animation: none; }
 }
 
 /* ── Top bar ───────────────────────────────────────────────────────────── */
@@ -222,6 +296,7 @@ html.ls-lock {
   background: transparent;
   border: 0;
   padding: 0;
+  margin: auto; /* Tailwind's reset sets margin: 0, which pins the dialog to the top-left corner */
   width: min(480px, calc(100% - 32px));
   max-width: none;
   color: var(--ink);

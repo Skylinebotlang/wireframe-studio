@@ -22,8 +22,10 @@ Copy `.env.local.example` to `.env.local` and fill in your keys. The file
 explains where to get each one.
 
 - `LIVEBLOCKS_SECRET_KEY` (required)
-- `GEMINI_API_KEY` (the default free AI agent)
-- `ANTHROPIC_API_KEY` + `AGENT_PROVIDER=anthropic` (optional, to use Claude)
+- Supabase keys (see `.env.local.example`)
+
+There is no built-in AI key: the agent runs on each person's own Gemini,
+Claude or OpenAI key, added in the app under "Your AI key".
 
 `.env.local` is never committed to Git.
 

@@ -296,7 +296,20 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
 
         {/* Empty board: tell people what to do first. Disappears as soon as
             anything is on the canvas. Clicks pass through to the canvas. */}
-        {isEmpty && agent.run.status !== "working" && (
+        {/* Only promise what this person may do: viewers can't add notes,
+            contributors can add notes but not run the AI (lib/roles.ts). */}
+        {isEmpty && agent.run.status !== "working" && viewer && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+            <div className="glass pop-in max-w-sm rounded-2xl px-6 py-5 text-center">
+              <p className="font-heading text-lg text-ink">This board is empty</p>
+              <p className="mt-3 text-sm text-muted">
+                You&apos;re a viewer here. Whatever the team adds shows up live. Ask the owner to make you a
+                contributor or editor to add your own notes.
+              </p>
+            </div>
+          </div>
+        )}
+        {isEmpty && agent.run.status !== "working" && !viewer && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
             <div className="glass pop-in max-w-sm rounded-2xl px-6 py-5 text-center">
               <p className="font-heading text-lg text-ink">Start your board</p>
@@ -308,11 +321,17 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
                 </li>
                 <li>
                   <span className="mr-2 font-mono text-wine-light">2</span>
-                  Press <span className="text-ink">Use canvas notes</span> in the panel on the right, and the agent
-                  merges every note into wireframes.
+                  {aiAllowed ? (
+                    <>
+                      Press <span className="text-ink">Use canvas notes</span> in the panel on the right, and the agent
+                      merges every note into wireframes.
+                    </>
+                  ) : (
+                    <>An editor or the owner runs the agent, and it merges every note into wireframes.</>
+                  )}
                 </li>
               </ol>
-              <p className="mt-3 text-xs text-muted">Or just describe a screen in the panel →</p>
+              {aiAllowed && <p className="mt-3 text-xs text-muted">Or just describe a screen in the panel →</p>}
             </div>
           </div>
         )}

@@ -65,7 +65,7 @@ export async function PATCH(request: Request) {
   return run(async () =>
     (await renameBoard(me.id, body.boardId, name))
       ? NextResponse.json({ ok: true })
-      : friendlyError("Open this board first, then you can rename it.", 403)
+      : friendlyError("Viewers can't rename a board. Ask the owner to make you a contributor or editor.", 403)
   );
 }
 

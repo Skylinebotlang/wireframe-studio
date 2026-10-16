@@ -201,7 +201,7 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
             {i < PROVIDER_IDS.length - 2 ? ", " : i === PROVIDER_IDS.length - 2 ? " or " : "."}
           </span>
         ))}{" "}
-        Your key stays in this browser and is never shared with the room.
+        Your key is saved only in this browser, sent to our server only for your own AI requests, and never shared with the room.
       </p>
     </div>
   );

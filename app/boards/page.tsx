@@ -111,7 +111,7 @@ export default function BoardsPage() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
 
         <h1 className="font-heading text-3xl tracking-wide sm:text-4xl">Your boards</h1>
-        <p className="mt-1 text-sm text-muted">Every board you&apos;ve opened on this browser. Share a board&apos;s link to bring your team in.</p>
+        <p className="mt-1 text-sm text-muted">Every board you&apos;ve opened with this account. Share a board&apos;s link to bring your team in.</p>
 
         {/* ── New board ─────────────────────────────────────────────────── */}
         <form onSubmit={createBoard} className="mt-6 flex max-w-lg gap-2">
@@ -243,7 +243,7 @@ function BoardCard({ board, onRename, onDelete }: { board: Board; onRename: (nam
           </button>
         )}
       </div>
-      {!editing && (
+      {!editing && board.role !== "viewer" && (
         <button
           onClick={() => setEditing(true)}
           aria-label={`Rename ${board.name}`}

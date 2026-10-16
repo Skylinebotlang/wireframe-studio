@@ -236,10 +236,8 @@ export async function setDefaultRole(byUserId: string, boardId: string, role: Jo
 
 /** Rename a board. Only people who have opened it may rename it. */
 export async function renameBoard(userId: string, boardId: string, name: string): Promise<boolean> {
-  const visits = await rest(
-    `board_visits?board_id=eq.${encodeURIComponent(boardId)}&user_id=eq.${encodeURIComponent(userId)}&select=board_id`
-  );
-  if (!visits.length) return false;
+  // Viewers only watch, so they can't rename either (lib/roles.ts).
+  if (!canEdit(await getRole(userId, boardId))) return false;
   await rest(`boards?id=eq.${encodeURIComponent(boardId)}`, {
     method: "PATCH",
     body: JSON.stringify({ name }),

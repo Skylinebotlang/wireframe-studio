@@ -23,7 +23,7 @@
 // up silently into something half-broken.
 //
 // KEYS: same as the agent (lib/agent-brains.ts pickBrain): the person's own
-// key for this one call, else the app's built-in Gemini (or Claude) key.
+// key for this one call. No own key → refused (there is no app key).
 // Each call counts as one run against the room's daily limit
 // (lib/rate-limit.ts), with no cooldown between screens.
 // AGENT_PROVIDER=mock (not in production) answers with fixed samples, no AI

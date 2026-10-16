@@ -69,5 +69,9 @@ export function parseUserKey(
 export type AgentRunInfo = {
   provider: ProviderId;
   providerLabel: string; // "Gemini" | "Claude" | "OpenAI"
-  usedOwnKey: boolean; // false = the app's own key
+  usedOwnKey: boolean; // always true now: the AI only runs on the person's own key
 };
+
+/** Shown when someone tries the AI without adding their own key (there is no app key). */
+export const NEED_OWN_KEY =
+  "Add your own AI key first: open “Your AI key” in the top bar and paste a Gemini, Claude or OpenAI key.";

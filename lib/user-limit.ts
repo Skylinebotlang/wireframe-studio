@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PER-PERSON DAILY LIMIT — how many agent runs one account may use per day on
-// the app's own AI key. SERVER ONLY.
+// an app AI key. There is no app key any more (own keys only, uncounted), so
+// this never blocks today; kept in case an app key comes back. SERVER ONLY.
 //
 // Works alongside the per-room limit (lib/rate-limit.ts): a run needs room in
 // BOTH. Without this, one person could dodge the room's 50 a day by opening

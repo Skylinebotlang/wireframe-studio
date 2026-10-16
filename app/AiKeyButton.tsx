@@ -130,7 +130,7 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
           </>
         ) : (
           <div className="text-muted">
-            No key added. The agent uses the app&apos;s own AI key.
+            No key added yet. The agent needs your own key to run.
           </div>
         )}
       </div>

@@ -41,6 +41,8 @@ import { AgentPanel } from "./AgentPanel";
 import { RoomBar } from "./RoomBar";
 import { useParams } from "next/navigation";
 import { useBoardTeam } from "@/lib/board-role";
+import { aiKeyForRequest } from "@/lib/byok";
+import { NEED_OWN_KEY } from "@/lib/ai-providers";
 import { canUseAI } from "@/lib/roles";
 import { PromptNoteShapeUtil, PromptNoteTool, type TLPromptNoteShape } from "@/lib/prompt-note";
 import { drawWireframes, fitBoardLabels, readBoardScreens, undoWireframes } from "@/lib/draw-wireframes";
@@ -179,6 +181,8 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     setLastAsk("notes");
     if (!editor) return;
     setMessage("");
+    // No app key: the AI only runs on the person's own key.
+    if (!aiKeyForRequest()) return setMessage(NEED_OWN_KEY);
 
     const notes = editor
       .getCurrentPageShapes()
@@ -208,6 +212,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     setLastAsk({ idea });
     if (!editor) return;
     setMessage("");
+    if (!aiKeyForRequest()) return setMessage(NEED_OWN_KEY);
     // Send the screens already drawn, so the agent can add, update or ask.
     const problem = await agent.runAgent([], draw, idea, readBoardScreens(editor));
     if (problem) setMessage(problem);
@@ -220,6 +225,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   const handleMakeReal = useCallback(async (instruction: string) => {
     if (!editor) return;
     setMessage("");
+    if (!aiKeyForRequest()) return setMessage(NEED_OWN_KEY);
     const place = (designId: string, name: string) => placeDesign(editor, designId, name);
     let problem: string | null;
     if (pickedDesign) {
@@ -237,6 +243,7 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   const handleRetryDesign = useCallback(async () => {
     if (!editor) return;
     setMessage("");
+    if (!aiKeyForRequest()) return setMessage(NEED_OWN_KEY);
     const problem = await design.retryFailed((designId, name) => placeDesign(editor, designId, name));
     if (problem) setMessage(problem);
   }, [editor, design]);

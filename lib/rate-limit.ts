@@ -4,8 +4,9 @@
 // Everyone shares the app's free Gemini key, so one busy room could use up
 // the whole day's free quota. Two rules, per room:
 //   • at most 1 run every 10 seconds (any key)
-//   • at most 50 runs a day on the app's built-in key (a person's own key
-//     pays for itself, so it isn't counted against the day)
+//   • at most 50 runs a day on an app key. There is no app key any more
+//     (the agent only runs on the person's own key, which isn't counted),
+//     so in practice only the 10-second rule applies.
 // "Make it real" (app/api/design) counts each design call as one run, with
 // no cooldown between them (each screen is its own call, back to back).
 //

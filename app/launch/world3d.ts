@@ -15,7 +15,7 @@
 //   2  How      the camera pulls up: that screen is one of hundreds of small
 //               frames on one huge board, with cursors moving everywhere.
 //   3  Live     activity cards ("Priya added a note") float past in depth.
-//   4  Try it   Gemini, Claude, OpenAI and the free AI orbit an orange core.
+//   4  Try it   Gemini, Claude and OpenAI (your own key) orbit an orange core.
 //   5  End      every frame on the board streams into one point and becomes
 //               our logo.
 //
@@ -395,8 +395,8 @@ export function createWorld(host: HTMLElement, opts: { reduced: boolean; small: 
   );
   halo.position.copy(TRY_AT);
   scene.add(halo);
-  const tags = ["Gemini", "Claude", "OpenAI", "Free built-in"].map((t, i) => {
-    const m = label(t, { color: "#F8F4F5", border: i === 3 ? "#FF6B2C" : "#3A3856", w: 420 });
+  const tags = ["Gemini", "Claude", "OpenAI"].map((t) => {
+    const m = label(t, { color: "#F8F4F5", border: "#3A3856", w: 420 });
     m.scale.setScalar(small ? 0.55 : 0.8);
     scene.add(m);
     return m;

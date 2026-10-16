@@ -28,14 +28,13 @@
 //   • If the person who clicked sent their own key ("aiKey" in the request,
 //     from the "Your AI key" panel), we use it for this ONE call and then
 //     forget it. It is never stored or logged.
-//   • Otherwise we use the app's built-in key from .env.local:
-//       GEMINI_API_KEY    → Google Gemini, free tier (used if set)
-//       ANTHROPIC_API_KEY → Claude (set AGENT_PROVIDER=anthropic to force it)
+//   • Without their own key the agent REFUSES (there is no app key to fall
+//     back on), with a friendly "add your own key" message.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
 import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/agent-schema";
-import { askBrain } from "@/lib/agent-brains";
+import { askBrain, pickBrain } from "@/lib/agent-brains";
 import { scanPartial } from "@/lib/stream-scan";
 import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
 import { claimUserRun, refundUserRun } from "@/lib/user-limit";
@@ -44,7 +43,6 @@ import { addDecisions, decisionsForPrompt } from "@/lib/decisions-db";
 import { boardsConfigured, aiCheck } from "@/lib/boards-db";
 import type { AgentResult } from "@/lib/agent-schema";
 import {
-  parseUserKey,
   PROVIDERS,
   type AgentRunInfo,
   type ProviderId,
@@ -120,31 +118,10 @@ export async function POST(request: Request) {
   }
 
   // ── 3. Pick whose key to use ──────────────────────────────────────────────
-  let provider: ProviderId;
-  let key: string;
-  let usedOwnKey: boolean;
-
-  if (aiKey !== undefined && aiKey !== null) {
-    // The person's own key, from their browser.
-    const own = parseUserKey(aiKey);
-    if ("error" in own) return friendlyError(own.error, 400);
-    ({ provider, key } = own);
-    usedOwnKey = true;
-  } else {
-    // The app's built-in key.
-    const geminiKey = usableKey(process.env.GEMINI_API_KEY);
-    const claudeKey = usableKey(process.env.ANTHROPIC_API_KEY);
-    const useClaude = process.env.AGENT_PROVIDER === "anthropic" || !geminiKey;
-    if (useClaude && !claudeKey) {
-      return friendlyError(
-        "The agent isn't set up: add an AI key (GEMINI_API_KEY or ANTHROPIC_API_KEY) to .env.local, or add your own key in the 'Your AI key' panel.",
-        500
-      );
-    }
-    provider = useClaude ? "anthropic" : "gemini";
-    key = (useClaude ? claudeKey : geminiKey)!;
-    usedOwnKey = false;
-  }
+  // Always the person's own key: there is no app key to fall back on.
+  const brain = pickBrain(aiKey);
+  if ("error" in brain) return friendlyError(brain.error, brain.status);
+  const { provider, key, usedOwnKey } = brain;
 
   // ── Rate limit: checked AFTER the key is picked (own keys skip the daily
   // cap) and BEFORE the AI is called, so a blocked run costs nothing.
@@ -345,11 +322,6 @@ function textList(value: unknown, max: number, tag: string, intro: string) {
     .slice(-max)
     .map((s) => `- ${s.trim().slice(0, MAX_STEERING_CHARS)}`);
   return lines.length ? `<${tag}>\n${intro}\n${lines.join("\n")}\n</${tag}>` : "";
-}
-
-// A key counts as "set" only if it's not empty and not the example placeholder.
-function usableKey(key: string | undefined) {
-  return key && !key.includes("paste_yours_here") ? key : undefined;
 }
 
 // Make a value safe to put inside an attribute="..." (strip quotes and < >).

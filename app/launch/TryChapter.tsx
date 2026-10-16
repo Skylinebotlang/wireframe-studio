@@ -7,7 +7,7 @@
 //     we say so: it works without a key or an account.
 //     While the mouse is over the demo, scrolling still scrolls the page
 //     (the demo passes the wheel up to us).
-//   • Bring your own AI: the free built-in AI, or your own key for Gemini,
+//   • Bring your own AI: your own key for Gemini,
 //     Claude or OpenAI (names come from lib/ai-providers.ts).
 // ─────────────────────────────────────────────────────────────────────────────
 "use client";
@@ -65,14 +65,10 @@ export function TryChapter() {
         <div>
           <h3 className="ls-h3">Bring your own AI</h3>
           <p className="ls-body">
-            Start with the free built-in AI. Or plug in your own key. It is saved only in this browser.
+            The agent runs on your own Gemini, Claude or OpenAI key. It is saved only in this browser.
           </p>
         </div>
         <ul className="ls-providers">
-          <li>
-            <span className="ls-prov-name">Free built-in AI</span>
-            <span className="ls-mono ls-prov-k">No key needed</span>
-          </li>
           {PROVIDER_IDS.map((id) => (
             <li key={id}>
               <span className="ls-prov-name">{PROVIDERS[id].label}</span>

@@ -14,7 +14,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { AGENT_RESULT_JSON_SCHEMA } from "./agent-schema";
-import { parseUserKey, PROVIDERS, type ProviderId } from "./ai-providers";
+import { NEED_OWN_KEY, parseUserKey, PROVIDERS, type ProviderId } from "./ai-providers";
 
 // The instructions the AI gets on every run (same for every provider).
 const SYSTEM_PROMPT = `You are the AI teammate on a shared product-design canvas. PMs, designers and developers each leave prompt notes describing what they want. You read ALL the notes together and turn them into simple mobile wireframes.
@@ -77,10 +77,9 @@ export function askBrain(provider: ProviderId, key: string, notesText: string, o
 }
 
 /**
- * Whose key runs the agent: the person's own key if their browser sent one
- * (used for this one call, never stored), otherwise the app's built-in key
- * from .env.local (Gemini if set, else Claude; AGENT_PROVIDER=anthropic
- * forces Claude). Or a friendly reason it can't run.
+ * Whose key runs the agent: ALWAYS the person's own key, sent by their
+ * browser for this one call (never stored). There is no app key to fall back
+ * on: without their own key the agent refuses, with a friendly reason.
  */
 export function pickBrain(aiKey: unknown):
   | { provider: ProviderId; key: string; usedOwnKey: boolean }
@@ -90,18 +89,7 @@ export function pickBrain(aiKey: unknown):
     if ("error" in own) return { error: own.error, status: 400 };
     return { ...own, usedOwnKey: true };
   }
-  const usable = (k: string | undefined) => (k && !k.includes("paste_yours_here") ? k : undefined);
-  const geminiKey = usable(process.env.GEMINI_API_KEY);
-  const claudeKey = usable(process.env.ANTHROPIC_API_KEY);
-  const useClaude = process.env.AGENT_PROVIDER === "anthropic" || !geminiKey;
-  if (useClaude && !claudeKey) {
-    return {
-      error:
-        "The agent isn't set up: add an AI key (GEMINI_API_KEY or ANTHROPIC_API_KEY) to .env.local, or add your own key in the 'Your AI key' panel.",
-      status: 500,
-    };
-  }
-  return { provider: useClaude ? "anthropic" : "gemini", key: (useClaude ? claudeKey : geminiKey)!, usedOwnKey: false };
+  return { error: NEED_OWN_KEY, status: 400 };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

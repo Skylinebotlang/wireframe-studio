@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "LIVEBLOCKS_SECRET_KEY is not set. Open .env.local inside the canvas-team folder, paste your sk_dev_... key from liveblocks.io/dashboard (see .env.local.example for instructions), then restart 'npm run dev'.",
+          "LIVEBLOCKS_SECRET_KEY is not set. Open .env.local in the project folder, paste your sk_dev_... key from liveblocks.io/dashboard (see .env.local.example for instructions), then restart 'npm run dev'.",
       },
       { status: 500 }
     );

@@ -61,5 +61,12 @@ CLAUDE.md
 CONTEXT.md
 DESIGN.md
 PRODUCT.md
-memory/
-brag-output/
+
+
+
+# Local-only folders (notes for people and AI tools, old material, Claude settings)
+notes/
+archive/
+.claude/
+# Leftover empty folder from before the flatten (delete it by hand)
+canvas-team/

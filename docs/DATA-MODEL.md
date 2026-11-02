@@ -31,7 +31,7 @@ Storage), drawings. Synced by `components/room/useYjsStore.ts`.
 **Presence (Yjs awareness, not saved)**: each person's cursor, selection,
 name and cursor colour.
 
-**Storage** (types in `liveblocks.config.ts`, logic in `lib/agent/agent-room.ts`
+**Storage** (types in `lib/liveblocks.config.ts`, logic in `lib/agent/agent-room.ts`
 and `lib/design/agent-design-room.ts`):
 
 | Field | What | Size limit |

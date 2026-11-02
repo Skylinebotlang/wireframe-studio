@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // BOARD ROLES — who may do what on a board. Plain data + two rules, shared by
-// the server (lib/boards-db.ts, the API routes) and the screen (TldrawApp,
+// the server (lib/server/boards-db.ts, the API routes) and the screen (TldrawApp,
 // AgentPanel, RoomBar), so both always agree.
 //
 //   owner        everything, plus people (roles, hand over) and delete.

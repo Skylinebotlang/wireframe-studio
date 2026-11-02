@@ -1,7 +1,7 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SIGN-UP PAGE — /signup. The registration card (app/AccountForm.tsx in
+// SIGN-UP PAGE — /signup. The registration card (components/auth/AccountForm.tsx in
 // "signup" mode): name, email, password. DEMO MODE: interactive, nothing is
 // saved anywhere yet (real OAuth comes later). On success it continues to
 // /login's "Who's drawing?" step with the name filled in.
@@ -10,7 +10,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { AccountForm } from "../AccountForm";
+import { AccountForm } from "@/components/auth/AccountForm";
 
 export default function SignUpPage() {
   const router = useRouter();

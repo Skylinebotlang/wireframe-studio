@@ -11,9 +11,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Room } from "./Room";
-import { TldrawApp } from "./TldrawApp";
-import { IdentityGate } from "./IdentityGate";
+import { Room } from "@/components/room/Room";
+import { TldrawApp } from "@/components/room/TldrawApp";
+import { IdentityGate } from "@/components/room/IdentityGate";
 import { loadIdentity, UserIdentity } from "@/lib/user";
 import { authHeader, useAccount } from "@/lib/auth";
 

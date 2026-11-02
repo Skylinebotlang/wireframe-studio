@@ -7,15 +7,15 @@ can read it. Keep it up to date when you add a table or a storage field.
 
 Server only: every table has row-level security ON and is granted to
 `service_role` only. The browser never reads tables directly; it goes through
-our `/api/*` routes, which check the sign-in first (`lib/auth-server.ts`).
+our `/api/*` routes, which check the sign-in first (`lib/server/auth-server.ts`).
 
 | Table | One row per | Key columns | Used by |
 |---|---|---|---|
-| `auth.users` (Supabase Auth) | account | email, password hash, `user_metadata.name` | sign-up / sign-in / forgot password (`lib/auth.ts`, `app/AccountForm.tsx`, `app/forgot-password`, `app/reset-password`) |
-| `boards` | board (= Liveblocks room) | `id` (room id), `name`, `created_by` (account id), `updated_at` | `/boards` list, delete (creator only). `lib/boards-db.ts` |
+| `auth.users` (Supabase Auth) | account | email, password hash, `user_metadata.name` | sign-up / sign-in / forgot password (`lib/auth.ts`, `components/auth/AccountForm.tsx`, `app/forgot-password`, `app/reset-password`) |
+| `boards` | board (= Liveblocks room) | `id` (room id), `name`, `created_by` (account id), `updated_at` | `/boards` list, delete (creator only). `lib/server/boards-db.ts` |
 | `board_visits` | person × board | `board_id`, `user_id`, `user_name`, `last_opened_at` | "my boards, most recent first", "With Alice, Bob". Deleted with the board (cascade) |
-| `decisions` | design decision | `board_id`, `kind` (merge / pick), `summary`, `decision`, `decided_by`, `screens` | Decision log tab. `lib/decisions-db.ts`. Deleted with the board (cascade) |
-| `agent_usage` | person × day (UTC) | `user_id`, `day`, `runs` | per-person daily limit (50). Functions `claim_agent_run` / `refund_agent_run`. `lib/user-limit.ts` |
+| `decisions` | design decision | `board_id`, `kind` (merge / pick), `summary`, `decision`, `decided_by`, `screens` | Decision log tab. `lib/server/decisions-db.ts`. Deleted with the board (cascade) |
+| `agent_usage` | person × day (UTC) | `user_id`, `day`, `runs` | per-person daily limit (50). Functions `claim_agent_run` / `refund_agent_run`. `lib/server/user-limit.ts` |
 
 SQL for each table: `supabase/*.sql` (already applied; kept as a record).
 
@@ -26,13 +26,13 @@ key or anything private in it.
 
 **Canvas (Yjs document)**: every shape: wireframe phone frames and boxes,
 prompt notes, sticky notes, design cards (only their id; the HTML lives in
-Storage), drawings. Synced by `app/room/[roomId]/useYjsStore.ts`.
+Storage), drawings. Synced by `components/room/useYjsStore.ts`.
 
 **Presence (Yjs awareness, not saved)**: each person's cursor, selection,
 name and cursor colour.
 
-**Storage** (types in `liveblocks.config.ts`, logic in `lib/agent-room.ts`
-and `lib/agent-design-room.ts`):
+**Storage** (types in `liveblocks.config.ts`, logic in `lib/agent/agent-room.ts`
+and `lib/design/agent-design-room.ts`):
 
 | Field | What | Size limit |
 |---|---|---|
@@ -44,7 +44,7 @@ and `lib/agent-design-room.ts`):
 
 **Room metadata (server-written only)**: the per-room limit:
 `agentLastRunAt` (10 s cooldown) and `agentRuns` (50 per day).
-`lib/rate-limit.ts`.
+`lib/server/rate-limit.ts`.
 
 ## 3. The person's own browser (localStorage). Never leaves their computer
 

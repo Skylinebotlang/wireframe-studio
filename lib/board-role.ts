@@ -26,7 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { shallow, useClient, useEventListener, useOthers, useSelf } from "@liveblocks/react/suspense";
 import { authHeader } from "./auth";
-import type { JoinRole, Member } from "./boards-db";
+import type { JoinRole, Member } from "@/lib/server/boards-db";
 import type { Role } from "./roles";
 
 const LABEL: Record<Role, string> = { owner: "Owner", editor: "Editor", contributor: "Contributor", viewer: "Viewer" };

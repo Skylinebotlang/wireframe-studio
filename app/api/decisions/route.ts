@@ -5,14 +5,14 @@
 //   POST { boardId, summary, chosenAuthor } → { ok }  a person picked one
 //                                             teammate's version on a clash card
 //
-// Agent merges are saved by /api/agent itself (lib/decisions-db.ts).
+// Agent merges are saved by /api/agent itself (lib/server/decisions-db.ts).
 // SIGN-IN REQUIRED, like every API: the person comes from the sign-in token.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { getSignedInUser } from "@/lib/auth-server";
-import { boardsConfigured, editorCheck } from "@/lib/boards-db";
-import { addDecisions, listDecisions } from "@/lib/decisions-db";
+import { getSignedInUser } from "@/lib/server/auth-server";
+import { boardsConfigured, editorCheck } from "@/lib/server/boards-db";
+import { addDecisions, listDecisions } from "@/lib/server/decisions-db";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/; // same rule as room ids
 

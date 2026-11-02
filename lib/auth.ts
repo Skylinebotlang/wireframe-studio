@@ -7,7 +7,7 @@
 //   useAccount()        → who's signed in: undefined (checking), null (nobody)
 //                         or { id, email, name }
 //   authHeader()        → { authorization: "Bearer <token>" } for our own
-//                         /api routes, which check it (lib/auth-server.ts)
+//                         /api routes, which check it (lib/server/auth-server.ts)
 //
 // Supabase keeps the session in this browser and refreshes it by itself.
 // Uses the PUBLISHABLE key, which is meant to be public: it can sign people

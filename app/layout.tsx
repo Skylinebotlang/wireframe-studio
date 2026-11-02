@@ -12,7 +12,7 @@
 
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Inter_Tight } from "next/font/google";
-import { Haptics } from "./Haptics";
+import { Haptics } from "@/components/shared/Haptics";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -76,7 +76,7 @@ export default function RootLayout({
         className={`${headingFont.variable} ${displayFont.variable} ${bodyFont.variable} ${labelFont.variable}`}
       >
         {children}
-        {/* A small buzz on every button press, site-wide (app/Haptics.tsx). */}
+        {/* A small buzz on every button press, site-wide (components/shared/Haptics.tsx). */}
         <Haptics />
       </body>
     </html>

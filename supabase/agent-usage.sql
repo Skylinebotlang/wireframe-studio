@@ -1,6 +1,6 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- PER-PERSON DAILY LIMIT — agent runs per account per day (UTC), on the app's
--- own AI key. Used by lib/user-limit.ts. Applied once; kept as a record.
+-- own AI key. Used by lib/server/user-limit.ts. Applied once; kept as a record.
 -- Server only: RLS on, functions executable by service_role only.
 -- ─────────────────────────────────────────────────────────────────────────────
 

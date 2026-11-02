@@ -32,8 +32,8 @@ import {
   setDefaultRole,
   type JoinRole,
   type Role,
-} from "@/lib/boards-db";
-import { getSignedInUser } from "@/lib/auth-server";
+} from "@/lib/server/boards-db";
+import { getSignedInUser } from "@/lib/server/auth-server";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 

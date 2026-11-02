@@ -318,7 +318,7 @@ body {
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--agent) 10%, transparent);
   }
 }
-/* Team popup and its menus (app/room/[roomId]/RoomBar.tsx): a quick fade +
+/* Team popup and its menus (components/room/RoomBar.tsx): a quick fade +
    grow from the button that opened them. "backwards" so no transform stays
    behind once it's open (menus inside are positioned against the screen). */
 .team-in {
@@ -378,7 +378,7 @@ body {
   }
 }
 
-/* ── 7. Splash screen (app/Splash.tsx) ──────────────────────────────────────
+/* ── 7. Splash screen (components/landing/Splash.tsx) ──────────────────────────────────────
    Pretend cursors drift on slow loops; the hint breathes; on enter the whole
    splash lifts up and fades like a curtain (700ms, matches EXIT_MS). */
 /* Staged first load. Each piece sets its own delay in --d. Smooth ease-out
@@ -449,7 +449,7 @@ body {
 
 /* Orange (and amber/yellow) is reserved for the AI. Hide those swatches from
    tldraw's color menu so people can't pick them. The agent's own frames are
-   still drawn orange in code (lib/draw-wireframes.ts). */
+   still drawn orange in code (lib/agent/draw-wireframes.ts). */
 .tlui-style-panel [data-testid="style.color.orange"],
 .tlui-style-panel [data-testid="style.color.yellow"] {
   display: none;

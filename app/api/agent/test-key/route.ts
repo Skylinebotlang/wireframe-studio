@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { checkKey } from "@/lib/agent-brains";
+import { checkKey } from "@/lib/agent/agent-brains";
 import { parseUserKey, PROVIDERS } from "@/lib/ai-providers";
 
 export async function POST(request: Request) {

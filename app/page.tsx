@@ -1,9 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // LANDING PAGE (launch site v2) — the front door at "/".
 // Built with the /launch-site brief: docs/launch-site-v2/BRIEF.md.
-// All parts live in app/launch/, all styles in app/launch/launch.css.
+// All parts live in components/landing/, all styles in components/landing/launch.css.
 //
-//   0. Splash       drag the 3D logo to enter (app/Splash.tsx).
+//   0. Splash       drag the 3D logo to enter (components/landing/Splash.tsx).
 //      Loader       then the 3D AI character draws itself in orange while the site
 //                   loads, turns solid, waves, and glides into the hero
 //                   (LaunchLoader + CharacterDock + agent3d).
@@ -24,19 +24,19 @@
 // The old landing page files (Splash, HeroIntro, Chapters, ...) are no longer
 // used by this page but are kept until you decide what to do with them.
 // ─────────────────────────────────────────────────────────────────────────────
-import { LaunchNav } from "./launch/LaunchNav";
-import { Hero } from "./launch/Hero";
-import { ProblemChapter } from "./launch/ProblemChapter";
-import { HowChapter } from "./launch/HowChapter";
-import { LiveChapter } from "./launch/LiveChapter";
-import { TryChapter } from "./launch/TryChapter";
-import { FinalChapter, Footer } from "./launch/FinalChapter";
-import { CharacterDock } from "./launch/CharacterDock";
-import { LaunchLoader } from "./launch/LaunchLoader";
-import { Splash } from "./Splash";
-import { World } from "./launch/World";
-import { ChapterPills, LaunchScroll } from "./launch/LaunchScroll";
-import "./launch/launch.css";
+import { LaunchNav } from "@/components/landing/LaunchNav";
+import { Hero } from "@/components/landing/Hero";
+import { ProblemChapter } from "@/components/landing/ProblemChapter";
+import { HowChapter } from "@/components/landing/HowChapter";
+import { LiveChapter } from "@/components/landing/LiveChapter";
+import { TryChapter } from "@/components/landing/TryChapter";
+import { FinalChapter, Footer } from "@/components/landing/FinalChapter";
+import { CharacterDock } from "@/components/landing/CharacterDock";
+import { LaunchLoader } from "@/components/landing/LaunchLoader";
+import { Splash } from "@/components/landing/Splash";
+import { World } from "@/components/landing/World";
+import { ChapterPills, LaunchScroll } from "@/components/landing/LaunchScroll";
+import "@/components/landing/launch.css";
 
 export default function LandingPage() {
   return (

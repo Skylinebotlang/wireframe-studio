@@ -11,11 +11,11 @@
 //              (app/api/liveblocks-auth) fills this from the identity screen.
 // - Storage  : shared persistent data. The canvas itself syncs via Yjs, so
 //              Storage only holds the agent panel: the current run and the
-//              activity feed (see lib/agent-room.ts).
+//              activity feed (see lib/agent/agent-room.ts).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { JsonObject, LiveList, LiveMap, LiveObject } from "@liveblocks/client";
-import type { ActivityItem, AgentRunState, AgentUndo, DesignRecord } from "./lib/agent-room-types";
+import type { ActivityItem, AgentRunState, AgentUndo, DesignRecord } from "@/lib/agent/agent-room-types";
 
 declare global {
   interface Liveblocks {

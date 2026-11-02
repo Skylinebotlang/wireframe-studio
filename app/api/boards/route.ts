@@ -11,14 +11,14 @@
 //
 // SIGN-IN REQUIRED: every call needs the Supabase sign-in token, and "you"
 // is the account in that token (never an id the browser sends).
-// The list lives in Supabase (lib/boards-db.ts); the canvas itself stays in
+// The list lives in Supabase (lib/server/boards-db.ts); the canvas itself stays in
 // Liveblocks.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
 import { Liveblocks } from "@liveblocks/node";
-import { boardsConfigured, deleteBoard, listBoards, renameBoard, visitBoard } from "@/lib/boards-db";
-import { getSignedInUser } from "@/lib/auth-server";
+import { boardsConfigured, deleteBoard, listBoards, renameBoard, visitBoard } from "@/lib/server/boards-db";
+import { getSignedInUser } from "@/lib/server/auth-server";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/; // same rule as room ids
 const MAX_NAME = 80;

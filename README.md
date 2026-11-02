@@ -34,7 +34,7 @@ Claude or OpenAI key, added in the app under "Your AI key".
 | Folder | What is in it |
 |---|---|
 | `app/` | The pages: landing page, login, the shared canvas room, and the API routes |
-| `app/room/[roomId]/` | The shared canvas room: canvas, agent panel, live sync |
+| `app/room/[roomId]/page.tsx` + `components/room/` | The shared canvas room: canvas, agent panel, live sync |
 | `app/api/` | Server routes: the AI agent and Liveblocks sign-in |
 | `app/fonts/` | Local fonts (Bulzing is non-commercial: replace or license before launch) |
 | `lib/` | The logic: agent calls, JSON checks, drawing wireframes, theme colors |

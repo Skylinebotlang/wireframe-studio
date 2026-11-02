@@ -12,9 +12,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from "react";
-import { Room } from "../room/[roomId]/Room";
-import { AiKeyButton } from "../AiKeyButton";
-import { useAgentPanel } from "@/lib/agent-room";
+import { Room } from "@/components/room/Room";
+import { AiKeyButton } from "@/components/shared/AiKeyButton";
+import { useAgentPanel } from "@/lib/agent/agent-room";
 import { loadIdentity } from "@/lib/user";
 
 const EXAMPLE = `Asha | PM | Put a summary of the week at the top of the home screen

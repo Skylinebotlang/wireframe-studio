@@ -2,7 +2,7 @@
 // MAKE IT REAL — POST /api/design   (stage 2: wireframes → real mockups)
 //
 // ONE AI call per request, so no request runs into the time limit and the
-// browser can show each design as soon as it's ready (lib/agent-design-room.ts
+// browser can show each design as soon as it's ready (lib/design/agent-design-room.ts
 // drives a whole "Make it real" run, one request at a time):
 //
 //   { kind: "style", roomId, idea, resolution, screens: ["Home", …], aiKey? }
@@ -12,31 +12,31 @@
 //     → { html, providerLabel, usedOwnKey }
 //   { kind: "review", roomId, idea, styleGuide, screen, html, screenshot?, aiKey? }
 //     (screenshot: "data:image/png;base64,…" of the page, made in the browser
-//      by lib/screenshot.ts; the AI looks at it alongside the HTML)
+//      by lib/design/screenshot.ts; the AI looks at it alongside the HTML)
 //     → { html, providerLabel, usedOwnKey }   the same screen, checked against
 //       a design checklist and fixed by the AI (the "design director" pass)
 //   Errors always → { error: "a sentence a person can read" }
 //
-// Every answer is checked before it's returned (lib/agent-design.ts): the
+// Every answer is checked before it's returned (lib/design/agent-design.ts): the
 // style guide's colors, and the HTML's size and safety (no scripts, no
 // outside links, no orange…). A page that fails is rejected, never cleaned
 // up silently into something half-broken.
 //
-// KEYS: same as the agent (lib/agent-brains.ts pickBrain): the person's own
+// KEYS: same as the agent (lib/agent/agent-brains.ts pickBrain): the person's own
 // key for this one call. No own key → refused (there is no app key).
 // Each call counts as one run against the room's daily limit
-// (lib/rate-limit.ts), with no cooldown between screens.
+// (lib/server/rate-limit.ts), with no cooldown between screens.
 // AGENT_PROVIDER=mock (not in production) answers with fixed samples, no AI
 // and no rate limit, for testing.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { askBrain, pickBrain, type BrainJob } from "@/lib/agent-brains";
-import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
-import { claimUserRun, refundUserRun } from "@/lib/user-limit";
-import { getSignedInUser } from "@/lib/auth-server";
-import { aiCheck } from "@/lib/boards-db";
-import { patternsPrompt } from "@/lib/ui-patterns";
+import { askBrain, pickBrain, type BrainJob } from "@/lib/agent/agent-brains";
+import { claimAgentRun, refundAgentRun } from "@/lib/server/rate-limit";
+import { claimUserRun, refundUserRun } from "@/lib/server/user-limit";
+import { getSignedInUser } from "@/lib/server/auth-server";
+import { aiCheck } from "@/lib/server/boards-db";
+import { patternsPrompt } from "@/lib/design/ui-patterns";
 import { PROVIDERS } from "@/lib/ai-providers";
 import {
   checkDesignHtml,
@@ -54,7 +54,7 @@ import {
   STYLE_SYSTEM_PROMPT,
   styleUserMessage,
   type DesignScreen,
-} from "@/lib/agent-design";
+} from "@/lib/design/agent-design";
 
 // One screen's design can take a while to write.
 export const maxDuration = 120;

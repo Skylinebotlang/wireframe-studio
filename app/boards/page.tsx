@@ -15,10 +15,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TopBar } from "../TopBar";
+import { TopBar } from "@/components/shared/TopBar";
 import { loadIdentity, type UserIdentity } from "@/lib/user";
 import { authHeader, useAccount } from "@/lib/auth";
-import type { Board } from "@/lib/boards-db";
+import type { Board } from "@/lib/server/boards-db";
 
 export default function BoardsPage() {
   const router = useRouter();
@@ -101,7 +101,7 @@ export default function BoardsPage() {
 
   return (
     <main className="dot-grid min-h-screen text-ink">
-      {/* ── Top bar (logo, AI key, profile menu): app/TopBar.tsx ────────── */}
+      {/* ── Top bar (logo, AI key, profile menu): components/shared/TopBar.tsx ────────── */}
       {me && (
         <TopBar>
           <span className="h-4 w-px shrink-0 bg-line" aria-hidden />

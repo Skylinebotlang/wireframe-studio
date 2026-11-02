@@ -6,9 +6,9 @@
 // This route:
 //   1. checks the idea / notes look sane (not empty, not huge),
 //   2. picks whose AI key to use (see below), then checks the room isn't
-//      over its limit (1 run per 10 seconds, 50 free runs a day: lib/rate-limit.ts),
-//   3. sends all the notes to that AI in one message (lib/agent-brains.ts),
-//   4. double-checks the JSON answer (lib/agent-schema.ts) before returning it,
+//      over its limit (1 run per 10 seconds, 50 free runs a day: lib/server/rate-limit.ts),
+//   3. sends all the notes to that AI in one message (lib/agent/agent-brains.ts),
+//   4. double-checks the JSON answer (lib/agent/agent-schema.ts) before returning it,
 //   5. returns a friendly error message if anything goes wrong.
 //
 // STREAMING ("stream": true in the request): instead of one JSON answer at
@@ -33,15 +33,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
-import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/agent-schema";
-import { askBrain, pickBrain } from "@/lib/agent-brains";
-import { scanPartial } from "@/lib/stream-scan";
-import { claimAgentRun, refundAgentRun } from "@/lib/rate-limit";
-import { claimUserRun, refundUserRun } from "@/lib/user-limit";
-import { getSignedInUser, type SignedInUser } from "@/lib/auth-server";
-import { addDecisions, decisionsForPrompt } from "@/lib/decisions-db";
-import { boardsConfigured, aiCheck } from "@/lib/boards-db";
-import type { AgentResult } from "@/lib/agent-schema";
+import { validateAgentResult, type AgentNote, type BoardScreen } from "@/lib/agent/agent-schema";
+import { askBrain, pickBrain } from "@/lib/agent/agent-brains";
+import { scanPartial } from "@/lib/agent/stream-scan";
+import { claimAgentRun, refundAgentRun } from "@/lib/server/rate-limit";
+import { claimUserRun, refundUserRun } from "@/lib/server/user-limit";
+import { getSignedInUser, type SignedInUser } from "@/lib/server/auth-server";
+import { addDecisions, decisionsForPrompt } from "@/lib/server/decisions-db";
+import { boardsConfigured, aiCheck } from "@/lib/server/boards-db";
+import type { AgentResult } from "@/lib/agent/agent-schema";
 import {
   PROVIDERS,
   type AgentRunInfo,

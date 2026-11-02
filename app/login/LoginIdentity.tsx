@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // "WHO'S DRAWING?" STEP — the second half of /login (app/login/page.tsx).
 //
-// Shows the card from app/LoginCard.tsx: name, role, cursor color and room.
+// Shows the card from components/auth/LoginCard.tsx: name, role, cursor color and room.
 // It saves that in this browser and opens the room (or /boards when no
 // room was typed). If the person has an
 // account, their account name is filled in for them (`accountName`).
@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { LoginCard } from "../LoginCard";
+import { LoginCard } from "@/components/auth/LoginCard";
 import { loadIdentity, UserIdentity } from "@/lib/user";
 import { PEOPLE_COLORS, ROLES } from "@/lib/theme";
 

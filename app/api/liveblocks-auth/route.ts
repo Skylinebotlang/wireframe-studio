@@ -18,8 +18,8 @@
 
 import { Liveblocks } from "@liveblocks/node";
 import { NextResponse } from "next/server";
-import { getSignedInUser } from "@/lib/auth-server";
-import { boardsConfigured, canEdit, getRole, visitBoard } from "@/lib/boards-db";
+import { getSignedInUser } from "@/lib/server/auth-server";
+import { boardsConfigured, canEdit, getRole, visitBoard } from "@/lib/server/boards-db";
 
 // Only letters, numbers, dashes and underscores are allowed in room ids.
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 3. This person's role on the board (lib/boards-db.ts). First time here?
+  // 3. This person's role on the board (lib/server/boards-db.ts). First time here?
   // Record the visit first: someone new joins as a viewer, the person who
   // just created it is owner. (Later visits are recorded by PUT /api/boards,
   // in parallel, so joining stays fast.) No database set up → everyone edits.

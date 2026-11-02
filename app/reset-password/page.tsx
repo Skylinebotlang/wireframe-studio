@@ -10,7 +10,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Field } from "../AccountForm";
+import { Field } from "@/components/auth/AccountForm";
 import { friendlyAuthError, isLeakedPassword, LEAKED_PASSWORD_MESSAGE, supabase, useAccount } from "@/lib/auth";
 
 export default function ResetPasswordPage() {

@@ -2,7 +2,7 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SIGN-IN PAGE — /login. Two steps:
-//   1. Email + password (app/AccountForm.tsx): a real Supabase account.
+//   1. Email + password (components/auth/AccountForm.tsx): a real Supabase account.
 //   2. "Who's drawing?" (app/login/LoginIdentity.tsx): role, cursor color,
 //      room — with the name from step 1 filled in.
 // Already signed in (on this browser) → straight to step 2.
@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { AccountForm } from "../AccountForm";
+import { AccountForm } from "@/components/auth/AccountForm";
 import { LoginIdentity } from "./LoginIdentity";
 import { supabase, useAccount } from "@/lib/auth";
 

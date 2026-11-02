@@ -12,7 +12,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Field } from "../AccountForm";
+import { Field } from "@/components/auth/AccountForm";
 import { friendlyAuthError, supabase } from "@/lib/auth";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

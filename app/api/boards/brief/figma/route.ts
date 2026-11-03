@@ -1,8 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // IMPORT FROM FIGMA — POST /api/boards/brief/figma   (owner and editors)
 //
-//   { boardId, fileUrl, token } → { colors: [{ name, hex }], brandColor,
+//   { boardId, fileUrl, token } → { colors: [{ name, hex }], brandColors,
 //                                   fontFamily, brandFont }
+//   brandColors = the palette slots we could match from the style names
+//   ("Primary", "Background", "Text/Secondary"…); the main colour falls
+//   back to the most colourful style.
 //
 // Reads the colour and text styles saved in a Figma file and suggests brand
 // basics. Nothing is saved here: the Design brief panel fills in the
@@ -21,7 +24,7 @@
 import { NextResponse } from "next/server";
 import { briefError, editBrief } from "@/lib/server/brief-api";
 import { isOrange } from "@/lib/design/agent-design";
-import type { FontId } from "@/lib/design/brief";
+import type { BrandColors, FontId } from "@/lib/design/brief";
 
 const FIGMA = "https://api.figma.com/v1";
 const MAX_STYLES = 60;
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
         }
       }
       const fontFamily = mostCommon(families);
-      return NextResponse.json({ colors, brandColor: pickBrandColor(colors), fontFamily, brandFont: fontFamily ? nearestFont(fontFamily) : "" });
+      return NextResponse.json({ colors, brandColors: pickPalette(colors), fontFamily, brandFont: fontFamily ? nearestFont(fontFamily) : "" });
     } catch (err) {
       if (err instanceof FigmaProblem) return briefError(err.message, 400);
       throw err;
@@ -79,16 +82,41 @@ const toHex = (c: { r: number; g: number; b: number }) =>
 const mostCommon = (list: string[]) =>
   list.sort((a, b) => list.filter((x) => x === b).length - list.filter((x) => x === a).length)[0] ?? "";
 
-/** A style named primary / brand / main wins; else the most colourful one. Never orange (the AI's colour). */
-function pickBrandColor(colors: { name: string; hex: string }[]) {
+// Style names that mean each palette slot (checked against the whole name,
+// e.g. "Colors/Text/Secondary"). More specific slots are tried first.
+const SLOT_NAMES: [keyof BrandColors, RegExp][] = [
+  ["onPrimary", /on[\s_-]?(primary|brand|main)|primary[\s_/-]?(text|content|foreground)/i],
+  ["muted", /muted|secondary[\s_/-]?text|text[\s_/-]?(secondary|muted|subtle|tertiary)|caption|placeholder/i],
+  ["border", /border|divider|stroke|outline|line/i],
+  ["surface", /surface|card|panel|sheet|container/i],
+  ["background", /background|\bbg\b|canvas|base/i],
+  ["text", /text|foreground|\bink\b|heading|body/i],
+  ["accent", /accent|secondary|highlight/i],
+  ["primary", /primary|brand|main/i],
+];
+
+/** Match the file's colour styles to our 8 palette slots. Never orange (the AI's colour). */
+function pickPalette(colors: { name: string; hex: string }[]): BrandColors {
   const usable = colors.filter((c) => !isOrange(c.hex));
-  const named = usable.find((c) => /primary|brand|main/i.test(c.name));
-  if (named) return named.hex;
-  const vivid = (hex: string) => {
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-    return Math.max(r, g, b) - Math.min(r, g, b); // 0 = grey, 1 = pure colour
-  };
-  return usable.sort((a, b) => vivid(b.hex) - vivid(a.hex))[0]?.hex ?? "";
+  const out: BrandColors = {};
+  const used = new Set<string>();
+  for (const [slot, re] of SLOT_NAMES) {
+    const hit = usable.find((c) => re.test(c.name) && !used.has(c.name));
+    if (hit) {
+      out[slot] = hit.hex;
+      used.add(hit.name);
+    }
+  }
+  if (!out.primary) {
+    // No style named like a main colour: take the most colourful one.
+    const vivid = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+      return Math.max(r, g, b) - Math.min(r, g, b); // 0 = grey, 1 = pure colour
+    };
+    const best = usable.filter((c) => !used.has(c.name)).sort((a, b) => vivid(b.hex) - vivid(a.hex))[0];
+    if (best) out.primary = best.hex;
+  }
+  return out;
 }
 
 /** A Figma font name → the nearest of our 4 safe families. */

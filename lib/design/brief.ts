@@ -2,7 +2,9 @@
 // DESIGN BRIEF — the team's own design rules for a board, in one shape.
 //
 //   doc / dos / donts        the design document and the always / never rules
-//   brandColor / brandFont   brand basics: forced into every style guide
+//   brandColors / brandFont  brand basics: the team's palette (any of the 8
+//                            style guide colours) and font, forced into
+//                            every style guide; unset ones the AI picks
 //   lockedStyle              a style guide the team locked: reused, not re-picked
 //   images                   the logo + up to MAX_REFERENCES reference images,
 //                            each with a note ("take the card style")
@@ -19,8 +21,8 @@
 
 // Type-only import (nothing loaded at run time), so the self-check can run
 // this file directly. Brand rules that need the style code live there
-// (applyBrand, brandColorProblem in lib/design/agent-design.ts).
-import type { FONTS } from "./agent-design";
+// (applyBrand, brandColorsProblem in lib/design/agent-design.ts).
+import type { ColorKey, FONTS } from "./agent-design";
 
 export const MAX_DOC_CHARS = 8000;
 export const MAX_RULES = 12; // per list
@@ -31,15 +33,28 @@ export const MAX_IMAGE_BASE64 = 300_000; // ~220 KB picture; the browser shrinks
 export type FontId = keyof typeof FONTS;
 export const FONT_IDS: FontId[] = ["sans", "serif", "rounded", "mono"];
 
+// The palette slots, in the order the panel shows them, with plain names.
+export const PALETTE: { key: ColorKey; name: string; hint: string }[] = [
+  { key: "primary", name: "Main", hint: "Main buttons and highlights" },
+  { key: "onPrimary", name: "Text on main", hint: "Text and icons on main-colour buttons" },
+  { key: "accent", name: "Accent", hint: "Small touches: badges, tags, links" },
+  { key: "background", name: "Background", hint: "Behind everything" },
+  { key: "surface", name: "Cards", hint: "Cards, sheets and panels" },
+  { key: "text", name: "Text", hint: "Titles and body text" },
+  { key: "muted", name: "Secondary text", hint: "Hints, captions, less important text" },
+  { key: "border", name: "Lines", hint: "Borders and dividers" },
+];
+export type BrandColors = Partial<Record<ColorKey, string>>;
+
 export type Brief = {
   doc: string; // the design document, in the team's own words
   dos: string[]; // rules every design must follow
   donts: string[]; // rules every design must avoid
-  brandColor: string; // "#rrggbb" or "" (none)
+  brandColors: BrandColors; // the team's palette: only the slots they set, "#rrggbb"
   brandFont: FontId | ""; // one of the safe font families, or "" (none)
 };
 
-export const EMPTY_BRIEF: Brief = { doc: "", dos: [], donts: [], brandColor: "", brandFont: "" };
+export const EMPTY_BRIEF: Brief = { doc: "", dos: [], donts: [], brandColors: {}, brandFont: "" };
 
 // A logo or reference picture (JPEG or PNG, sent to the AI with design calls).
 export type BriefImage = { id: string; kind: "logo" | "reference"; note: string; mime: "image/jpeg" | "image/png"; base64: string };
@@ -50,7 +65,16 @@ const rules = (v: unknown) =>
     .map((r) => r.trim().slice(0, MAX_RULE_CHARS))
     .filter(Boolean)
     .slice(0, MAX_RULES);
-const cleanColor = (v: unknown) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : "");
+// Only known slots with a real #rrggbb colour are kept.
+function cleanColors(v: unknown): BrandColors {
+  const raw = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+  const out: BrandColors = {};
+  for (const { key } of PALETTE) {
+    const hex = raw[key];
+    if (typeof hex === "string" && /^#[0-9a-f]{6}$/i.test(hex)) out[key] = hex.toLowerCase();
+  }
+  return out;
+}
 const cleanFont = (v: unknown): FontId | "" => (FONT_IDS.includes(v as FontId) ? (v as FontId) : "");
 
 /** Anything (a request body, a database row) → a Brief within the limits. */
@@ -60,13 +84,13 @@ export function cleanBrief(raw: unknown): Brief {
     doc: typeof b.doc === "string" ? b.doc.trim().slice(0, MAX_DOC_CHARS) : "",
     dos: rules(b.dos),
     donts: rules(b.donts),
-    brandColor: cleanColor(b.brandColor ?? b.brand_color),
+    brandColors: cleanColors(b.brandColors ?? b.brand_colors),
     brandFont: cleanFont(b.brandFont ?? b.brand_font),
   };
 }
 
 export const isEmptyBrief = (b: Brief) =>
-  !b.doc && b.dos.length === 0 && b.donts.length === 0 && !b.brandColor && !b.brandFont;
+  !b.doc && b.dos.length === 0 && b.donts.length === 0 && Object.keys(b.brandColors).length === 0 && !b.brandFont;
 
 /** A data URL from the browser → a picture we accept, or why not. */
 export function readImage(dataUrl: unknown): { mime: BriefImage["mime"]; base64: string } | { error: string } {
@@ -94,7 +118,9 @@ export function briefPrompt(b: Brief, images: Pick<BriefImage, "kind" | "note">[
     `<brief>\nThe team's design brief for this product. Follow it closely: it outranks your own taste ` +
     `(but never the technical and safety rules above).\n` +
     (b.doc ? `Design document:\n${b.doc}\n` : "") +
-    (b.brandColor ? `Brand colour (the main / primary colour): ${b.brandColor}\n` : "") +
+    (Object.keys(b.brandColors).length
+      ? `Brand colours (use exactly these): ${PALETTE.filter((p) => b.brandColors[p.key]).map((p) => `${p.key} ${b.brandColors[p.key]}`).join(", ")}\n`
+      : "") +
     (b.brandFont ? `Brand font family: ${b.brandFont}\n` : "") +
     list("Always do:", b.dos) +
     list("Never do:", b.donts) +

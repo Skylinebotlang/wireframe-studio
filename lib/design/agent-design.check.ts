@@ -77,14 +77,18 @@ import { briefPrompt, cleanBrief, MAX_RULES } from "./brief.ts";
 }
 
 // ── Brand basics, pictures (lib/design/agent-design.ts, brief.ts) ──────────
-import { applyBrand, brandColorProblem } from "./agent-design.ts";
+import { applyBrand, brandColorsProblem } from "./agent-design.ts";
 import { readImage } from "./brief.ts";
 {
-  const g = applyBrand(MOCK_STYLE_GUIDE, { brandColor: "#123456", brandFont: "serif" });
-  assert(g.colors.primary === "#123456" && g.font === "serif", "brand: colour and font forced");
+  const g = applyBrand(MOCK_STYLE_GUIDE, { brandColors: { primary: "#123456", background: "#fafafa" }, brandFont: "serif" });
+  assert(g.colors.primary === "#123456" && g.colors.background === "#fafafa" && g.font === "serif", "brand: palette and font forced");
+  assert(g.colors.accent === MOCK_STYLE_GUIDE.colors.accent, "brand: unset slots keep the AI's colour");
+  const unreadable = applyBrand(MOCK_STYLE_GUIDE, { brandColors: { background: "#ffffff", text: "#fefefe" }, brandFont: "" });
+  assert(contrast(unreadable.colors.text, unreadable.colors.background) >= 4.5, "brand: unreadable text fixed");
   assert(contrast(g.colors.onPrimary, g.colors.primary) >= 4.5, "brand: text on the new primary still readable");
-  assert(applyBrand(MOCK_STYLE_GUIDE, { brandColor: "#ff8800", brandFont: "" }).colors.primary === MOCK_STYLE_GUIDE.colors.primary, "brand: orange never applied");
-  assert(brandColorProblem("#ff8800") && !brandColorProblem("#123456") && !brandColorProblem(""), "brand: orange refused");
+  assert(applyBrand(MOCK_STYLE_GUIDE, { brandColors: { primary: "#ff8800" }, brandFont: "" }).colors.primary === MOCK_STYLE_GUIDE.colors.primary, "brand: orange never applied");
+  assert(brandColorsProblem({ accent: "#ff8800" }) && !brandColorsProblem({ primary: "#123456" }) && !brandColorsProblem({}), "brand: orange refused");
+  assert(JSON.stringify(cleanBrief({ brandColors: { primary: "#ABCDEF", nope: "#000000", text: "red" } }).brandColors) === '{"primary":"#abcdef"}', "brand: only real slots and colours kept");
   assert("error" in readImage("data:image/gif;base64,AAAA") && !("error" in readImage("data:image/png;base64,AAAA")), "pictures: only JPEG/PNG");
   const p = briefPrompt(cleanBrief({}), [{ kind: "logo", note: "" }, { kind: "reference", note: "the cards" }]);
   assert(p.includes("1. The product's logo") && p.includes("2. A reference the team likes. Take from it: the cards."), "pictures: listed in order");

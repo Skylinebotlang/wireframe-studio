@@ -40,7 +40,8 @@ export const FONTS = {
 } as const;
 export type FontId = keyof typeof FONTS;
 
-const COLOR_KEYS = ["background", "surface", "text", "muted", "primary", "onPrimary", "accent", "border"] as const;
+export const COLOR_KEYS = ["background", "surface", "text", "muted", "primary", "onPrimary", "accent", "border"] as const;
+export type ColorKey = (typeof COLOR_KEYS)[number];
 
 export type StyleGuide = {
   product: string; // short product name, e.g. "Pawtrail"
@@ -122,25 +123,26 @@ export function checkStyleGuide(data: unknown): { ok: true; guide: StyleGuide } 
 
 // ── Brand basics (from the design brief, lib/design/brief.ts) ──────────────
 
-/** Why this brand colour can't be used, or null. Orange is the AI's colour here. */
-export function brandColorProblem(hex: string): string | null {
-  if (!hex) return null;
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) return "The brand colour must look like #1a2b3c.";
-  return isOrange(hex) ? "Orange is reserved for the AI in this app, so it can't be a brand colour. Pick another." : null;
+/** Why these brand colours can't be used, or null. Orange is the AI's colour here. */
+export function brandColorsProblem(colors: Partial<Record<ColorKey, string>>): string | null {
+  for (const [key, hex] of Object.entries(colors)) {
+    if (!/^#[0-9a-f]{6}$/i.test(hex ?? "")) return `The "${key}" colour must look like #1a2b3c.`;
+    if (isOrange(hex!)) return `Orange (${hex}) is reserved for the AI in this app, so it can't be a brand colour. Pick another.`;
+  }
+  return null;
 }
 
 /**
- * Brand basics win over the AI's choices: the main colour becomes the
- * style guide's primary, the font its font. Re-checked afterwards, so
- * contrast is fixed again (e.g. the text on the new primary).
+ * Brand basics win over the AI's choices: every brand colour the team set
+ * replaces the AI's colour in that slot (the rest stay as the AI picked),
+ * and the brand font replaces its font. Re-checked afterwards, so contrast
+ * is fixed again: text that would be hard to read on its background is
+ * swapped to dark or white (fixContrast below).
  */
-export function applyBrand(guide: StyleGuide, b: { brandColor: string; brandFont: FontId | "" }): StyleGuide {
-  if (!b.brandColor && !b.brandFont) return guide;
-  const checked = checkStyleGuide({
-    ...guide,
-    colors: { ...guide.colors, ...(b.brandColor && !isOrange(b.brandColor) ? { primary: b.brandColor } : {}) },
-    font: b.brandFont || guide.font,
-  });
+export function applyBrand(guide: StyleGuide, b: { brandColors: Partial<Record<ColorKey, string>>; brandFont: FontId | "" }): StyleGuide {
+  const colors = Object.fromEntries(Object.entries(b.brandColors).filter(([, hex]) => hex && !isOrange(hex)));
+  if (Object.keys(colors).length === 0 && !b.brandFont) return guide;
+  const checked = checkStyleGuide({ ...guide, colors: { ...guide.colors, ...colors }, font: b.brandFont || guide.font });
   return checked.ok ? checked.guide : guide;
 }
 

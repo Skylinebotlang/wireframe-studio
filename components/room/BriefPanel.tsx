@@ -5,7 +5,8 @@
 //
 // The team's own design rules for this board. "Make it real" follows them on
 // every screen (the server reads the saved brief itself):
-//   • Brand basics: main colour + font (forced into every design), logo
+//   • Brand basics: colour palette (any of 8 slots) + font (forced into
+//     every design; empty slots the AI picks), logo
 //   • Design document, Always do / Never do (one rule per line)
 //   • Reference pictures (up to 5), each with a note: what to take from it
 //   • Locked style: set with "Lock this style" on a design; Unlock here
@@ -20,7 +21,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authHeader } from "@/lib/auth";
-import { FONT_IDS, MAX_DOC_CHARS, MAX_IMAGE_BASE64, MAX_NOTE_CHARS, MAX_REFERENCES, MAX_RULES, type FontId } from "@/lib/design/brief";
+import {
+  FONT_IDS,
+  MAX_DOC_CHARS,
+  MAX_IMAGE_BASE64,
+  MAX_NOTE_CHARS,
+  MAX_REFERENCES,
+  MAX_RULES,
+  PALETTE,
+  type BrandColors,
+  type FontId,
+} from "@/lib/design/brief";
 import type { StyleGuide } from "@/lib/design/agent-design";
 
 type Picture = { id: string; kind: "logo" | "reference"; note: string; dataUrl: string };
@@ -28,7 +39,7 @@ type Loaded = {
   doc: string;
   dos: string;
   donts: string;
-  brandColor: string;
+  brandColors: BrandColors;
   brandFont: FontId | "";
   lockedStyle: StyleGuide | null;
   by: string;
@@ -71,7 +82,7 @@ export function BriefPanel({ boardId, onClose }: { boardId: string; onClose: () 
       doc: b.doc,
       dos: b.dos.join("\n"),
       donts: b.donts.join("\n"),
-      brandColor: b.brandColor,
+      brandColors: b.brandColors,
       brandFont: b.brandFont,
       lockedStyle: b.lockedStyle,
       by: b.updatedByName,
@@ -117,7 +128,7 @@ export function BriefPanel({ boardId, onClose }: { boardId: string; onClose: () 
         doc: data.doc,
         dos: lines(data.dos),
         donts: lines(data.donts),
-        brandColor: data.brandColor,
+        brandColors: data.brandColors,
         brandFont: data.brandFont,
       });
       setStatus({ kind: "saved", text: "Saved. Make it real uses it from the next design on." });
@@ -204,34 +215,12 @@ export function BriefPanel({ boardId, onClose }: { boardId: string; onClose: () 
 
               {/* ── Brand basics ─────────────────────────────────────────── */}
               <Section title="Brand basics" hint="Forced into every design, whatever the AI picks.">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div>
-                    <label htmlFor="brief-color" className={LABEL}>
-                      Main colour
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        id="brief-color"
-                        type="color"
-                        value={data.brandColor || "#4a5bd4"}
-                        onChange={(e) => edit({ brandColor: e.target.value })}
-                        disabled={readOnly}
-                        className="h-9 w-11 shrink-0 cursor-pointer rounded-lg border border-line bg-raised/40 p-1 disabled:cursor-not-allowed"
-                      />
-                      {data.brandColor ? (
-                        <>
-                          <span className="font-mono text-xs">{data.brandColor}</span>
-                          {!readOnly && (
-                            <button type="button" className="text-xs text-muted underline hover:text-ink" onClick={() => edit({ brandColor: "" })}>
-                              Clear
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-xs text-muted">None (AI picks)</span>
-                      )}
-                    </div>
-                  </div>
+                <Palette
+                  colors={data.brandColors}
+                  readOnly={readOnly}
+                  onChange={(brandColors) => edit({ brandColors })}
+                />
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
                     <label htmlFor="brief-font" className={LABEL}>
                       Font
@@ -277,7 +266,7 @@ export function BriefPanel({ boardId, onClose }: { boardId: string; onClose: () 
                     </div>
                   </div>
                 </div>
-                {!readOnly && <FigmaImport boardId={boardId} onPick={(patch) => edit(patch)} />}
+                {!readOnly && <FigmaImport boardId={boardId} colors={data.brandColors} onPick={(patch) => edit(patch)} />}
               </Section>
 
               {/* ── Design document + rules ──────────────────────────────── */}
@@ -467,6 +456,62 @@ function FileButton({ label, disabled, onFile }: { label: string; disabled: bool
   );
 }
 
+// The 8 colour slots of the palette. Empty = the AI picks that one.
+function Palette({ colors, readOnly, onChange }: { colors: BrandColors; readOnly: boolean; onChange: (c: BrandColors) => void }) {
+  const set = (key: keyof BrandColors, hex: string | null) => {
+    const next = { ...colors };
+    if (hex) next[key] = hex;
+    else delete next[key];
+    onChange(next);
+  };
+  return (
+    <div>
+      <span className={LABEL}>Colour palette</span>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {PALETTE.map(({ key, name, hint }) => {
+          const hex = colors[key];
+          const id = `brief-color-${key}`;
+          return (
+            <li key={key} className="flex items-center gap-2.5 rounded-lg border border-line bg-raised/40 px-2 py-1.5">
+              <input
+                id={id}
+                type="color"
+                value={hex ?? "#808080"}
+                onChange={(e) => set(key, e.target.value)}
+                disabled={readOnly}
+                aria-describedby={`${id}-hint`}
+                className={`h-8 w-9 shrink-0 cursor-pointer rounded-md border border-line bg-transparent p-0.5 disabled:cursor-not-allowed ${hex ? "" : "opacity-40"}`}
+              />
+              <div className="min-w-0 flex-1">
+                <label htmlFor={id} className="block text-xs text-ink">
+                  {name}
+                </label>
+                <p id={`${id}-hint`} className="truncate text-[11px] text-muted" title={hint}>
+                  {hex ? <span className="font-mono">{hex}</span> : "AI picks"} · {hint}
+                </p>
+              </div>
+              {hex && !readOnly && (
+                <button
+                  type="button"
+                  aria-label={`Clear ${name}`}
+                  onClick={() => set(key, null)}
+                  className="shrink-0 text-[11px] text-muted underline hover:text-ink"
+                >
+                  Clear
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-1.5 text-[11px] text-muted">
+        Set only the ones you care about. If a text colour would be hard to read on its background, it&apos;s switched to dark or
+        white so screens stay readable. No orange: it&apos;s the AI&apos;s colour.
+      </p>
+    </div>
+  );
+}
+
 function Swatches({ guide }: { guide: StyleGuide }) {
   const keys = ["primary", "accent", "background", "surface", "text"] as const;
   return (
@@ -481,7 +526,15 @@ function Swatches({ guide }: { guide: StyleGuide }) {
 // ── Import from Figma ────────────────────────────────────────────────────────
 // The token is the person's own Figma personal access token: sent to our
 // server for this one import, never saved (not even in this browser).
-function FigmaImport({ boardId, onPick }: { boardId: string; onPick: (patch: { brandColor?: string; brandFont?: FontId | "" }) => void }) {
+function FigmaImport({
+  boardId,
+  colors,
+  onPick,
+}: {
+  boardId: string;
+  colors: BrandColors; // the palette now, so a clicked swatch only changes the main colour
+  onPick: (patch: { brandColors?: BrandColors; brandFont?: FontId | "" }) => void;
+}) {
   const [openForm, setOpenForm] = useState(false);
   const [fileUrl, setFileUrl] = useState("");
   const [token, setToken] = useState("");
@@ -492,7 +545,10 @@ function FigmaImport({ boardId, onPick }: { boardId: string; onPick: (patch: { b
     try {
       const r = await api("/api/boards/brief/figma", "POST", { boardId, fileUrl, token });
       setToken(""); // done with it
-      onPick({ ...(r.brandColor ? { brandColor: r.brandColor } : {}), ...(r.brandFont ? { brandFont: r.brandFont } : {}) });
+      onPick({
+        ...(Object.keys(r.brandColors ?? {}).length ? { brandColors: r.brandColors } : {}),
+        ...(r.brandFont ? { brandFont: r.brandFont } : {}),
+      });
       setState({ colors: r.colors, font: r.fontFamily });
     } catch (err) {
       setState({ error: (err as Error).message });
@@ -551,7 +607,7 @@ function FigmaImport({ boardId, onPick }: { boardId: string; onPick: (patch: { b
                 type="button"
                 title={`${c.name} ${c.hex}`}
                 aria-label={`Use ${c.name} (${c.hex}) as the main colour`}
-                onClick={() => onPick({ brandColor: c.hex })}
+                onClick={() => onPick({ brandColors: { ...colors, primary: c.hex } })}
                 className="h-7 w-7 rounded-md border border-line focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-bright"
                 style={{ background: c.hex }}
               />

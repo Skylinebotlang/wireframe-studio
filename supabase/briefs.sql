@@ -25,7 +25,7 @@ alter table public.board_briefs enable row level security;
 grant select, insert, update on public.board_briefs to service_role;
 
 -- ── Added for brand basics, the locked style and pictures (2026-11-03) ──────
---   brand_color   main colour "#rrggbb" ('' = none): forced into every style
+--   brand_color   main colour "#rrggbb" ('' = none). REPLACED by brand_colors (below)
 --   brand_font    sans / serif / rounded / mono ('' = none)
 --   locked_style  a style guide the team locked (Make it real reuses it)
 alter table public.board_briefs
@@ -49,3 +49,11 @@ create table public.board_images (
 create index board_images_board on public.board_images (board_id, created_at);
 alter table public.board_images enable row level security;
 grant select, insert, update, delete on public.board_images to service_role;
+
+-- ── Full colour palette instead of one main colour (2026-11-04) ─────────────
+--   brand_colors  { "primary": "#…", "background": "#…", … }: any of the 8
+--                 style guide slots (lib/design/brief.ts PALETTE); the
+--                 server checks each value. Replaces brand_color.
+alter table public.board_briefs add column brand_colors jsonb not null default '{}'::jsonb;
+update public.board_briefs set brand_colors = jsonb_build_object('primary', brand_color) where brand_color <> '';
+alter table public.board_briefs drop column brand_color;

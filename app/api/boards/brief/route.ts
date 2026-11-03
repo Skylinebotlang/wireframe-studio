@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // DESIGN BRIEF ENDPOINT — /api/boards/brief
 //
-//   GET ?boardId=…           → { brief: { doc, dos, donts, brandColor, brandFont,
+//   GET ?boardId=…           → { brief: { doc, dos, donts, brandColors, brandFont,
 //                              lockedStyle, updatedByName, updatedAt },
 //                              images: [{ id, kind, note, dataUrl }], canEdit }
 //                              anyone on the board
-//   PUT { boardId, doc, dos, donts, brandColor, brandFont } → { ok }
+//   PUT { boardId, doc, dos, donts, brandColors: { primary: "#…", … }, brandFont } → { ok }
 //                              the text and brand basics (owner and editors)
 //   PATCH { boardId, lockedStyle: styleGuide | null } → { ok }
 //                              lock a style for Make it real, or unlock (owner and editors)
@@ -23,7 +23,7 @@ import { getBrief, listImages, saveBrief, setLockedStyle } from "@/lib/server/br
 import { getSignedInUser } from "@/lib/server/auth-server";
 import { canUseAI } from "@/lib/roles";
 import { cleanBrief } from "@/lib/design/brief";
-import { brandColorProblem, checkStyleGuide } from "@/lib/design/agent-design";
+import { brandColorsProblem, checkStyleGuide } from "@/lib/design/agent-design";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   return editBrief(request, async (boardId, body, name) => {
     const brief = cleanBrief(body);
-    const problem = brandColorProblem(brief.brandColor);
+    const problem = brandColorsProblem(brief.brandColors);
     if (problem) return briefError(problem, 400);
     await saveBrief(boardId, brief, name);
     return NextResponse.json({ ok: true });

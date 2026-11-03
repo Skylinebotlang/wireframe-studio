@@ -18,7 +18,7 @@ export async function getBrief(boardId: string): Promise<SavedBrief> {
   const none: SavedBrief = { ...EMPTY_BRIEF, lockedStyle: null, updatedByName: "", updatedAt: "" };
   if (!boardsConfigured()) return none;
   const rows: Record<string, unknown>[] = await rest(
-    `board_briefs?board_id=eq.${enc(boardId)}&select=doc,dos,donts,brand_color,brand_font,locked_style,updated_by_name,updated_at`
+    `board_briefs?board_id=eq.${enc(boardId)}&select=doc,dos,donts,brand_colors,brand_font,locked_style,updated_by_name,updated_at`
   );
   const r = rows[0];
   if (!r) return none;
@@ -43,7 +43,7 @@ async function upsert(boardId: string, byName: string, columns: Record<string, u
 /** Save the text and brand basics (the locked style and pictures stay as they are). */
 export function saveBrief(boardId: string, brief: Brief, byName: string) {
   const b = cleanBrief(brief);
-  return upsert(boardId, byName, { doc: b.doc, dos: b.dos, donts: b.donts, brand_color: b.brandColor, brand_font: b.brandFont });
+  return upsert(boardId, byName, { doc: b.doc, dos: b.dos, donts: b.donts, brand_colors: b.brandColors, brand_font: b.brandFont });
 }
 
 /** Lock a style guide for the board, or unlock (null). */

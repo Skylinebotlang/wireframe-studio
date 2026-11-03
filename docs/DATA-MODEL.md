@@ -15,7 +15,7 @@ our `/api/*` routes, which check the sign-in first (`lib/server/auth-server.ts`)
 | `boards` | board (= Liveblocks room) | `id` (room id), `name`, `created_by` (account id), `updated_at` | `/boards` list, delete (creator only). `lib/server/boards-db.ts` |
 | `board_visits` | person × board | `board_id`, `user_id`, `user_name`, `last_opened_at` | "my boards, most recent first", "With Alice, Bob". Deleted with the board (cascade) |
 | `decisions` | design decision | `board_id`, `kind` (merge / pick), `summary`, `decision`, `decided_by`, `screens` | Decision log tab. `lib/server/decisions-db.ts`. Deleted with the board (cascade) |
-| `board_briefs` | design brief, one per board | `board_id`, `doc`, `dos`, `donts`, `brand_color`, `brand_font`, `locked_style`, `updated_by_name` | Brief panel; read by Make it real. `lib/server/brief-db.ts`. Owner/editors write. Deleted with the board (cascade) |
+| `board_briefs` | design brief, one per board | `board_id`, `doc`, `dos`, `donts`, `brand_colors` (palette), `brand_font`, `locked_style`, `updated_by_name` | Brief panel; read by Make it real. `lib/server/brief-db.ts`. Owner/editors write. Deleted with the board (cascade) |
 | `board_images` | brief picture | `board_id`, `kind` (logo / reference), `note`, `mime`, `data` (base64) | Logo + up to 5 references, sent to the AI by Make it real. `lib/server/brief-db.ts`. Deleted with the board (cascade) |
 | `agent_usage` | person × day (UTC) | `user_id`, `day`, `runs` | per-person daily limit (50). Functions `claim_agent_run` / `refund_agent_run`. `lib/server/user-limit.ts` |
 

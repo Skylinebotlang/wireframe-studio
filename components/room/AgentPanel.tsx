@@ -8,7 +8,8 @@
 // Top to bottom:
 //   1. Header: "Agent", its status, and the "Your AI key" button.
 //   2. Composer: type an idea and press Enter (chat style). Under it, two
-//      quieter actions: "Use canvas notes" and "Make it real".
+//      quieter actions: "Use canvas notes" and "Make it real", plus "Try 3
+//      styles" (or "Lock this style" when one design is selected).
 //   3. Run card (only while something is happening): plan progress,
 //      Pause / Resume / Take over, Undo last run, errors + Retry.
 //   4. Clash cards from the last run, with "Use X's version" buttons.
@@ -35,6 +36,8 @@ export function AgentPanel({
   onRetry,
   retryDesigns,
   onMakeReal,
+  onCompareStyles,
+  onLockStyle,
   pickedDesign,
   myName,
   colorOf,
@@ -51,6 +54,8 @@ export function AgentPanel({
   onRetry?: () => void; // set when this person started the run that failed
   retryDesigns: number; // designs that failed in this person's last Make it real (others worked)
   onMakeReal: (instruction: string) => void;
+  onCompareStyles: () => void; // "Try 3 styles" on the first (or selected) wireframe
+  onLockStyle: () => void; // lock the selected design's style for the board
   pickedDesign: string | null; // name of the one design selected (Regenerate), or null
   myName: string; // this person's display name (their own lines say "You")
   colorOf: (name: string) => string; // a teammate's cursor color (lib/agent/agent-room useTeamColors)
@@ -196,6 +201,24 @@ export function AgentPanel({
               className="mt-2 w-full rounded-lg border border-line bg-paper/60 px-3 py-2 text-xs text-ink outline-none placeholder:text-muted focus:border-accent-bright/70"
             />
           )}
+          {/* Style: try 3 options, or lock the selected design's style for
+              every screen (the Design brief panel shows it and unlocks). */}
+          <div className="mt-2">
+            {pickedDesign ? (
+              <QuietButton full onClick={onLockStyle} disabled={busy} title={`Use the ${pickedDesign} style on every screen from now on`}>
+                <LockIcon /> Lock this style
+              </QuietButton>
+            ) : (
+              <QuietButton
+                full
+                onClick={onCompareStyles}
+                disabled={busy}
+                title="Design the first (or selected) wireframe in 3 different styles, to pick one"
+              >
+                <SparkIcon /> Try 3 styles
+              </QuietButton>
+            )}
+          </div>
         </section>
         )}
 
@@ -538,6 +561,15 @@ function QuietButton({
 }
 
 // Small line icons (inline so there's nothing extra to install).
+function LockIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5a2.5 2.5 0 015 0v2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function NotesIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>

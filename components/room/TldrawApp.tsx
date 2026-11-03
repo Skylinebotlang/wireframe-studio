@@ -242,6 +242,24 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
     if (problem) setMessage(problem);
   }, [editor, design, pickedDesign]);
 
+  // "Try 3 styles": three style options on the first (or selected) wireframe.
+  const handleCompareStyles = useCallback(async () => {
+    if (!editor) return;
+    setMessage("");
+    if (!aiKeyForRequest()) return setMessage(NEED_OWN_KEY);
+    const picked = new Set(editor.getSelectedShapes().filter((s) => s.type === "frame").map((s) => (s.props as { name: string }).name));
+    const board = readBoardScreens(editor).filter((s) => picked.size === 0 || picked.has(s.name));
+    const problem = await design.compareStyles(board, (designId, name) => placeDesign(editor, designId, name));
+    if (problem) setMessage(problem);
+  }, [editor, design]);
+
+  // "Lock this style": the selected design's style becomes the board's style.
+  const handleLockStyle = useCallback(async () => {
+    if (!pickedDesign) return;
+    const { message } = await design.lockStyle(pickedDesign.props.designId);
+    setMessage(message);
+  }, [design, pickedDesign]);
+
   // Retry: redo only the designs that failed last time (same style guide).
   const handleRetryDesign = useCallback(async () => {
     if (!editor) return;
@@ -385,6 +403,8 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
         onResume={() => agent.resume(draw)}
         onUndo={handleUndo}
         onMakeReal={handleMakeReal}
+        onCompareStyles={handleCompareStyles}
+        onLockStyle={handleLockStyle}
         pickedDesign={pickedDesign?.props.name ?? null}
       />
       </div>

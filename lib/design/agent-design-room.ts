@@ -8,6 +8,9 @@
 //   design.regenerate(designId, "make it darker", onDesign) → redo one design
 //   design.retryFailed(onDesign)  → redo only the screens that failed last time
 //                                   (design.failed says how many; this browser only)
+//   design.compareStyles(boardScreens, onDesign) → "Try 3 styles" on the first screen
+//   design.lockStyle(designId)    → lock that design's style for the board
+//                                   (saved in the design brief, app/api/boards/brief)
 //
 // A run, driven from the browser of the person who clicked, one server call
 // at a time (app/api/design):
@@ -251,14 +254,12 @@ export function useDesignPanel(myName: string) {
     }
   }
 
-  /**
-   * "Make it real": design these wireframe screens (max MAX_DESIGN_SCREENS).
-   * Box types come from the agent's last answer when the names match (they
-   * know "button" vs "card"); hand-made frames only have their box text.
-   */
-  async function makeReal(board: BoardScreen[], idFor: (name: string) => string, onDesign: OnDesign) {
+  // Wireframes on the board → screens to design. Box types come from the
+  // agent's last answer when the names match (they know "button" vs
+  // "card"); hand-made frames only have their box text.
+  function toDesignScreens(board: BoardScreen[]): DesignScreen[] {
     const lastScreens = room.getStorageSnapshot()?.get("agentRun").get("result")?.screens ?? [];
-    const screens: DesignScreen[] = board
+    return board
       .filter((s) => s.labels.length)
       .slice(0, MAX_DESIGN_SCREENS)
       .map((s) => {
@@ -273,6 +274,11 @@ export function useDesignPanel(myName: string) {
           })),
         };
       });
+  }
+
+  /** "Make it real": design these wireframe screens (max MAX_DESIGN_SCREENS). */
+  async function makeReal(board: BoardScreen[], idFor: (name: string) => string, onDesign: OnDesign) {
+    const screens = toDesignScreens(board);
     if (screens.length === 0) return "There are no wireframes to make real yet. Frame an idea first.";
     const n = screens.length;
     return designRun({
@@ -309,7 +315,79 @@ export function useDesignPanel(myName: string) {
     });
   }
 
-  return { makeReal, regenerate, retryFailed, failed: failed?.screens.length ?? 0 };
+  /**
+   * "Try 3 styles": three different style guides, each shown on the first
+   * screen ("Home · Style A/B/C"), side by side. 6 AI calls, no review pass
+   * (they're for choosing). Picking one = select it and "Lock this style".
+   */
+  async function compareStyles(board: BoardScreen[], onDesign: OnDesign): Promise<string | null> {
+    const screen = toDesignScreens(board)[0];
+    if (!screen) return "There are no wireframes to try styles on yet. Frame an idea first.";
+    const claimed = start(`${myName} asked the agent to try 3 styles on ${screen.name}`);
+    if (!claimed) return "The agent is busy. Wait for it to finish, or press Take over.";
+    const { runId, idea, resolution } = claimed;
+    let provider = "";
+    let made = 0;
+    const problems: string[] = [];
+    for (const [i, letter] of ["A", "B", "C"].entries()) {
+      if ((await holdWhilePaused(runId)) === "stop") return null;
+      const style = await call(runId, { kind: "style", idea, resolution, screens: [screen.name], variant: i + 1 });
+      if (style === "stopped") return null;
+      if ("error" in style) {
+        problems.push(`Style ${letter}: ${style.error}`);
+        continue;
+      }
+      const guide = style.styleGuide as StyleGuide;
+      progress(runId, plan(1, 3), String(style.providerLabel ?? provider));
+      if ((await holdWhilePaused(runId)) === "stop") return null;
+      const r = await call(runId, { kind: "screen", idea, resolution, styleGuide: guide, screen, otherScreens: [] });
+      if (r === "stopped") return null;
+      if ("error" in r) {
+        problems.push(`Style ${letter}: ${r.error}`);
+        continue;
+      }
+      provider = String(r.providerLabel ?? provider);
+      const name = `${screen.name} · Style ${letter}`;
+      const id = crypto.randomUUID();
+      const record: DesignRecord = { name, html: String(r.html), screen, styleGuide: guide, by: myName, at: Date.now(), provider };
+      if ((await holdWhilePaused(runId)) === "stop") return null;
+      if (!save(runId, id, record)) return null;
+      onDesign(id, name);
+      made++;
+    }
+    if (made === 0) {
+      end(runId, problems[0] ?? "The agent couldn't make the styles. Please try again.", "");
+      return problems[0] ?? "The agent couldn't make the styles. Please try again.";
+    }
+    end(runId, "", `Made ${made} style option${made === 1 ? "" : "s"} for ${screen.name} using ${provider}. Select one and press Lock this style.`);
+    return problems.length ? `Some styles failed: ${problems.join("; ")}` : null;
+  }
+
+  /**
+   * Lock this design's style guide for the board: from now on Make it real
+   * reuses it instead of picking a new one (Design brief panel → Unlock).
+   * Owner and editors only (the server checks). Returns a message.
+   */
+  async function lockStyle(designId: string): Promise<{ ok: boolean; message: string }> {
+    const record = room.getStorageSnapshot()?.get("designs")?.get(designId);
+    if (!record) return { ok: false, message: "That design is no longer saved, so its style can't be locked." };
+    try {
+      const res = await fetch("/api/boards/brief", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", ...(await authHeader()) },
+        body: JSON.stringify({ boardId: roomId, lockedStyle: record.styleGuide }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, message: data.error ?? "Couldn't lock the style. Please try again." };
+      logLine(`${myName} locked the style of ${record.name}: Make it real now uses it`);
+      return { ok: true, message: `Style locked from ${record.name}. Make it real now uses it on every screen.` };
+    } catch {
+      return { ok: false, message: "Couldn't reach the server. Please try again." };
+    }
+  }
+  const logLine = useMutation(({ storage }, line: string) => log(storage.get("activity"), myName, "design", line), [myName]);
+
+  return { makeReal, regenerate, retryFailed, compareStyles, lockStyle, failed: failed?.screens.length ?? 0 };
 }
 
 function log(feed: { push: (a: ActivityItem) => void; length: number; delete: (i: number) => void }, who: string, kind: ActivityItem["kind"], text: string) {

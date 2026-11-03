@@ -10,6 +10,7 @@
 //             the roles. Changes show at once ("Saving…" → "Saved"), and
 //             reach the other person live (lib/board-role.ts).
 //             The owner also picks what new people join as (footer).
+//   • Brief → the design brief "Make it real" follows (components/room/BriefPanel.tsx)
 //   • Share → copy the board's link
 // Decisions show as the "Clashes in the last run" card in the agent panel.
 // Roles are decided and enforced on the server (lib/roles.ts, lib/server/boards-db.ts).
@@ -20,6 +21,7 @@ import { useParams } from "next/navigation";
 import { TopBar, BarButton } from "@/components/shared/TopBar";
 import type { useBoardTeam } from "@/lib/board-role";
 import type { Role } from "@/lib/roles";
+import { BriefPanel } from "./BriefPanel";
 
 type Team = ReturnType<typeof useBoardTeam>;
 type Member = Team["members"][number];
@@ -39,6 +41,8 @@ const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
 export function RoomBar({ team, myId, colorOf }: { team: Team; myId: string; colorOf: (name: string) => string }) {
   const { roomId } = useParams<{ roomId: string }>();
   const [copied, setCopied] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
+  const briefButton = useRef<HTMLButtonElement>(null);
   const teamList = useClosable();
   const { hide: hideTeam } = teamList;
   const teamButton = useRef<HTMLButtonElement>(null);
@@ -76,6 +80,23 @@ export function RoomBar({ team, myId, colorOf }: { team: Team; myId: string; col
         </span>
       )}
       <span className="flex-1" />
+      <BarButton
+        ref={briefButton}
+        icon={<BriefIcon />}
+        label="Brief"
+        popup="dialog"
+        active={briefOpen}
+        onClick={() => setBriefOpen(true)}
+      />
+      {briefOpen && (
+        <BriefPanel
+          boardId={roomId}
+          onClose={() => {
+            setBriefOpen(false);
+            briefButton.current?.focus();
+          }}
+        />
+      )}
       <div ref={teamArea} className="relative">
         <BarButton
           ref={teamButton}
@@ -601,6 +622,14 @@ function timeAgo(iso: string) {
 }
 
 // ── Icons (inline strokes, follow the text colour) ──────────────────────────
+
+function BriefIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function PeopleIcon() {
   return (

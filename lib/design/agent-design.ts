@@ -38,7 +38,7 @@ export const FONTS = {
   rounded: 'ui-rounded, "SF Pro Rounded", system-ui, sans-serif',
   mono: "ui-monospace, Menlo, Consolas, monospace",
 } as const;
-type FontId = keyof typeof FONTS;
+export type FontId = keyof typeof FONTS;
 
 const COLOR_KEYS = ["background", "surface", "text", "muted", "primary", "onPrimary", "accent", "border"] as const;
 
@@ -118,6 +118,30 @@ export function checkStyleGuide(data: unknown): { ok: true; guide: StyleGuide } 
       type: { display, title, body, caption },
     },
   };
+}
+
+// ── Brand basics (from the design brief, lib/design/brief.ts) ──────────────
+
+/** Why this brand colour can't be used, or null. Orange is the AI's colour here. */
+export function brandColorProblem(hex: string): string | null {
+  if (!hex) return null;
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return "The brand colour must look like #1a2b3c.";
+  return isOrange(hex) ? "Orange is reserved for the AI in this app, so it can't be a brand colour. Pick another." : null;
+}
+
+/**
+ * Brand basics win over the AI's choices: the main colour becomes the
+ * style guide's primary, the font its font. Re-checked afterwards, so
+ * contrast is fixed again (e.g. the text on the new primary).
+ */
+export function applyBrand(guide: StyleGuide, b: { brandColor: string; brandFont: FontId | "" }): StyleGuide {
+  if (!b.brandColor && !b.brandFont) return guide;
+  const checked = checkStyleGuide({
+    ...guide,
+    colors: { ...guide.colors, ...(b.brandColor && !isOrange(b.brandColor) ? { primary: b.brandColor } : {}) },
+    font: b.brandFont || guide.font,
+  });
+  return checked.ok ? checked.guide : guide;
 }
 
 // ── Contrast (WCAG 2) ────────────────────────────────────────────────────────

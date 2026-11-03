@@ -62,3 +62,31 @@ for (const t of ["--space-6", "--radius-lg", "--shadow-2", "--weight-strong"]) a
 assert.ok(!checkDesignHtml("<!doctype html><html><head><style>body{color:#222}</style></head><body><div class='").ok);
 assert.ok(visibleText(page("<p>Hello there</p>")).includes("Hello there"));
 console.log("agent-design checks passed");
+
+// ── Design brief (lib/design/brief.ts) ──────────────────────────────────────
+import { briefPrompt, cleanBrief, MAX_RULES } from "./brief.ts";
+{
+  const b = cleanBrief({ doc: "  Calm  ", dos: [" a ", "", 3, ...Array(20).fill("x")], donts: "nope" });
+  assert(b.doc === "Calm", "brief: doc trimmed");
+  assert(b.dos.length === MAX_RULES && b.dos[0] === "a", "brief: rules cleaned and capped");
+  assert(b.donts.length === 0, "brief: non-list ignored");
+  assert(briefPrompt(cleanBrief({})) === "", "brief: empty brief adds nothing");
+  const p = briefPrompt(b);
+  assert(p.startsWith("<brief>") && p.includes("Always do:\n- a") && !p.includes("Never do"), "brief: prompt block");
+  console.log("brief checks passed");
+}
+
+// ── Brand basics, pictures (lib/design/agent-design.ts, brief.ts) ──────────
+import { applyBrand, brandColorProblem } from "./agent-design.ts";
+import { readImage } from "./brief.ts";
+{
+  const g = applyBrand(MOCK_STYLE_GUIDE, { brandColor: "#123456", brandFont: "serif" });
+  assert(g.colors.primary === "#123456" && g.font === "serif", "brand: colour and font forced");
+  assert(contrast(g.colors.onPrimary, g.colors.primary) >= 4.5, "brand: text on the new primary still readable");
+  assert(applyBrand(MOCK_STYLE_GUIDE, { brandColor: "#ff8800", brandFont: "" }).colors.primary === MOCK_STYLE_GUIDE.colors.primary, "brand: orange never applied");
+  assert(brandColorProblem("#ff8800") && !brandColorProblem("#123456") && !brandColorProblem(""), "brand: orange refused");
+  assert("error" in readImage("data:image/gif;base64,AAAA") && !("error" in readImage("data:image/png;base64,AAAA")), "pictures: only JPEG/PNG");
+  const p = briefPrompt(cleanBrief({}), [{ kind: "logo", note: "" }, { kind: "reference", note: "the cards" }]);
+  assert(p.includes("1. The product's logo") && p.includes("2. A reference the team likes. Take from it: the cards."), "pictures: listed in order");
+  console.log("brand checks passed");
+}

@@ -44,7 +44,9 @@ export type BrainJob = {
   schema: object;
   toolName: string;
   toolDescription: string;
-  image?: { mime: "image/png"; base64: string }; // optional picture sent with the message (review pass)
+  // Optional pictures sent with the message: the review's screenshot, the
+  // brief's logo and reference images (app/api/design).
+  images?: { mime: "image/png" | "image/jpeg"; base64: string }[];
 };
 
 const WIREFRAME_JOB: BrainJob = {
@@ -126,7 +128,7 @@ async function askGeminiModel(model: string, key: string, notesText: string, onT
             {
               role: "user",
               parts: [
-                ...(job.image ? [{ inlineData: { mimeType: job.image.mime, data: job.image.base64 } }] : []),
+                ...(job.images ?? []).map((i) => ({ inlineData: { mimeType: i.mime, data: i.base64 } })),
                 { text: userMessage(notesText) },
               ],
             },
@@ -266,9 +268,10 @@ async function askClaude(key: string, notesText: string, job: BrainJob): Promise
           {
             role: "user",
             content: [
-              ...(job.image
-                ? [{ type: "image" as const, source: { type: "base64" as const, media_type: job.image.mime, data: job.image.base64 } }]
-                : []),
+              ...(job.images ?? []).map((i) => ({
+                type: "image" as const,
+                source: { type: "base64" as const, media_type: i.mime, data: i.base64 },
+              })),
               { type: "text" as const, text: `${userMessage(notesText)}\n\nAnswer by calling ${job.toolName} exactly once.` },
             ],
           },
@@ -327,9 +330,9 @@ async function askOpenAI(key: string, notesText: string, job: BrainJob): Promise
           { role: "system", content: job.system },
           {
             role: "user",
-            content: job.image
+            content: job.images?.length
               ? [
-                  { type: "image_url", image_url: { url: `data:${job.image.mime};base64,${job.image.base64}` } },
+                  ...job.images.map((i) => ({ type: "image_url", image_url: { url: `data:${i.mime};base64,${i.base64}` } })),
                   { type: "text", text: userMessage(notesText) },
                 ]
               : userMessage(notesText),

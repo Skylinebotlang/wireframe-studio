@@ -5,8 +5,10 @@
 // browser can show each design as soon as it's ready (lib/design/agent-design-room.ts
 // drives a whole "Make it real" run, one request at a time):
 //
-//   { kind: "style", roomId, idea, resolution, screens: ["Home", …], aiKey? }
+//   { kind: "style", roomId, idea, resolution, screens: ["Home", …], variant?, aiKey? }
 //     → { styleGuide, providerLabel, usedOwnKey }
+//     (a LOCKED style comes straight back, no AI; variant 1-3 = "Try 3
+//      styles", which always asks the AI for a fresh option)
 //   { kind: "screen", roomId, idea, resolution, styleGuide, screen: { name,
 //     components: [{ type, label, notes? }] }, otherScreens, instruction?, aiKey? }
 //     → { html, providerLabel, usedOwnKey }
@@ -16,6 +18,11 @@
 //     → { html, providerLabel, usedOwnKey }   the same screen, checked against
 //       a design checklist and fixed by the AI (the "design director" pass)
 //   Errors always → { error: "a sentence a person can read" }
+//
+// BRIEF: the board's design brief (lib/design/brief.ts) is read from the
+// database here and added to every call's message. Its pictures (logo +
+// references) go with the style and screen calls; brand basics (main colour,
+// font) are forced into the style guide in code.
 //
 // Every answer is checked before it's returned (lib/design/agent-design.ts): the
 // style guide's colors, and the HTML's size and safety (no scripts, no
@@ -36,9 +43,12 @@ import { claimAgentRun, refundAgentRun } from "@/lib/server/rate-limit";
 import { claimUserRun, refundUserRun } from "@/lib/server/user-limit";
 import { getSignedInUser } from "@/lib/server/auth-server";
 import { aiCheck } from "@/lib/server/boards-db";
+import { getBrief, listImages } from "@/lib/server/brief-db";
+import { briefPrompt } from "@/lib/design/brief";
 import { patternsPrompt } from "@/lib/design/ui-patterns";
 import { PROVIDERS } from "@/lib/ai-providers";
 import {
+  applyBrand,
   checkDesignHtml,
   checkStyleGuide,
   MAX_DESIGN_SCREENS,
@@ -67,6 +77,15 @@ const MAX_NAME_CHARS = 60;
 const MAX_COMPONENTS = 30;
 const MAX_SCREENSHOT_BYTES = 1_500_000; // base64 text of the PNG
 const MOCK_DELAY_MS = 1200; // time to try Pause / Take over while testing
+
+// "Try 3 styles": each option is pushed in a different direction, so the
+// three are worth comparing (they're asked separately, so they can't see
+// each other).
+const VARIANTS = [
+  "This is option 1 of 3: the closest, safest match to the brief and the idea.",
+  "This is option 2 of 3: bolder. Stronger colour, more contrast, more personality.",
+  "This is option 3 of 3: quieter. Softer colours, more white space, minimal.",
+];
 
 const STYLE_JOB: BrainJob = {
   system: STYLE_SYSTEM_PROMPT,
@@ -100,8 +119,23 @@ export async function POST(request: Request) {
   if (typeof roomId !== "string" || !ROOM_ID_PATTERN.test(roomId)) {
     return friendlyError("Missing or invalid room. Reload the page and try again.", 400);
   }
-  // Only editors and the owner make designs (roles: lib/roles.ts).
-  const notAllowed = await aiCheck(me.id, roomId);
+  // Only editors and the owner make designs (roles: lib/roles.ts). The
+  // board's design brief is read at the same time (we load it here, never
+  // take it from the browser). No brief, or it can't be read → design without.
+  // Reviews only need the rules (no pictures: they already have a screenshot).
+  const [notAllowed, brief, pictures] = await Promise.all([
+    aiCheck(me.id, roomId),
+    getBrief(roomId).catch((err) => {
+      console.error("Design: couldn't read the brief:", err);
+      return null;
+    }),
+    kind === "review"
+      ? []
+      : listImages(roomId).catch((err) => {
+          console.error("Design: couldn't read the brief's pictures:", err);
+          return [];
+        }),
+  ]);
   if (notAllowed) return friendlyError(notAllowed, 403);
   const idea = text(body.idea, MAX_IDEA_CHARS);
   const resolution = text(body.resolution, MAX_RESOLUTION_CHARS);
@@ -116,11 +150,18 @@ export async function POST(request: Request) {
   let instruction = "";
   let guide = MOCK_STYLE_GUIDE;
   let draft = ""; // review: the page to check
-  let shot: BrainJob["image"]; // review: the screenshot, if a valid PNG came with it
+  let images: NonNullable<BrainJob["images"]> = []; // pictures sent with the call
+  // "Try 3 styles": which of the 3 options this is (1-3), or 0 for a normal run.
+  const variant = [1, 2, 3].includes(body.variant as number) ? (body.variant as number) : 0;
   if (kind === "style") {
     const screens = names(body.screens);
     if (screens.length === 0) return friendlyError("There are no screens to make real yet. Frame an idea first.", 400);
-    message = styleUserMessage(idea, resolution, screens);
+    // A locked style is reused as it is: no AI call, nothing counted.
+    // ("Try 3 styles" ignores the lock: it's asking for new options.)
+    if (brief?.lockedStyle && !variant) {
+      return NextResponse.json({ styleGuide: brief.lockedStyle, providerLabel: "the locked style", usedOwnKey: true });
+    }
+    message = styleUserMessage(idea, resolution, screens) + (variant ? "\n\n" + VARIANTS[variant - 1] : "");
   } else {
     const checkedGuide = checkStyleGuide(body.styleGuide);
     if (!checkedGuide.ok) return friendlyError(checkedGuide.error, 400);
@@ -132,7 +173,7 @@ export async function POST(request: Request) {
       if (!page.ok) return friendlyError("That design can't be reviewed.", 400);
       draft = page.html;
       const m = typeof body.screenshot === "string" ? body.screenshot.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/) : null;
-      if (m && m[1].length <= MAX_SCREENSHOT_BYTES) shot = { mime: "image/png", base64: m[1] };
+      if (m && m[1].length <= MAX_SCREENSHOT_BYTES) images = [{ mime: "image/png", base64: m[1] }];
       message = reviewUserMessage({ idea, guide, screen, html: draft });
     } else {
       instruction = text(body.instruction, MAX_INSTRUCTION_CHARS);
@@ -141,10 +182,16 @@ export async function POST(request: Request) {
     }
   }
 
+  // The team's design brief (lib/design/brief.ts) goes with every kind of
+  // call; its pictures (logo + references) with the style and screen calls.
+  if (pictures.length) images = pictures.map((p) => ({ mime: p.mime, base64: p.base64 }));
+  const briefBlock = brief ? briefPrompt(brief, pictures) : "";
+  if (briefBlock) message += "\n\n" + briefBlock;
+
   // ── 2. Mock: fixed samples, no AI, no rate limit (never in production) ──
   if (process.env.AGENT_PROVIDER === "mock" && process.env.NODE_ENV !== "production") {
     const info = { providerLabel: "Mock agent", usedOwnKey: false };
-    if (kind === "style") return NextResponse.json({ styleGuide: MOCK_STYLE_GUIDE, ...info });
+    if (kind === "style") return NextResponse.json({ styleGuide: brief ? applyBrand(MOCK_STYLE_GUIDE, brief) : MOCK_STYLE_GUIDE, ...info });
     await new Promise((r) => setTimeout(r, MOCK_DELAY_MS));
     if (kind === "review") return NextResponse.json({ html: draft, ...info }); // mock: unchanged
     const checked = checkDesignHtml(mockScreenHtml(screen!, guide, instruction));
@@ -165,7 +212,7 @@ export async function POST(request: Request) {
   const info = { providerLabel: PROVIDERS[brain.provider].label, usedOwnKey: brain.usedOwnKey };
 
   // ── 4. Ask the AI, then check the answer before it can reach the canvas ──
-  const job = kind === "style" ? STYLE_JOB : kind === "review" ? { ...REVIEW_JOB, image: shot } : SCREEN_JOB;
+  const job = { ...(kind === "style" ? STYLE_JOB : kind === "review" ? REVIEW_JOB : SCREEN_JOB), images };
   // A failed AI call gives its run back (same as the agent; see Retry).
   const failed = async (message: string, status: number) => {
     await refundAgentRun(roomId, !brain.usedOwnKey);
@@ -178,7 +225,8 @@ export async function POST(request: Request) {
   if (kind === "style") {
     const checked = checkStyleGuide(reply.data);
     if (!checked.ok) return failed(checked.error, 502);
-    return NextResponse.json({ styleGuide: checked.guide, ...info });
+    // Brand basics win over the AI's picks (main colour, font).
+    return NextResponse.json({ styleGuide: brief ? applyBrand(checked.guide, brief) : checked.guide, ...info });
   }
   let checked = checkDesignHtml((reply.data as { html?: unknown } | null)?.html);
   // A review may tidy the page, never gut it: keep most of what people see.

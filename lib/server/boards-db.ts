@@ -95,15 +95,18 @@ export async function visitBoard(userId: string, boardId: string, name?: string,
     headers: { prefer: "resolution=ignore-duplicates,return=representation" },
     body: JSON.stringify({ id: boardId, name: name || boardId, created_by: userId }),
   });
-  await rest(`boards?id=eq.${encodeURIComponent(boardId)}`, {
-    method: "PATCH",
-    body: JSON.stringify({ updated_at: now }),
-  });
-  await rest("board_visits?on_conflict=board_id,user_id", {
-    method: "POST",
-    headers: { prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ board_id: boardId, user_id: userId, last_opened_at: now, ...(userName ? { user_name: userName.slice(0, 80) } : {}) }),
-  });
+  // These two don't depend on each other: send both at once (faster joins).
+  await Promise.all([
+    rest(`boards?id=eq.${encodeURIComponent(boardId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ updated_at: now }),
+    }),
+    rest("board_visits?on_conflict=board_id,user_id", {
+      method: "POST",
+      headers: { prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify({ board_id: boardId, user_id: userId, last_opened_at: now, ...(userName ? { user_name: userName.slice(0, 80) } : {}) }),
+    }),
+  ]);
   // A new visitor's role defaults to viewer (database default, never
   // overwritten on later visits). The person who just created it is owner.
   // Boards made before real sign-in belong to an old browser identity

@@ -24,6 +24,18 @@ import { boardsConfigured, canEdit, getRole, visitBoard } from "@/lib/server/boa
 // Only letters, numbers, dashes and underscores are allowed in room ids.
 const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
+// The account id written inside the browser's sign-in token (the "sub" part).
+// NOT checked here: only a hint for starting the role lookup early.
+function tokenUserId(request: Request): string | null {
+  try {
+    const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+    const sub = JSON.parse(Buffer.from(token?.split(".")[1] ?? "", "base64url").toString()).sub;
+    return typeof sub === "string" ? sub : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   // 1. Read what the browser sent: which room, and who is joining.
   let body: {
@@ -39,6 +51,15 @@ export async function POST(request: Request) {
   const room = body.room;
   const identity = body.identity;
 
+  // SPEED: the sign-in check and the role lookup each take a trip to
+  // Supabase, so run them at the same time. The role lookup uses the account
+  // id written inside the sign-in token (not yet checked); its answer is only
+  // used if Supabase confirms the token belongs to that same account.
+  const claimedId = tokenUserId(request);
+  const earlyRole =
+    claimedId && room && ROOM_ID_PATTERN.test(room) && boardsConfigured()
+      ? getRole(claimedId, room).catch(() => undefined)
+      : Promise.resolve(undefined);
   const account = await getSignedInUser(request);
   if (!account) {
     return NextResponse.json({ error: "Please sign in to open boards." }, { status: 401 });
@@ -73,7 +94,9 @@ export async function POST(request: Request) {
   let editor = true;
   if (boardsConfigured()) {
     try {
-      let role = await getRole(account.id, room);
+      // undefined = early lookup failed or used a different id: ask again.
+      let role = account.id === claimedId ? await earlyRole : undefined;
+      if (role === undefined) role = await getRole(account.id, room);
       if (!role) {
         await visitBoard(account.id, room, undefined, account.name);
         role = await getRole(account.id, room);
@@ -110,21 +133,24 @@ export async function POST(request: Request) {
     // by default look-only, plus write for this person if they may edit.
     // Created on first use; only updated when the rules actually changed
     // (each call to Liveblocks takes a moment, and this runs on every join).
-    const existing = await liveblocks.getOrCreateRoom(room, {
-      defaultAccesses: [...VIEW],
-      usersAccesses: editor ? { [account.id]: ["room:write"] } : {},
-    });
-    const defaultsOk =
-      existing.defaultAccesses.length === VIEW.length && VIEW.every((a) => existing.defaultAccesses.includes(a));
-    const mineOk = editor ? !!existing.usersAccesses?.[account.id]?.includes("room:write") : !existing.usersAccesses?.[account.id];
-    if (!defaultsOk || !mineOk) {
-      await liveblocks.updateRoom(room, {
+    // SPEED: signing the token doesn't depend on the room rules, so both run
+    // at the same time; we answer once both are done.
+    const syncRoomRules = async () => {
+      const existing = await liveblocks.getOrCreateRoom(room, {
         defaultAccesses: [...VIEW],
-        usersAccesses: { [account.id]: editor ? ["room:write"] : null },
+        usersAccesses: editor ? { [account.id]: ["room:write"] } : {},
       });
-    }
-
-    const { status, body: token } = await session.authorize();
+      const defaultsOk =
+        existing.defaultAccesses.length === VIEW.length && VIEW.every((a) => existing.defaultAccesses.includes(a));
+      const mineOk = editor ? !!existing.usersAccesses?.[account.id]?.includes("room:write") : !existing.usersAccesses?.[account.id];
+      if (!defaultsOk || !mineOk) {
+        await liveblocks.updateRoom(room, {
+          defaultAccesses: [...VIEW],
+          usersAccesses: { [account.id]: editor ? ["room:write"] : null },
+        });
+      }
+    };
+    const [{ status, body: token }] = await Promise.all([session.authorize(), syncRoomRules()]);
 
     if (status !== 200 || !token) {
       console.error("Liveblocks auth failed with status", status);

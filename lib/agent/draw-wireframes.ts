@@ -57,8 +57,11 @@ export function readBoardScreens(editor: Editor): BoardScreen[] {
 // What one drawing changed: new frame ids, and the shapes it replaced.
 export type DrawRecord = { created: TLShapeId[]; removed: TLShape[] };
 
-/** Draw the screens: new ones to the right of the board, updated ones in place. */
-export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord {
+/**
+ * Draw the screens: new ones to the right of the board, updated ones in place.
+ * `zoom` = bring them into view (only for a run's first screens: zoom once).
+ */
+export function drawWireframes(editor: Editor, result: AgentResult, zoom = true): DrawRecord {
   const record: DrawRecord = { created: [], removed: [] };
   if (result.action === "ask" || result.screens.length === 0) return record;
   const existing = editor.getCurrentPageBounds();
@@ -91,7 +94,10 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
         type: "frame",
         x: at.x,
         y: at.y,
+        // Orange outline = drawn by the agent (TldrawApp turns frame colors
+        // on). The meta tag lets code tell agent frames from hand-made ones.
         props: { w: PHONE_W, h: height, name: screen.name, color: "orange" },
+        meta: { byAgent: true },
       });
 
       editor.createShapes(
@@ -128,7 +134,7 @@ export function drawWireframes(editor: Editor, result: AgentResult): DrawRecord 
   // a margin (about 170px a side) so they don't sit under the style panel (top-right) or the
   // toolbar (bottom). Never zoom in past 100%.
   const bounds = Box.Common(frameIds.map((id) => editor.getShapePageBounds(id)!).filter(Boolean));
-  if (frameIds.length) editor.zoomToBounds(bounds, { inset: 340, targetZoom: 1, animation: { duration: 400 } });
+  if (zoom && frameIds.length) editor.zoomToBounds(bounds, { inset: 340, targetZoom: 1, animation: { duration: 400 } });
   record.created = frameIds;
   return record;
 }

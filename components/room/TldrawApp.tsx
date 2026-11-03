@@ -24,6 +24,7 @@ import {
   DefaultFillStyle,
   DefaultToolbarContent,
   Editor,
+  FrameShapeUtil,
   Tldraw,
   TldrawUiMenuItem,
   useEditor,
@@ -54,7 +55,9 @@ import { useTilt } from "@/lib/tilt";
 import type { UserIdentity } from "@/lib/user";
 
 // Defined once, outside the component, so tldraw doesn't rebuild them.
-const shapeUtils = [PromptNoteShapeUtil, DesignShapeUtil];
+// Frame colors on: the agent's phone frames show their orange outline
+// (frames people draw stay the default black).
+const shapeUtils = [PromptNoteShapeUtil, DesignShapeUtil, FrameShapeUtil.configure({ showColors: true })];
 const tools = [PromptNoteTool];
 
 // Wireframe boxes are tldraw "grey" shapes inside phone frames. tldraw's
@@ -168,8 +171,8 @@ export function TldrawApp({ identity }: { identity: UserIdentity }) {
   useTilt();
 
   // Put the agent's screens on the canvas.
-  const draw = useCallback((result: AgentResult) => {
-    if (editor) return drawWireframes(editor, result);
+  const draw = useCallback((result: AgentResult, zoom: boolean) => {
+    if (editor) return drawWireframes(editor, result, zoom);
   }, [editor]);
 
   // ── "Send to agent": collect every note on the board ─────────────────────

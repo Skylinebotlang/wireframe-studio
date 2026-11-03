@@ -21,7 +21,8 @@
 // LIVE PROGRESS: runAgent asks the server to stream (see app/api/agent/
 // route.ts). The plan ticks follow the agent's real progress, and each
 // screen is drawn the moment it arrives. Pause holds screens until Resume;
-// Take over stops the run and ignores anything still on its way.
+// Take over stops the run and ignores anything still on its way. A run that
+// stays "working" for 3 minutes (its window was closed) is cleared by itself.
 //
 // KEY SAFETY: the API key goes straight from this browser to our server in
 // the request (aiKeyForRequest). It is never written into the room.
@@ -30,7 +31,7 @@
 import { useCallback, useEffect } from "react";
 import { LiveList, LiveMap, LiveObject } from "@liveblocks/client";
 import { PEOPLE_COLORS, personColor } from "@/lib/theme";
-import { useMutation, useRoom, useStorage } from "@liveblocks/react/suspense";
+import { useMutation, useRoom, useSelf, useStorage } from "@liveblocks/react/suspense";
 import type { AgentAction, AgentNote, AgentResult, BoardScreen, Screen } from "./agent-schema";
 import type { AgentRunInfo } from "@/lib/ai-providers";
 import type { ActivityItem, ActivityKind, AgentRunState, AgentUndo, DesignRecord, PlanStep } from "./agent-room-types";
@@ -40,6 +41,11 @@ import { authHeader } from "@/lib/auth";
 
 // Keep the feed from growing forever.
 const MAX_ACTIVITY = 100;
+
+// A run still "working" after this long is stuck (usually the window that
+// started it was closed mid-run): it's cleared so the room can run again.
+// Real runs end well before this (the server gives up after 2 minutes).
+const STUCK_MS = 3 * 60 * 1000;
 
 // The agent's plan, shown as a checklist.
 const PLAN = ["Read every note", "Spot clashes", "Merge ideas", "Design screens", "Draw on canvas"];
@@ -210,6 +216,25 @@ export function useAgentPanel(myName: string) {
     log(storage.get("activity"), "Agent", "error", message);
   }, []);
 
+  // ── Stuck run: everyone in the room keeps a timer on a "working" run. The
+  // first timer to fire clears it (the others then find nothing to do).
+  // Viewers can't change the room, so they don't keep a timer.
+  const expire = useMutation(({ storage }, runId: string) => {
+    const agentRun = storage.get("agentRun");
+    if (agentRun.get("runId") !== runId || agentRun.get("status") !== "working") return;
+    const message = "The agent stopped answering (the window that started it was probably closed). Please try again.";
+    agentRun.update({ status: "error", error: message, steps: plan(0) });
+    log(storage.get("activity"), "Agent", "error", message);
+  }, []);
+  const canWrite = useSelf((me) => me.canWrite);
+  const workingRunId = run?.status === "working" && canWrite ? run.runId : "";
+  const workingSince = run?.startedAt ?? 0;
+  useEffect(() => {
+    if (!workingRunId) return;
+    const t = setTimeout(() => expire(workingRunId), Math.max(0, workingSince + STUCK_MS - Date.now()));
+    return () => clearTimeout(t);
+  }, [workingRunId, workingSince, expire]);
+
   // Called after the screens are on the canvas.
   const markDrawn = useMutation(({ storage }) => {
     storage.get("agentRun").update({ steps: plan(5) });
@@ -325,7 +350,7 @@ export function useAgentPanel(myName: string) {
    */
   async function runAgent(
     notes: AgentNote[],
-    draw: (result: AgentResult) => DrawRecord | void | Promise<DrawRecord | void>,
+    draw: (result: AgentResult, zoom: boolean) => DrawRecord | void | Promise<DrawRecord | void>,
     idea = "",
     board: BoardScreen[] = []
   ): Promise<string | null> {
@@ -363,15 +388,16 @@ export function useAgentPanel(myName: string) {
     const drawn = new Set<Screen>();
     const held: Screen[] = [];
     const drew: DrawRecord = { created: [], removed: [] }; // for undo
+    // The camera moves only for the run's first screens (zoom once), so it
+    // doesn't jump around while the rest arrive.
     const drawScreens = async (screens: Screen[]) => {
-      for (const screen of screens) {
-        const r = await draw({ conflicts: [], resolution: "", question: "", action, screens: [screen] });
-        if (r) {
-          drew.created.push(...r.created);
-          drew.removed.push(...r.removed);
-        }
-        drawn.add(screen);
+      if (screens.length === 0) return;
+      const r = await draw({ conflicts: [], resolution: "", question: "", action, screens }, drew.created.length === 0);
+      if (r) {
+        drew.created.push(...r.created);
+        drew.removed.push(...r.removed);
       }
+      for (const screen of screens) drawn.add(screen);
     };
 
     // Read the stream: one JSON event per line.
@@ -431,11 +457,11 @@ export function useAgentPanel(myName: string) {
     }
   }
 
-  async function resume(draw: (result: AgentResult) => DrawRecord | void | Promise<DrawRecord | void>) {
+  async function resume(draw: (result: AgentResult, zoom: boolean) => DrawRecord | void | Promise<DrawRecord | void>) {
     const runId = run?.runId ?? "";
     const held = resumeState();
     if (held) {
-      const r = await draw(held);
+      const r = await draw(held, true);
       markDrawn();
       if (r) saveUndo(runId, r);
     }

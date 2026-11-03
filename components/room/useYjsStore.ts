@@ -65,10 +65,12 @@ export function useYjsStore({
 
   // ── 2. Create the local tldraw store ───────────────────────────────────────
   // defaultShapeUtils = tldraw's built-in shapes (rect, ellipse, text…).
-  // `shapeUtils` is where OUR custom shapes will go in Milestone 2 (notes).
+  // `shapeUtils` = OUR shapes (notes, designs) plus tweaked built-ins (the
+  // frame with colors on), which replace tldraw's version of the same type.
   const [store] = useState(() => {
+    const ours = new Set(shapeUtils.map((u) => u.type));
     return createTLStore({
-      shapeUtils: [...defaultShapeUtils, ...shapeUtils],
+      shapeUtils: [...defaultShapeUtils.filter((u) => !ours.has(u.type)), ...shapeUtils],
     });
   });
 

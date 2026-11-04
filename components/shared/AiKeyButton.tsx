@@ -4,8 +4,11 @@
 // "YOUR AI KEY": a key icon that opens a small settings panel.
 //
 // In the panel a person can:
-//   • pick a provider (Gemini, Claude or OpenAI)
-//   • paste their API key and press "Test & save" (we check it works first)
+//   • paste ANY supported AI key into one box: the service is recognised
+//     from how the key starts (lib/ai-providers.ts detectProvider); when it
+//     can't be (e.g. plain "sk-…"), they pick it from the list
+//   • optionally type a model name (else the service's default model)
+//   • press "Test & save" (we check it works first)
 //   • see which provider/model is active, and remove the key
 //
 // The key is saved only in this browser (see lib/byok.ts), shown masked,
@@ -13,7 +16,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from "react";
-import { PROVIDER_IDS, PROVIDERS, type ProviderId } from "@/lib/ai-providers";
+import { detectProvider, modelFor, PROVIDER_IDS, PROVIDERS, type ProviderId } from "@/lib/ai-providers";
 import { CHANGE_EVENT, clearAiKey, loadAiKey, maskKey, saveAiKey, type SavedAiKey } from "@/lib/byok";
 
 /** Keeps a component in sync with the saved key (this tab and other tabs). */
@@ -59,12 +62,16 @@ export function AiKeyButton({ className = "" }: { className?: string }) {
 }
 
 function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () => void }) {
-  const [provider, setProvider] = useState<ProviderId>(saved?.provider ?? "gemini");
   const [key, setKey] = useState("");
+  const [provider, setProvider] = useState<ProviderId | "">(saved?.provider ?? "");
+  const [model, setModel] = useState(saved?.model ?? "");
   const [status, setStatus] = useState<{ kind: "idle" | "testing" | "ok" | "error"; text?: string }>({
     kind: "idle",
   });
-  const info = PROVIDERS[provider];
+  const info = provider ? PROVIDERS[provider] : null;
+  const trimmed = key.trim();
+  // We can't tell the service from this key (e.g. plain "sk-…"): ask which.
+  const askWhich = !!trimmed && !detectProvider(trimmed) && !provider;
 
   // Close with the Escape key.
   useEffect(() => {
@@ -74,27 +81,31 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
   }, [onClose]);
 
   async function testAndSave() {
-    const trimmed = key.trim();
-    if (!trimmed) return;
+    if (!trimmed || !provider) return;
+    const aiKey = { provider, key: trimmed, ...(model.trim() ? { model: model.trim() } : {}) };
     setStatus({ kind: "testing" });
     try {
       const res = await fetch("/api/agent/test-key", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ aiKey: { provider, key: trimmed } }),
+        body: JSON.stringify({ aiKey }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setStatus({ kind: "error", text: data.error ?? "That key didn't work." });
         return;
       }
-      saveAiKey({ provider, key: trimmed });
+      saveAiKey(aiKey);
       setKey(""); // don't leave the raw key sitting in the input
       setStatus({ kind: "ok", text: data.message });
     } catch {
       setStatus({ kind: "error", text: "Couldn't reach the server. Is the app running?" });
     }
   }
+
+  const label = "mb-1 block font-mono text-[10px] uppercase tracking-widest text-muted";
+  const field =
+    "mb-3 w-full rounded-md border border-line bg-paper px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-accent-bright";
 
   return (
     <div
@@ -114,8 +125,7 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
         {saved ? (
           <>
             <div>
-              Active: <span className="text-ink">{PROVIDERS[saved.provider].label}</span> ·{" "}
-              {PROVIDERS[saved.provider].model}
+              Active: <span className="text-ink">{PROVIDERS[saved.provider].label}</span> · {modelFor(saved)}
             </div>
             <div className="text-muted">Key {maskKey(saved.key)} · saved in this browser only</div>
             <button
@@ -129,37 +139,13 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
             </button>
           </>
         ) : (
-          <div className="text-muted">
-            No key added yet. The agent needs your own key to run.
-          </div>
+          <div className="text-muted">No key added yet. The agent needs your own key to run.</div>
         )}
       </div>
 
-      {/* Pick a provider */}
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">Provider</div>
-      <div className="mb-3 grid grid-cols-3 gap-1">
-        {PROVIDER_IDS.map((id) => (
-          <button
-            key={id}
-            onClick={() => {
-              setProvider(id);
-              setStatus({ kind: "idle" });
-            }}
-            aria-pressed={provider === id}
-            className={`rounded-md border px-2 py-1.5 text-xs transition-colors ${
-              provider === id
-                ? "border-accent-bright bg-accent text-ink"
-                : "border-line bg-surface text-muted hover:text-ink"
-            }`}
-          >
-            {PROVIDERS[id].label}
-          </button>
-        ))}
-      </div>
-
-      {/* Paste the key */}
-      <label className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-muted" htmlFor="ai-key-input">
-        {info.company} API key
+      {/* Paste any key: the service is picked for you when we can tell */}
+      <label className={label} htmlFor="ai-key-input">
+        API key
       </label>
       <input
         id="ai-key-input"
@@ -169,15 +155,63 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
         value={key}
         onChange={(e) => {
           setKey(e.target.value);
+          const found = detectProvider(e.target.value);
+          if (found) setProvider(found);
           setStatus({ kind: "idle" });
         }}
         onKeyDown={(e) => e.key === "Enter" && testAndSave()}
-        placeholder={`${info.keyPrefix}…`}
-        className="mb-2 w-full rounded-md border border-line bg-paper px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-accent-bright"
+        placeholder="Paste a key from any supported AI service"
+        className={field}
       />
+
+      <label className={label} htmlFor="ai-provider-select">
+        Service
+      </label>
+      <select
+        id="ai-provider-select"
+        value={provider}
+        onChange={(e) => {
+          setProvider(e.target.value as ProviderId | "");
+          setStatus({ kind: "idle" });
+        }}
+        className={`${field} ${askWhich ? "border-accent-bright" : ""}`}
+      >
+        <option value="">Pick your service…</option>
+        {PROVIDER_IDS.map((id) => (
+          <option key={id} value={id}>
+            {PROVIDERS[id].label}
+            {PROVIDERS[id].label === PROVIDERS[id].company ? "" : ` (${PROVIDERS[id].company})`}
+          </option>
+        ))}
+      </select>
+      {askWhich && (
+        <p className="-mt-2 mb-3 text-[11px] leading-relaxed text-muted" role="status">
+          We can&apos;t tell which service this key is from
+          {trimmed.startsWith("sk-") ? " (OpenAI, DeepSeek, Kimi and Qwen keys all start with sk-)" : ""}. Pick it above.
+        </p>
+      )}
+
+      <label className={label} htmlFor="ai-model-input">
+        Model <span className="normal-case tracking-normal">(optional)</span>
+      </label>
+      <input
+        id="ai-model-input"
+        type="text"
+        autoComplete="off"
+        spellCheck={false}
+        value={model}
+        onChange={(e) => {
+          setModel(e.target.value);
+          setStatus({ kind: "idle" });
+        }}
+        onKeyDown={(e) => e.key === "Enter" && testAndSave()}
+        placeholder={info ? `Default: ${info.model}` : "Default model for the service"}
+        className={field}
+      />
+
       <button
         onClick={testAndSave}
-        disabled={!key.trim() || status.kind === "testing"}
+        disabled={!trimmed || !provider || status.kind === "testing"}
         className="w-full rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:brightness-110 disabled:opacity-50"
       >
         {status.kind === "testing" ? "Testing…" : "Test & save key"}
@@ -192,16 +226,19 @@ function AiKeyPanel({ saved, onClose }: { saved: SavedAiKey | null; onClose: () 
 
       {/* Where keys come from */}
       <p className="mt-3 text-[11px] leading-relaxed text-muted">
-        Get a key from{" "}
-        {PROVIDER_IDS.map((id, i) => (
-          <span key={id}>
-            <a href={PROVIDERS[id].keyUrl} target="_blank" rel="noreferrer" className="text-ink underline underline-offset-2">
-              {PROVIDERS[id].keySite}
+        {info ? (
+          <>
+            Get a {info.company} key at{" "}
+            <a href={info.keyUrl} target="_blank" rel="noreferrer" className="text-ink underline underline-offset-2">
+              {info.keySite}
             </a>
-            {i < PROVIDER_IDS.length - 2 ? ", " : i === PROVIDER_IDS.length - 2 ? " or " : "."}
-          </span>
-        ))}{" "}
-        Your key is saved only in this browser, sent to our server only for your own AI requests, and never shared with the room.
+            .{" "}
+          </>
+        ) : (
+          <>Works with Gemini, Claude, OpenAI, Groq, OpenRouter, Grok, DeepSeek, Kimi, Mistral and more. </>
+        )}
+        Your key is saved only in this browser, sent to our server only for your own AI requests, and never shared with the
+        room.
       </p>
     </div>
   );

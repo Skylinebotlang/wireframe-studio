@@ -219,7 +219,7 @@ export async function POST(request: Request) {
     if (!brain.usedOwnKey) await refundUserRun(me.id);
     return friendlyError(message, status);
   };
-  const reply = await askBrain(brain.provider, brain.key, message, undefined, job);
+  const reply = await askBrain(brain, message, undefined, job);
   if ("error" in reply) return failed(reply.error, reply.status);
 
   if (kind === "style") {

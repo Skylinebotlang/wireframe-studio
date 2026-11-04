@@ -1,6 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // AGENT BRAINS — how we talk to each AI provider. SERVER ONLY.
 //
+// Three connections: Gemini, Claude, and one "OpenAI-style" connection that
+// serves OpenAI and every other provider in lib/ai-providers.ts (Groq,
+// OpenRouter, DeepSeek…), each at its own web address.
 // Each "ask" function sends one message to one provider and returns either
 // the raw JSON answer or a friendly error that names the problem. A "job"
 // says which instructions and answer format to use: stage 1 draws wireframes
@@ -14,7 +17,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { AGENT_RESULT_JSON_SCHEMA } from "./agent-schema";
-import { NEED_OWN_KEY, parseUserKey, PROVIDERS, type ProviderId } from "@/lib/ai-providers";
+import { modelFor, NEED_OWN_KEY, parseUserKey, PROVIDERS, type ProviderId, type UserKey } from "@/lib/ai-providers";
 
 // The instructions the AI gets on every run (same for every provider).
 const SYSTEM_PROMPT = `You are the AI teammate on a shared product-design canvas. PMs, designers and developers each leave prompt notes describing what they want. You read ALL the notes together and turn them into simple mobile wireframes.
@@ -68,14 +71,15 @@ const GEMINI_MODELS = [
 export type BrainReply = { data: unknown } | { error: string; status: number };
 
 // Called with the answer text so far, every time more of it arrives.
-// Only Gemini streams today; Claude and OpenAI answer in one go.
+// Only Gemini streams today; the others answer in one go.
 export type OnText = (textSoFar: string) => void;
 
-/** Send the message to the chosen provider using `key`. */
-export function askBrain(provider: ProviderId, key: string, notesText: string, onText?: OnText, job = WIREFRAME_JOB) {
-  if (provider === "anthropic") return askClaude(key, notesText, job);
-  if (provider === "openai") return askOpenAI(key, notesText, job);
-  return askGemini(key, notesText, onText, job);
+/** Send the message to the chosen provider using the person's key (and model, if they typed one). */
+export function askBrain(brain: UserKey, notesText: string, onText?: OnText, job = WIREFRAME_JOB) {
+  const { provider, key, model } = brain;
+  if (provider === "anthropic") return askClaude(key, modelFor(brain), notesText, job);
+  if (provider === "gemini") return askGemini(key, model, notesText, onText, job);
+  return askOpenAI(provider, key, modelFor(brain), notesText, job);
 }
 
 /**
@@ -84,7 +88,7 @@ export function askBrain(provider: ProviderId, key: string, notesText: string, o
  * on: without their own key the agent refuses, with a friendly reason.
  */
 export function pickBrain(aiKey: unknown):
-  | { provider: ProviderId; key: string; usedOwnKey: boolean }
+  | (UserKey & { usedOwnKey: boolean })
   | { error: string; status: number } {
   if (aiKey !== undefined && aiKey !== null) {
     const own = parseUserKey(aiKey);
@@ -97,10 +101,11 @@ export function pickBrain(aiKey: unknown):
 // ─────────────────────────────────────────────────────────────────────────────
 // GOOGLE GEMINI — asks for JSON that follows our schema exactly.
 // ─────────────────────────────────────────────────────────────────────────────
-async function askGemini(key: string, notesText: string, onText: OnText | undefined, job: BrainJob): Promise<BrainReply> {
+// A model the person typed is the only one tried; otherwise our list.
+async function askGemini(key: string, chosen: string | undefined, notesText: string, onText: OnText | undefined, job: BrainJob): Promise<BrainReply> {
   let reply: BrainReply = { error: "No Gemini model available.", status: 502 };
   let busy: BrainReply | undefined;
-  for (const model of GEMINI_MODELS) {
+  for (const model of chosen ? [chosen] : GEMINI_MODELS) {
     reply = await askGeminiModel(model, key, notesText, onText, job);
     if (!("error" in reply)) return reply;
     // Only move on when this model is busy, out of quota, or not offered to
@@ -241,7 +246,7 @@ function geminiFailure(status: number, body: unknown): { error: string; status: 
 // ANTHROPIC CLAUDE — answers by calling a "submit_wireframes" tool whose
 // input must match our schema exactly.
 // ─────────────────────────────────────────────────────────────────────────────
-async function askClaude(key: string, notesText: string, job: BrainJob): Promise<BrainReply> {
+async function askClaude(key: string, model: string, notesText: string, job: BrainJob): Promise<BrainReply> {
   const client = new Anthropic({ apiKey: key });
   let response: Anthropic.Beta.Messages.BetaMessage;
   try {
@@ -249,7 +254,7 @@ async function askClaude(key: string, notesText: string, job: BrainJob): Promise
     // for the complete answer.
     response = await client.beta.messages
       .stream({
-        model: PROVIDERS.anthropic.model,
+        model,
         max_tokens: 16000,
         system: job.system,
         // If Claude declines for a safety reason, the API retries on a
@@ -316,79 +321,117 @@ function claudeFailure(err: unknown): { error: string; status: number } {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OPENAI — "structured outputs" make the reply follow our schema exactly.
+// OPENAI-STYLE PROVIDERS — OpenAI, Groq, OpenRouter, DeepSeek, Mistral… all
+// take the same request at their own web address (`baseUrl`).
+//
+// Best case, "structured outputs" make the reply follow our schema exactly.
+// Not every provider or model supports that (or pictures), so on a "bad
+// request" (400) we ask again, simpler each time:
+//   1. strict schema (+ pictures)
+//   2. plain JSON mode, schema written into the instructions (+ pictures)
+//   3. plain JSON mode without the pictures (text-only models)
+// The route checks every answer before drawing, so plain JSON is safe.
 // ─────────────────────────────────────────────────────────────────────────────
-async function askOpenAI(key: string, notesText: string, job: BrainJob): Promise<BrainReply> {
-  let res: Response;
-  try {
-    res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: PROVIDERS.openai.model,
-        messages: [
-          { role: "system", content: job.system },
-          {
-            role: "user",
-            content: job.images?.length
-              ? [
-                  ...job.images.map((i) => ({ type: "image_url", image_url: { url: `data:${i.mime};base64,${i.base64}` } })),
-                  { type: "text", text: userMessage(notesText) },
-                ]
-              : userMessage(notesText),
-          },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: job.toolName, strict: true, schema: job.schema },
-        },
-      }),
-    });
-  } catch (err) {
-    safeLog("OpenAI request failed", err, key);
-    return { error: "Couldn't reach OpenAI. Check your internet connection.", status: 502 };
-  }
+async function askOpenAI(provider: ProviderId, key: string, model: string, notesText: string, job: BrainJob): Promise<BrainReply> {
+  const { label, baseUrl } = PROVIDERS[provider];
+  const pictures = job.images ?? [];
+  const tries = [
+    { strict: true, images: pictures },
+    { strict: false, images: pictures },
+    ...(pictures.length ? [{ strict: false, images: [] }] : []),
+  ];
 
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    safeLog(`OpenAI error ${res.status}`, body, key);
-    return openAIFailure(res.status, body);
-  }
+  for (let i = 0; i < tries.length; i++) {
+    const { strict, images } = tries[i];
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "system",
+              content: strict
+                ? job.system
+                : `${job.system}\n\nReply with only a JSON object that follows this JSON schema exactly:\n${JSON.stringify(job.schema)}`,
+            },
+            {
+              role: "user",
+              content: images.length
+                ? [
+                    ...images.map((img) => ({ type: "image_url", image_url: { url: `data:${img.mime};base64,${img.base64}` } })),
+                    { type: "text", text: userMessage(notesText) },
+                  ]
+                : userMessage(notesText),
+            },
+          ],
+          response_format: strict
+            ? { type: "json_schema", json_schema: { name: job.toolName, strict: true, schema: job.schema } }
+            : { type: "json_object" },
+        }),
+      });
+    } catch (err) {
+      safeLog(`${label} request failed`, err, key);
+      return { error: `Couldn't reach ${label}. Check your internet connection.`, status: 502 };
+    }
 
-  const message = body?.choices?.[0]?.message;
-  if (message?.refusal) {
-    return { error: "OpenAI declined these notes. Try rewording them.", status: 422 };
+    const body = await res.json().catch(() => null);
+    if (res.status === 400 && i < tries.length - 1) {
+      safeLog(`${label} (${model}) said 400, trying a simpler request`, body, key);
+      continue;
+    }
+    if (!res.ok) {
+      safeLog(`${label} (${model}) error ${res.status}`, body, key);
+      return openAIFailure(provider, model, res.status, body);
+    }
+
+    const message = body?.choices?.[0]?.message;
+    if (message?.refusal) {
+      return { error: `${label} declined these notes. Try rewording them.`, status: 422 };
+    }
+    if (typeof message?.content !== "string" || !message.content.trim()) {
+      return { error: `${label} didn't return any wireframes. Please try again.`, status: 502 };
+    }
+    // Some models wrap plain-JSON answers in ```json … ``` fences.
+    return parseJson(message.content.trim().replace(/^```(?:json)?\s*|\s*```$/g, ""), label);
   }
-  if (typeof message?.content !== "string") {
-    return { error: "OpenAI didn't return any wireframes. Please try again.", status: 502 };
-  }
-  return parseJson(message.content, "OpenAI");
+  return { error: `The agent ran into a problem talking to ${label}. Please try again.`, status: 502 };
 }
 
-// Turn an OpenAI error into a friendly message (shared with checkKey).
-function openAIFailure(status: number, body: unknown): { error: string; status: number } {
+// Turn an OpenAI-style error into a friendly message (shared with checkKey).
+function openAIFailure(provider: ProviderId, model: string, status: number, body: unknown): { error: string; status: number } {
+  const { label, keySite } = PROVIDERS[provider];
   const code = (body as { error?: { code?: string } } | null)?.error?.code;
-  if (status === 401 || status === 403) {
-    return { error: "OpenAI rejected this API key. Check you copied the whole key from the OpenAI Platform.", status: 401 };
+  // Most say 401/403 for a bad key; some (xAI) say 400 "Incorrect API key".
+  const badKey = status === 400 && /api[ _-]?key/i.test(JSON.stringify(body ?? ""));
+  if (status === 401 || status === 403 || badKey) {
+    return { error: `${label} rejected this API key. Check you copied the whole key from ${keySite}.`, status: 401 };
   }
-  if (code === "insufficient_quota") {
-    return { error: "This OpenAI account is out of credit. Add credits at platform.openai.com → Billing.", status: 402 };
+  if (status === 402 || code === "insufficient_quota") {
+    return { error: `This ${label} account is out of credit. Add credits on ${keySite}.`, status: 402 };
+  }
+  if (status === 404) {
+    return { error: `${label} doesn't offer the model "${model}" to this key. Type another model name in "Your AI key".`, status: 404 };
   }
   if (status === 429) {
-    return { error: "This OpenAI key is getting too many requests right now. Wait a moment and try again.", status: 429 };
+    return { error: `This ${label} key is getting too many requests right now. Wait a moment and try again.`, status: 429 };
   }
-  return { error: "The agent ran into a problem talking to OpenAI. Please try again.", status: 502 };
+  return { error: `The agent ran into a problem talking to ${label}. Please try again.`, status: 502 };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEST KEY — a free call (list the available models) that only succeeds if
-// the provider accepts the key. It can't spot an empty credit balance; that
-// shows up as a clear error on the first real run instead.
+// TEST KEY — a free call (list the available models, or "who am I") that
+// only succeeds if the provider accepts the key. It can't spot an empty
+// credit balance; that shows up as a clear error on the first real run.
+// When the provider lists its models and the chosen one isn't there, we
+// still save the key but warn (lists don't always name every model).
 // ─────────────────────────────────────────────────────────────────────────────
-export async function checkKey(
-  provider: ProviderId,
-  key: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function checkKey(brain: UserKey): Promise<{ ok: true; warning?: string } | { ok: false; error: string }> {
+  const { provider, key } = brain;
+  const { label, company, baseUrl, checkUrl } = PROVIDERS[provider];
+  const model = modelFor(brain);
   try {
     if (provider === "anthropic") {
       await new Anthropic({ apiKey: key, maxRetries: 0 }).models.list({ limit: 1 });
@@ -396,29 +439,36 @@ export async function checkKey(
     }
 
     const res =
-      provider === "openai"
-        ? await fetch("https://api.openai.com/v1/models", {
-            headers: { authorization: `Bearer ${key}` },
-          })
-        : await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", {
+      provider === "gemini"
+        ? await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", {
             headers: { "x-goog-api-key": key },
-          });
-    if (res.ok) return { ok: true };
-
+          })
+        : checkUrl === "chat"
+          ? // Its model list is public, so ask for a 1-word answer instead (costs a tiny fraction of a cent).
+            await fetch(`${baseUrl}/chat/completions`, {
+              method: "POST",
+              headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+              body: JSON.stringify({ model, max_tokens: 1, messages: [{ role: "user", content: "Hi" }] }),
+            })
+          : await fetch(checkUrl ?? `${baseUrl}/models`, { headers: { authorization: `Bearer ${key}` } });
     const body = await res.json().catch(() => null);
+    if (res.ok) {
+      const ids = !checkUrl && Array.isArray(body?.data) ? body.data.map((m: { id?: unknown }) => m?.id) : null;
+      if (provider !== "gemini" && ids && ids.length && !ids.includes(model)) {
+        return { ok: true, warning: `${label} didn't list the model "${model}" for this key. If runs fail, type another model name.` };
+      }
+      return { ok: true };
+    }
+
     safeLog(`${provider} key check failed ${res.status}`, body, key);
-    const failure =
-      provider === "openai" ? openAIFailure(res.status, body) : geminiFailure(res.status, body);
-    return {
-      ok: false,
-      error: failure?.error ?? `${PROVIDERS[provider].label} didn't accept the key. Please try again.`,
-    };
+    const failure = provider === "gemini" ? geminiFailure(res.status, body) : openAIFailure(provider, model, res.status, body);
+    return { ok: false, error: failure?.error ?? `${label} didn't accept the key. Please try again.` };
   } catch (err) {
     if (provider === "anthropic") {
       safeLog("anthropic key check failed", err, key);
       return { ok: false, error: claudeFailure(err).error };
     }
-    return { ok: false, error: `Couldn't reach ${PROVIDERS[provider].company}. Check your internet connection.` };
+    return { ok: false, error: `Couldn't reach ${company}. Check your internet connection.` };
   }
 }
 

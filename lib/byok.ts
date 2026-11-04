@@ -8,9 +8,10 @@
 // forgets it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { isProviderId, type ProviderId } from "./ai-providers";
+import { isProviderId, type UserKey } from "./ai-providers";
 
-export type SavedAiKey = { provider: ProviderId; key: string };
+// provider + key, plus the model name if the person typed one (else the default).
+export type SavedAiKey = UserKey;
 
 const STORAGE_KEY = "wireframe-studio-ai-key";
 
@@ -20,7 +21,8 @@ export function loadAiKey(): SavedAiKey | null {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null");
     if (isProviderId(parsed?.provider) && typeof parsed.key === "string" && parsed.key) {
-      return { provider: parsed.provider, key: parsed.key };
+      const model = typeof parsed.model === "string" && parsed.model ? parsed.model : undefined;
+      return { provider: parsed.provider, key: parsed.key, ...(model ? { model } : {}) };
     }
   } catch {
     // Storage blocked or corrupted: behave as if no key is saved.

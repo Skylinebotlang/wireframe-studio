@@ -16,6 +16,9 @@ import { useEffect, useState } from "react";
 import type Lenis from "lenis";
 import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai-providers";
 
+// The best-known services; the rest are summed up as "+N more".
+const SHOWN = PROVIDER_IDS.slice(0, 5);
+
 export function TryChapter() {
   const [open, setOpen] = useState(false);
 
@@ -65,16 +68,20 @@ export function TryChapter() {
         <div>
           <h3 className="ls-h3">Bring your own AI</h3>
           <p className="ls-body">
-            The agent runs on your own Gemini, Claude or OpenAI key. It is saved only in this browser.
+            The agent runs on your own key from Gemini, Claude, OpenAI, Groq, OpenRouter or another supported service. It is saved only in this browser.
           </p>
         </div>
         <ul className="ls-providers">
-          {PROVIDER_IDS.map((id) => (
+          {SHOWN.map((id) => (
             <li key={id}>
               <span className="ls-prov-name">{PROVIDERS[id].label}</span>
               <span className="ls-mono ls-prov-k">Your {PROVIDERS[id].company} key</span>
             </li>
           ))}
+          <li>
+            <span className="ls-prov-name">+{PROVIDER_IDS.length - SHOWN.length} more</span>
+            <span className="ls-mono ls-prov-k">Grok, DeepSeek, Kimi, Mistral…</span>
+          </li>
         </ul>
       </div>
     </section>

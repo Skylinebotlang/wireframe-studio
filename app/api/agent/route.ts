@@ -45,7 +45,7 @@ import type { AgentResult } from "@/lib/agent/agent-schema";
 import {
   PROVIDERS,
   type AgentRunInfo,
-  type ProviderId,
+  type UserKey,
 } from "@/lib/ai-providers";
 
 // The AI can take a while to think through a busy board.
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   // Always the person's own key: there is no app key to fall back on.
   const brain = pickBrain(aiKey);
   if ("error" in brain) return friendlyError(brain.error, brain.status);
-  const { provider, key, usedOwnKey } = brain;
+  const { provider, usedOwnKey } = brain;
 
   // ── Rate limit: checked AFTER the key is picked (own keys skip the daily
   // cap) and BEFORE the AI is called, so a blocked run costs nothing.
@@ -182,10 +182,10 @@ export async function POST(request: Request) {
     await refundAgentRun(roomId, !usedOwnKey);
     if (!usedOwnKey) await refundUserRun(me.id);
   };
-  if (wantsStream) return streamAgent(provider, key, promptText, runInfo, log, refund);
+  if (wantsStream) return streamAgent(brain, promptText, runInfo, log, refund);
 
   // ── 4. Ask the AI ─────────────────────────────────────────────────────────
-  const reply = await askBrain(provider, key, promptText);
+  const reply = await askBrain(brain, promptText);
   if ("error" in reply) {
     await refund();
     return friendlyError(reply.error, reply.status);
@@ -210,8 +210,7 @@ export async function POST(request: Request) {
 
 // The streaming version of steps 4 to 6 (see the header for the events).
 function streamAgent(
-  provider: ProviderId,
-  key: string,
+  brain: UserKey,
   promptText: string,
   runInfo: AgentRunInfo,
   log: (result: AgentResult) => Promise<void>,
@@ -246,7 +245,7 @@ function streamAgent(
         }
       };
 
-      const reply = await askBrain(provider, key, promptText, onText);
+      const reply = await askBrain(brain, promptText, onText);
       if ("error" in reply) {
         await refund();
         send({ type: "error", error: reply.error });

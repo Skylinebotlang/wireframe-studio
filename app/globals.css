@@ -52,6 +52,49 @@
   --font-display: var(--font-inter-tight), sans-serif;
   --font-sans: var(--font-ibm-plex-sans), sans-serif;
   --font-mono: var(--font-ibm-plex-mono), monospace;
+  /* ── Landing page design system (the homepage, components/landing/studio) ─
+     Our own navy palette (papi, 2026-11-09): void #090719 (page), panel
+     #131224, panel-2 #191A2F, panel-3 #22213A (a step lighter navy).
+     Hairlines: edge #2B2A42. Text: ink (18:1), soft #CFCAD6 (13:1 on void),
+     faint #9E99A8 (6:1 on panel-2). Accent stays wine (accent/rose). */
+  --color-void: #090719;
+  --color-panel: #131224;
+  --color-panel-2: #191a2f;
+  --color-panel-3: #22213a;
+  --color-edge: #2b2a42;
+  --color-soft: #cfcad6;
+  --color-faint: #9e99a8;
+}
+
+/* Landing page text styles (skill B1). Every piece of text on /new uses one
+   of these names; sizes are Tailwind scale steps, weights semibold at most. */
+@utility heading-1 { font-size: var(--text-6xl); line-height: var(--text-6xl--line-height); font-weight: 600; letter-spacing: -0.025em; }
+@utility heading-2 { font-size: var(--text-5xl); line-height: var(--text-5xl--line-height); font-weight: 600; letter-spacing: -0.025em; }
+@utility heading-3 { font-size: var(--text-4xl); line-height: var(--text-4xl--line-height); font-weight: 600; letter-spacing: -0.02em; }
+@utility heading-4 { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); font-weight: 600; letter-spacing: -0.015em; }
+@utility heading-5 { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); font-weight: 600; letter-spacing: -0.01em; }
+@utility heading-6 { font-size: var(--text-xl); line-height: var(--text-xl--line-height); font-weight: 600; }
+@utility title-1 { font-size: var(--text-xl); line-height: var(--text-xl--line-height); font-weight: 500; }
+@utility title-2 { font-size: var(--text-lg); line-height: var(--text-lg--line-height); font-weight: 500; }
+@utility title-3 { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: 500; }
+@utility title-4 { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: 500; }
+@utility body-2 { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: 500; }
+@utility body-3 { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: 400; }
+@utility body-6 { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: 400; }
+/* Body 7: added per the skill ("next number in its group"), lead paragraphs. */
+@utility body-7 { font-size: var(--text-lg); line-height: var(--text-lg--line-height); font-weight: 400; }
+@utility button-md { font-size: var(--text-base); line-height: var(--text-base--line-height); font-weight: 600; }
+@utility button-sm { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: 600; }
+@utility caption-1 { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: 500; }
+@utility caption-2 { font-size: var(--text-sm); line-height: var(--text-sm--line-height); font-weight: 400; }
+@utility caption-4 { font-size: var(--text-xs); line-height: var(--text-xs--line-height); font-weight: 500; }
+
+/* Hero heading color (skill B5): left to right soft white → muted, on the text only. */
+@utility hero-ink {
+  background-image: linear-gradient(to right, #f8f4f5, #9e99a8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 html,

@@ -16,7 +16,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AiKeyButton } from "./AiKeyButton";
-import { supabase, useAccount } from "@/lib/auth";
+import { authCall, useAccount } from "@/lib/auth";
 import { loadIdentity, type UserIdentity } from "@/lib/user";
 
 export function TopBar({ children }: { children?: React.ReactNode }) {
@@ -134,7 +134,7 @@ function ProfileMenu() {
           <button
             role="menuitem"
             type="button"
-            onClick={() => supabase.auth.signOut().then(() => router.replace("/login"))}
+            onClick={() => authCall("signout").then(() => router.replace("/login"))}
             className="w-full rounded-md px-2.5 py-2 text-left text-muted transition-colors hover:bg-raised hover:text-ink"
           >
             Sign out

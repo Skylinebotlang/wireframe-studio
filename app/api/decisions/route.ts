@@ -2,6 +2,7 @@
 // DECISION LOG ENDPOINT — /api/decisions
 //
 //   GET  ?boardId=…                         → { decisions: [...] } newest first
+//                                             (people on the board only)
 //   POST { boardId, summary, chosenAuthor } → { ok }  a person picked one
 //                                             teammate's version on a clash card
 //
@@ -11,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 import { getSignedInUser } from "@/lib/server/auth-server";
-import { boardsConfigured, editorCheck } from "@/lib/server/boards-db";
+import { boardsConfigured, editorCheck, getRole } from "@/lib/server/boards-db";
 import { addDecisions, listDecisions } from "@/lib/server/decisions-db";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/; // same rule as room ids
@@ -21,7 +22,11 @@ export async function GET(request: Request) {
   if (!me) return friendlyError("Please sign in first.", 401);
   const boardId = new URL(request.url).searchParams.get("boardId") ?? "";
   if (!ID.test(boardId)) return friendlyError("Invalid board.", 400);
-  return run(async () => NextResponse.json({ decisions: await listDecisions(boardId) }));
+  return run(async () => {
+    // Only people on this board may read its decisions.
+    if (!(await getRole(me.id, boardId))) return friendlyError("Open this board first.", 403);
+    return NextResponse.json({ decisions: await listDecisions(boardId) });
+  });
 }
 
 export async function POST(request: Request) {

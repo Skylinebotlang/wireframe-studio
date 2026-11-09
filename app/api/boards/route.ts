@@ -35,9 +35,10 @@ export async function POST(request: Request) {
   const body = await readBody(request);
   const name = cleanName(body?.name);
   if (!name) return friendlyError(`Give the board a name (up to ${MAX_NAME} characters).`, 400);
-  // Room id: a readable slug of the name + a random tail, e.g. "dog-walker-k3f9x2".
+  // Room id: a readable slug of the name + a random tail, e.g.
+  // "dog-walker-k3f9x2a71c0d": 12 random characters, far too many to guess.
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "board";
-  const id = `${slug}-${crypto.randomUUID().slice(0, 6)}`;
+  const id = `${slug}-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
   return run(async () => {
     await visitBoard(me.id, id, name, me.name);
     return NextResponse.json({ board: { id, name } });

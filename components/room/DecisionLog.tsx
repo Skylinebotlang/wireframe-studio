@@ -16,7 +16,6 @@
 
 import { useEffect, useState } from "react";
 import { useRoom } from "@liveblocks/react/suspense";
-import { authHeader } from "@/lib/auth";
 import type { Decision } from "@/lib/server/decisions-db";
 export function DecisionLog({
   trigger,
@@ -37,7 +36,6 @@ export function DecisionLog({
     let current = true;
     const timer = setTimeout(async () => {
       const res = await fetch(`/api/decisions?boardId=${encodeURIComponent(boardId)}`, {
-        headers: await authHeader(),
       }).catch(() => null);
       const data = await res?.json().catch(() => null);
       if (!current) return;

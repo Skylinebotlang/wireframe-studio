@@ -20,7 +20,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { authHeader } from "@/lib/auth";
 import {
   FONT_IDS,
   MAX_DOC_CHARS,
@@ -61,7 +60,7 @@ const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boo
 async function api(path: string, method: string, body?: object) {
   const res = await fetch(path, {
     method,
-    headers: { ...(body ? { "content-type": "application/json" } : {}), ...(await authHeader()) },
+    headers: { ...(body ? { "content-type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));

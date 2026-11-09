@@ -36,7 +36,6 @@ import type { ActivityItem, DesignRecord, PlanStep } from "@/lib/agent/agent-roo
 import { MAX_DESIGN_SCREENS, PHONE_CSS_H, PHONE_CSS_W, type DesignScreen, type StyleGuide } from "./agent-design";
 import { aiKeyForRequest } from "@/lib/byok";
 import { screenshotHtml } from "./screenshot";
-import { authHeader } from "@/lib/auth";
 
 // ~20-60 KB each; a free Liveblocks room holds about 1 MB of Storage.
 export const MAX_SAVED_DESIGNS = 12;
@@ -139,7 +138,7 @@ export function useDesignPanel(myName: string) {
     try {
       const res = await fetch("/api/design", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await authHeader()) },
+        headers: { "content-type": "application/json" },
         signal: ac.signal,
         body: JSON.stringify({ roomId, aiKey: aiKeyForRequest(), ...body }),
       });
@@ -374,7 +373,7 @@ export function useDesignPanel(myName: string) {
     try {
       const res = await fetch("/api/boards/brief", {
         method: "PATCH",
-        headers: { "content-type": "application/json", ...(await authHeader()) },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ boardId: roomId, lockedStyle: record.styleGuide }),
       });
       const data = await res.json().catch(() => ({}));

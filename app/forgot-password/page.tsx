@@ -2,7 +2,8 @@
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FORGOT PASSWORD — /forgot-password. Type your email; Supabase emails a
-// link that opens /reset-password, where you pick a new password.
+// link that opens /reset-password, where you pick a new password. The link
+// works once, and expires (Supabase → Authentication → Email OTP expiry).
 //
 // We always say "check your email", even if no account uses that address,
 // so this page can't be used to find out who has an account.
@@ -13,7 +14,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Field } from "@/components/auth/AccountForm";
-import { friendlyAuthError, supabase } from "@/lib/auth";
+import { authCall } from "@/lib/auth";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,12 +29,11 @@ export default function ForgotPasswordPage() {
     if (!EMAIL.test(email)) return setError("That email doesn't look right.");
     setError("");
     setPending(true);
-    const { error: failed } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const { error: failed } = await authCall("forgot", { email });
     setPending(false);
-    // Only "too many tries" is worth showing; anything else would hint whether the account exists.
-    if (failed && /rate limit|too many/i.test(failed.message)) return setError(friendlyAuthError(failed.message));
+    // The server only fails on "too many tries" or a bad email, never on
+    // "no such account" (that would tell strangers who has one).
+    if (failed) return setError(failed);
     setSent(true);
   }
 

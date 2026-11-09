@@ -15,7 +15,7 @@ import { Room } from "@/components/room/Room";
 import { TldrawApp } from "@/components/room/TldrawApp";
 import { IdentityGate } from "@/components/room/IdentityGate";
 import { loadIdentity, UserIdentity } from "@/lib/user";
-import { authHeader, useAccount } from "@/lib/auth";
+import { useAccount } from "@/lib/auth";
 
 export default function RoomPage() {
   // The [roomId] part of the URL, e.g. "demo" in /room/demo.
@@ -47,13 +47,11 @@ export default function RoomPage() {
   const userId = identity ? identity.id : "";
   useEffect(() => {
     if (!userId) return;
-    authHeader().then((auth) =>
-      fetch("/api/boards", {
+    fetch("/api/boards", {
         method: "PUT",
-        headers: { "content-type": "application/json", ...auth },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ boardId: roomId }),
-      }).catch(() => {})
-    );
+      }).catch(() => {});
   }, [userId, roomId]);
 
   // Still deciding whether to show the join screen…

@@ -5,15 +5,15 @@
 //   • "signup" (on /signup): name, email, password → creates the account
 //   • "signin" (on /login):  email, password       → signs in
 //
-// Supabase checks the password and keeps the session in this browser
-// (lib/auth.ts). We never see or store the password ourselves. After it
-// works, `onDone()` moves on to "Who's drawing?".
+// The form checks the fields here for quick feedback; our server checks them
+// again, limits tries and passes the password to Supabase, which stores it
+// hashed (app/api/auth). After it works, `onDone()` moves on to "Who's drawing?".
 // Wine = people (no orange).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
 import { useState } from "react";
-import { friendlyAuthError, isLeakedPassword, LEAKED_PASSWORD_MESSAGE, supabase } from "@/lib/auth";
+import { authCall } from "@/lib/auth";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -33,17 +33,11 @@ export function AccountForm({ mode, onDone }: { mode: "signin" | "signup"; onDon
     if (signup ? password.length < 8 : !password) return setError(signup ? "Use a password of at least 8 characters." : "Enter your password.");
     setError("");
     setPending(true);
-    if (signup && (await isLeakedPassword(password))) {
-      setPending(false);
-      return setError(LEAKED_PASSWORD_MESSAGE);
-    }
-    const { data, error: failed } = signup
-      ? await supabase.auth.signUp({ email, password, options: { data: { name } } })
-      : await supabase.auth.signInWithPassword({ email, password });
+    const result = signup ? await authCall("signup", { name, email, password }) : await authCall("signin", { email, password });
     setPending(false);
-    if (failed) return setError(friendlyAuthError(failed.message));
+    if (result.error) return setError(result.error);
     // Sign-up with "Confirm email" switched on gives no session yet.
-    if (!data.session) return setError("Account made. Check your email to confirm it, then sign in.");
+    if (!result.account) return setError("Account made. Check your email to confirm it, then sign in.");
     onDone();
   }
 

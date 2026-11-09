@@ -18,7 +18,6 @@ import {
   LiveblocksProvider,
   RoomProvider,
 } from "@liveblocks/react/suspense";
-import { authHeader } from "@/lib/auth";
 import { loadIdentity } from "@/lib/user";
 import { createInitialAgentStorage } from "@/lib/agent/agent-room";
 
@@ -37,7 +36,7 @@ export function Room({ roomId, children }: RoomProps) {
         const identity = loadIdentity();
         const res = await fetch("/api/liveblocks-auth", {
           method: "POST",
-          headers: { "content-type": "application/json", ...(await authHeader()) },
+          headers: { "content-type": "application/json" },
           body: JSON.stringify({ room, identity }),
         });
         return res.json();

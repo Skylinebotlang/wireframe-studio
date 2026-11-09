@@ -12,13 +12,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { AccountForm } from "@/components/auth/AccountForm";
 import { LoginIdentity } from "./LoginIdentity";
-import { supabase, useAccount } from "@/lib/auth";
+import { authCall, useAccount } from "@/lib/auth";
 
 export default function LoginPage() {
   // undefined = still checking; null = not signed in; else the account.
   // (Updates by itself after signing in or out.)
   const account = useAccount();
-  const signOut = () => supabase.auth.signOut();
+  const signOut = () => authCall("signout");
 
   return (
     <main className="dot-grid flex min-h-screen flex-col items-center justify-center gap-6 p-6">

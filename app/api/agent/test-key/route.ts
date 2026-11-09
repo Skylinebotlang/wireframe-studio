@@ -3,14 +3,16 @@
 //
 // Behind the "Test & save key" button. Makes one free call to the provider
 // to see if it accepts the key, then forgets the key. Nothing is stored or
-// logged.
+// logged. Signed-in people only (so strangers can't use us to test keys).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse } from "next/server";
 import { checkKey } from "@/lib/agent/agent-brains";
 import { modelFor, parseUserKey, PROVIDERS } from "@/lib/ai-providers";
+import { getSignedInUser } from "@/lib/server/auth-server";
 
 export async function POST(request: Request) {
+  if (!(await getSignedInUser(request))) return NextResponse.json({ ok: false, error: "Please sign in first." }, { status: 401 });
   const body = await request.json().catch(() => null);
   const own = parseUserKey(body?.aiKey);
   if ("error" in own) return NextResponse.json({ ok: false, error: own.error }, { status: 400 });

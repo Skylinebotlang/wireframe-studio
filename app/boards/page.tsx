@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/shared/TopBar";
 import { loadIdentity, type UserIdentity } from "@/lib/user";
-import { authHeader, useAccount } from "@/lib/auth";
+import { useAccount } from "@/lib/auth";
 import type { Board } from "@/lib/server/boards-db";
 
 export default function BoardsPage() {
@@ -63,7 +63,7 @@ export default function BoardsPage() {
     setError("");
     const res = await fetch("/api/boards", {
       method: "POST",
-      headers: { "content-type": "application/json", ...(await authHeader()) },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: newName }),
     }).catch(() => null);
     const data = await res?.json().catch(() => null);
@@ -77,7 +77,7 @@ export default function BoardsPage() {
     setError("");
     const res = await fetch("/api/boards", {
       method: "PATCH",
-      headers: { "content-type": "application/json", ...(await authHeader()) },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ boardId: board.id, name }),
     }).catch(() => null);
     const data = await res?.json().catch(() => null);
@@ -91,7 +91,7 @@ export default function BoardsPage() {
     setError("");
     const res = await fetch("/api/boards", {
       method: "DELETE",
-      headers: { "content-type": "application/json", ...(await authHeader()) },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ boardId: board.id }),
     }).catch(() => null);
     const data = await res?.json().catch(() => null);
@@ -157,7 +157,7 @@ export default function BoardsPage() {
 
 // Ask our server for this person's boards. Never throws.
 async function fetchBoards(): Promise<{ boards: Board[]; error: string }> {
-  const res = await fetch("/api/boards", { headers: await authHeader() }).catch(() => null);
+  const res = await fetch("/api/boards").catch(() => null);
   const data = await res?.json().catch(() => null);
   if (!res?.ok) return { boards: [], error: data?.error ?? "Couldn't load your boards. Please try again." };
   return { boards: data.boards, error: "" };

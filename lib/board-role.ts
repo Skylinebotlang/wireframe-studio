@@ -25,7 +25,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { shallow, useClient, useEventListener, useOthers, useSelf } from "@liveblocks/react/suspense";
-import { authHeader } from "./auth";
 import type { JoinRole, Member } from "@/lib/server/boards-db";
 import type { Role } from "./roles";
 
@@ -49,7 +48,6 @@ export function useBoardTeam(roomId: string) {
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/boards/members?boardId=${encodeURIComponent(roomId)}`, {
-      headers: await authHeader(),
     }).catch(() => null);
     const data = await res?.json().catch(() => null);
     if (res?.ok && data) {
@@ -89,7 +87,7 @@ export function useBoardTeam(roomId: string) {
     async (userId: string, role: Role): Promise<string | null> => {
       const res = await fetch("/api/boards/members", {
         method: "PATCH",
-        headers: { "content-type": "application/json", ...(await authHeader()) },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ boardId: roomId, userId, role }),
       }).catch(() => null);
       const data = await res?.json().catch(() => null);
@@ -104,7 +102,7 @@ export function useBoardTeam(roomId: string) {
     async (role: JoinRole): Promise<string | null> => {
       const res = await fetch("/api/boards/members", {
         method: "PATCH",
-        headers: { "content-type": "application/json", ...(await authHeader()) },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ boardId: roomId, defaultRole: role }),
       }).catch(() => null);
       const data = await res?.json().catch(() => null);

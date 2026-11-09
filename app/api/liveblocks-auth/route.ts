@@ -18,7 +18,7 @@
 
 import { Liveblocks } from "@liveblocks/node";
 import { NextResponse } from "next/server";
-import { getSignedInUser } from "@/lib/server/auth-server";
+import { accessToken, getSignedInUser } from "@/lib/server/auth-server";
 import { boardsConfigured, canEdit, getRole, visitBoard } from "@/lib/server/boards-db";
 
 // Only letters, numbers, dashes and underscores are allowed in room ids.
@@ -28,7 +28,7 @@ const ROOM_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 // NOT checked here: only a hint for starting the role lookup early.
 function tokenUserId(request: Request): string | null {
   try {
-    const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+    const token = accessToken(request);
     const sub = JSON.parse(Buffer.from(token?.split(".")[1] ?? "", "base64url").toString()).sub;
     return typeof sub === "string" ? sub : null;
   } catch {

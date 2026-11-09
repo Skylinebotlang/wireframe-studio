@@ -97,6 +97,8 @@ export function readImage(dataUrl: unknown): { mime: BriefImage["mime"]; base64:
   const m = typeof dataUrl === "string" ? dataUrl.match(/^data:(image\/(?:jpeg|png));base64,([A-Za-z0-9+/=]+)$/) : null;
   if (!m) return { error: "Only JPEG or PNG pictures can be added." };
   if (m[2].length > MAX_IMAGE_BASE64) return { error: "That picture is too big, even after shrinking. Try a smaller one." };
+  // The file must really BE that kind of picture (its first bytes), not just say so.
+  if (!m[2].startsWith(m[1] === "image/png" ? "iVBORw0KGgo" : "/9j/")) return { error: "Only JPEG or PNG pictures can be added." };
   return { mime: m[1] as BriefImage["mime"], base64: m[2] };
 }
 

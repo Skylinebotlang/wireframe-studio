@@ -37,7 +37,6 @@ import type { AgentRunInfo } from "@/lib/ai-providers";
 import type { ActivityItem, ActivityKind, AgentRunState, AgentUndo, DesignRecord, PlanStep } from "./agent-room-types";
 import type { DrawRecord } from "./draw-wireframes";
 import { aiKeyForRequest } from "@/lib/byok";
-import { authHeader } from "@/lib/auth";
 
 // Keep the feed from growing forever.
 const MAX_ACTIVITY = 100;
@@ -292,13 +291,11 @@ export function useAgentPanel(myName: string) {
   // board's decision log, so it's remembered after the feed rolls over.
   function pick(conflictSummary: string, chosenAuthor: string) {
     logPick(conflictSummary, chosenAuthor);
-    authHeader().then((auth) =>
-      fetch("/api/decisions", {
+    fetch("/api/decisions", {
         method: "POST",
-        headers: { "content-type": "application/json", ...auth },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ boardId: roomId, summary: conflictSummary, chosenAuthor, byName: myName }),
-      }).catch(() => {})
-    );
+      }).catch(() => {});
   }
 
   // ── Pause / Resume / Take over ────────────────────────────────────────────
@@ -367,7 +364,7 @@ export function useAgentPanel(myName: string) {
     try {
       res = await fetch("/api/agent", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(await authHeader()) },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           roomId, notes, idea, board, stream: true,
           history: claimed.history, steering: claimed.steering, aiKey: aiKeyForRequest(),

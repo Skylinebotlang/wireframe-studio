@@ -13,6 +13,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Inter_Tight } from "next/font/google";
 import { Haptics } from "@/components/shared/Haptics";
+import { LinkSession } from "@/components/auth/LinkSession";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -78,6 +79,8 @@ export default function RootLayout({
         {children}
         {/* A small buzz on every button press, site-wide (components/shared/Haptics.tsx). */}
         <Haptics />
+        {/* Email links (confirm sign-up) land with a session: keep it as cookies. */}
+        <LinkSession />
       </body>
     </html>
   );
